@@ -1867,8 +1867,8 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         st.write(f"ytd_revenue_budget: {ytd_revenue_budget}")
         st.write(f"ytd_expenses: {ytd_expenses}")
         st.write(f"ytd_expenses_budget: {ytd_expenses_budget}")
-        st.write(f"Revenue diff (actual - budget): {ytd_revenue - ytd_revenue_budget}")
-        st.write(f"Expenses diff (actual - budget): {ytd_expenses - ytd_expenses_budget}")
+        st.write(f"total_cash: {total_cash}")
+        st.write(f"monthly_expenses_avg: {monthly_expenses_avg}")
         if financial_df is not None:
             st.write("Column names in sheet:", list(financial_df.columns))
             st.dataframe(financial_df)
@@ -1878,16 +1878,17 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        # Revenue: actual - budget
-        # Negative = below budget (down arrow, red)
-        # Positive = above budget (up arrow, green)
+        # Revenue: budget - actual
+        # Positive = below budget (down arrow needed, red - bad)
+        # Negative = above budget (up arrow needed, green - good)
         if ytd_revenue_budget > 0:
-            rev_diff = ytd_revenue - ytd_revenue_budget  # negative if under budget
+            rev_diff = ytd_revenue_budget - ytd_revenue  # positive if under budget
             rev_pct = (rev_diff / ytd_revenue_budget * 100)
+            # Negate for display so positive variance shows as down arrow
             st.metric(
                 "YTD Revenue",
                 f"${ytd_revenue:,.0f}",
-                delta=f"${rev_diff:,.0f} ({rev_pct:.1f}%)",
+                delta=f"-${rev_diff:,.0f} ({-rev_pct:.1f}%)" if rev_diff > 0 else f"+${-rev_diff:,.0f} ({-rev_pct:.1f}%)",
                 delta_color="normal"  # negative=red (bad), positive=green (good)
             )
         else:
@@ -1897,17 +1898,18 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         st.metric("Revenue Budget", f"${ytd_revenue_budget:,.0f}")
 
     with col3:
-        # Expenses: actual - budget
-        # Negative = under budget (down arrow, green - good!)
-        # Positive = over budget (up arrow, red - bad!)
+        # Expenses: budget - actual
+        # Positive = under budget (down arrow needed, green - good!)
+        # Negative = over budget (up arrow needed, red - bad!)
         if ytd_expenses_budget > 0:
-            exp_diff = ytd_expenses - ytd_expenses_budget  # negative if under budget
+            exp_diff = ytd_expenses_budget - ytd_expenses  # positive if under budget
             exp_pct = (exp_diff / ytd_expenses_budget * 100)
+            # Negate for display so positive variance (under budget) shows as down arrow
             st.metric(
                 "YTD Expenses",
                 f"${ytd_expenses:,.0f}",
-                delta=f"${exp_diff:,.0f} ({exp_pct:.1f}%)",
-                delta_color="inverse",  # negative=green (good), positive=red (bad)
+                delta=f"-${exp_diff:,.0f} ({-exp_pct:.1f}%)" if exp_diff > 0 else f"+${-exp_diff:,.0f} ({-exp_pct:.1f}%)",
+                delta_color="inverse",  # negative=green (under budget), positive=red (over budget)
                 help="Green = under budget, Red = over budget"
             )
         else:
