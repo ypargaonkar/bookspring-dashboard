@@ -1861,18 +1861,6 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
     admin_program_ratio = (admin_expenses / program_expenses * 100) if program_expenses > 0 else 0
     grants_pct_achieved = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
 
-    # Debug: show raw values being read (remove after debugging)
-    with st.expander("🔍 Debug: Raw Financial Data"):
-        st.write(f"ytd_revenue: {ytd_revenue}")
-        st.write(f"ytd_revenue_budget: {ytd_revenue_budget}")
-        st.write(f"ytd_expenses: {ytd_expenses}")
-        st.write(f"ytd_expenses_budget: {ytd_expenses_budget}")
-        st.write(f"total_cash: {total_cash}")
-        st.write(f"monthly_expenses_avg: {monthly_expenses_avg}")
-        if financial_df is not None:
-            st.write("Column names in sheet:", list(financial_df.columns))
-            st.dataframe(financial_df)
-
     # Row 1: YTD Revenue & Expenses with Budget Variance
     st.markdown("##### 📊 YTD Revenue & Expenses")
     col1, col2, col3, col4 = st.columns(4)
