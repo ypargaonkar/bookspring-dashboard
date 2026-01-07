@@ -8,6 +8,11 @@ from dateutil.relativedelta import relativedelta
 import sys
 import os
 from pathlib import Path
+import json
+
+# Google Sheets imports
+import gspread
+from google.oauth2.service_account import Credentials
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -19,6 +24,9 @@ from src.reports.excel_generator import generate_standard_report
 # App IDs
 ORIGINAL_BOOKS_APP_ID = os.getenv("ORIGINAL_BOOKS_APP_ID", "ib506ce2df9e6443e88ded1316581d74e")
 CONTENT_VIEWS_APP_ID = os.getenv("CONTENT_VIEWS_APP_ID", "i43f611d038d24840907ff5b2970eeb3c")
+
+# Google Sheets configuration
+FINANCIAL_SHEET_ID = os.getenv("FINANCIAL_SHEET_ID", "17jObocsIQJnazyvWToi_AtsrLJ1I9bnMpWw9BMiixA8")
 
 # Legacy fields that need to be renamed to match current schema
 LEGACY_FIELD_MAP = {
@@ -965,6 +973,43 @@ def load_legacy_data():
         return []
 
 
+def load_financial_data():
+    """Load financial data from Google Sheets."""
+    try:
+        # Get credentials from Streamlit secrets or environment
+        if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+            creds_dict = dict(st.secrets["gcp_service_account"])
+        else:
+            # For local development, try to load from file
+            creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            if creds_path and os.path.exists(creds_path):
+                with open(creds_path, 'r') as f:
+                    creds_dict = json.load(f)
+            else:
+                return None
+
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets.readonly",
+            "https://www.googleapis.com/auth/drive.readonly"
+        ]
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        client = gspread.authorize(creds)
+
+        sheet = client.open_by_key(FINANCIAL_SHEET_ID).sheet1
+        data = sheet.get_all_records()
+
+        if data:
+            df = pd.DataFrame(data)
+            # Convert date column if present
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            return df
+        return pd.DataFrame()
+    except Exception as e:
+        st.warning(f"Could not load financial data: {e}")
+        return None
+
+
 def normalize_legacy_record(record: dict) -> dict:
     """Normalize a legacy record, keeping original field names for DataProcessor."""
     normalized = {}
@@ -1764,8 +1809,8 @@ def render_goal4_sustainability(processor: DataProcessor):
     """, unsafe_allow_html=True)
 
 
-def render_financial_placeholder():
-    """Render Financial Metrics placeholder."""
+def render_financial_metrics(financial_df: pd.DataFrame = None):
+    """Render Financial Metrics section with real data from Google Sheets."""
     st.markdown("""
     <div class="section-header">
         <div class="section-icon financial">💰</div>
@@ -1776,35 +1821,129 @@ def render_financial_placeholder():
     </div>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2)
+    # Check if we have financial data
+    if financial_df is None or financial_df.empty:
+        st.info("📊 Financial data not yet connected. Set up Google Sheets integration to display metrics.")
+        with st.expander("ℹ️ How to connect financial data"):
+            st.markdown("""
+            1. Install **Coefficient** add-on in Google Sheets
+            2. Connect to QuickBooks and import reports
+            3. Add service account credentials to Streamlit secrets
+            4. Financial metrics will appear automatically
+            """)
+        return
+
+    # Get the most recent data (assuming one row per period or latest snapshot)
+    if 'date' in financial_df.columns:
+        latest = financial_df.sort_values('date', ascending=False).iloc[0] if len(financial_df) > 0 else {}
+    else:
+        latest = financial_df.iloc[0] if len(financial_df) > 0 else {}
+
+    # Extract metrics with safe defaults
+    ytd_revenue = float(latest.get('ytd_revenue', 0) or 0)
+    ytd_revenue_budget = float(latest.get('ytd_revenue_budget', 0) or 0)
+    ytd_expenses = float(latest.get('ytd_expenses', 0) or 0)
+    ytd_expenses_budget = float(latest.get('ytd_expenses_budget', 0) or 0)
+    total_cash = float(latest.get('total_cash', 0) or 0)
+    monthly_expenses_avg = float(latest.get('monthly_expenses_avg', 0) or 0)
+    inventory_value = float(latest.get('inventory_value', 0) or 0)
+    admin_expenses = float(latest.get('admin_expenses', 0) or 0)
+    program_expenses = float(latest.get('program_expenses', 0) or 0)
+    grants_received = float(latest.get('grants_received', 0) or 0)
+    grants_goal = float(latest.get('grants_goal', 0) or 0)
+
+    # Calculate derived metrics
+    revenue_variance = ytd_revenue - ytd_revenue_budget
+    revenue_variance_pct = (revenue_variance / ytd_revenue_budget * 100) if ytd_revenue_budget > 0 else 0
+    expenses_variance = ytd_expenses_budget - ytd_expenses  # Positive means under budget
+    expenses_variance_pct = (expenses_variance / ytd_expenses_budget * 100) if ytd_expenses_budget > 0 else 0
+    months_cash_on_hand = total_cash / monthly_expenses_avg if monthly_expenses_avg > 0 else 0
+    admin_program_ratio = (admin_expenses / program_expenses * 100) if program_expenses > 0 else 0
+    grants_pct_achieved = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
+
+    # Row 1: YTD Revenue & Expenses with Budget Variance
+    st.markdown("##### 📊 YTD Revenue & Expenses")
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.markdown("""
-        <div class="placeholder-card">
-            <h4>📊 Revenue Tracking</h4>
-            <p>Funding source breakdown:</p>
-            <ul>
-                <li>Individual donations (40%)</li>
-                <li>Foundation grants (40%)</li>
-                <li>Corporate sponsors (10%)</li>
-                <li>Government funding (10%)</li>
-            </ul>
+        delta_color = "normal" if revenue_variance >= 0 else "inverse"
+        st.metric(
+            "YTD Revenue",
+            f"${ytd_revenue:,.0f}",
+            delta=f"${revenue_variance:+,.0f} ({revenue_variance_pct:+.1f}%)" if ytd_revenue_budget > 0 else None,
+            delta_color=delta_color
+        )
+
+    with col2:
+        st.metric("Revenue Budget", f"${ytd_revenue_budget:,.0f}")
+
+    with col3:
+        # For expenses, under budget is good (positive variance)
+        delta_color = "normal" if expenses_variance >= 0 else "inverse"
+        st.metric(
+            "YTD Expenses",
+            f"${ytd_expenses:,.0f}",
+            delta=f"${expenses_variance:+,.0f} ({expenses_variance_pct:+.1f}%)" if ytd_expenses_budget > 0 else None,
+            delta_color=delta_color,
+            help="Green = under budget, Red = over budget"
+        )
+
+    with col4:
+        st.metric("Expenses Budget", f"${ytd_expenses_budget:,.0f}")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Row 2: Cash, Inventory, Admin Ratio, Grants
+    st.markdown("##### 💵 Financial Health")
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        # Color code months of cash
+        cash_status = "🟢" if months_cash_on_hand >= 6 else "🟡" if months_cash_on_hand >= 3 else "🔴"
+        st.metric(
+            f"Total Cash {cash_status}",
+            f"${total_cash:,.0f}",
+            delta=f"{months_cash_on_hand:.1f} months runway",
+            delta_color="off"
+        )
+
+    with col2:
+        st.metric("Inventory Value", f"${inventory_value:,.0f}")
+
+    with col3:
+        # Admin ratio - lower is generally better for nonprofits
+        ratio_status = "🟢" if admin_program_ratio <= 20 else "🟡" if admin_program_ratio <= 30 else "🔴"
+        st.metric(
+            f"Admin:Program Ratio {ratio_status}",
+            f"{admin_program_ratio:.1f}%",
+            help="Admin expenses as % of program expenses. Lower is better."
+        )
+
+    with col4:
+        grants_status = "🟢" if grants_pct_achieved >= 90 else "🟡" if grants_pct_achieved >= 70 else "🔴"
+        st.metric(
+            f"Grants Progress {grants_status}",
+            f"{grants_pct_achieved:.1f}%",
+            delta=f"${grants_received:,.0f} of ${grants_goal:,.0f}",
+            delta_color="off"
+        )
+
+    # Progress bar for grants
+    if grants_goal > 0:
+        st.markdown(f"""
+        <div class="progress-container">
+            <div class="progress-bar" style="width: {min(grants_pct_achieved, 100)}%; background: linear-gradient(90deg, #fa709a, #fee140);"></div>
+        </div>
+        <div class="progress-label">
+            <span>Grants Goal Progress</span>
+            <span><strong>{grants_pct_achieved:.1f}%</strong></span>
         </div>
         """, unsafe_allow_html=True)
 
-    with col2:
-        st.markdown("""
-        <div class="placeholder-card">
-            <h4>💵 Budget Performance</h4>
-            <p>Financial health metrics:</p>
-            <ul>
-                <li>Year-to-date vs budget</li>
-                <li>Cost per child served</li>
-                <li>Fundraising efficiency</li>
-                <li>Reserve fund status</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+    # Show last updated date
+    if 'date' in latest and pd.notna(latest.get('date')):
+        last_updated = pd.to_datetime(latest['date']).strftime('%B %d, %Y')
+        st.markdown(f"<p style='color: #94a3b8; font-size: 0.75rem; text-align: right; margin-top: 1rem;'>Financial data as of {last_updated}</p>", unsafe_allow_html=True)
 
 
 def render_trends_section(processor: DataProcessor, time_unit: str, views_data: list = None, start_date: date = None, end_date: date = None):
@@ -2055,6 +2194,7 @@ def main():
         legacy_records = load_legacy_data()
         original_books = load_original_books()
         content_views = load_content_views()
+        financial_data = load_financial_data()
 
     # Combine current and legacy activity data
     legacy_count = 0
@@ -2096,7 +2236,7 @@ def main():
     render_goal4_sustainability(processor)
     st.markdown("---")
 
-    render_financial_placeholder()
+    render_financial_metrics(financial_data)
     st.markdown("---")
 
     render_trends_section(processor, time_unit, content_views, start_date, end_date)
