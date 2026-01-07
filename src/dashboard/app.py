@@ -1812,23 +1812,15 @@ def render_goal4_sustainability(processor: DataProcessor):
 
 def render_financial_metrics(financial_df: pd.DataFrame = None):
     """Render Financial Metrics section with real data from Google Sheets."""
-    col_header, col_button = st.columns([6, 1])
-
-    with col_header:
-        st.markdown("""
-        <div class="section-header">
-            <div class="section-icon financial">💰</div>
-            <div class="section-title-group">
-                <h2 class="section-title">Financial Metrics</h2>
-                <p class="section-subtitle">Target: Diversified funding to $3M annually by 2030</p>
-            </div>
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-icon financial">💰</div>
+        <div class="section-title-group">
+            <h2 class="section-title">Financial Metrics</h2>
+            <p class="section-subtitle">Target: Diversified funding to $3M annually by 2030</p>
         </div>
-        """, unsafe_allow_html=True)
-
-    with col_button:
-        if st.button("🔄", key="refresh_financial", help="Refresh financial data from Google Sheets"):
-            load_financial_data.clear()
-            st.rerun()
+    </div>
+    """, unsafe_allow_html=True)
 
     # Check if we have financial data
     if financial_df is None or financial_df.empty:
