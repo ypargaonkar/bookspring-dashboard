@@ -1855,7 +1855,7 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
     # Calculate derived metrics
     revenue_variance = ytd_revenue - ytd_revenue_budget
     revenue_variance_pct = (revenue_variance / ytd_revenue_budget * 100) if ytd_revenue_budget > 0 else 0
-    expenses_variance = ytd_expenses_budget - ytd_expenses  # Positive means under budget
+    expenses_variance = ytd_expenses - ytd_expenses_budget  # Positive means over budget (bad)
     expenses_variance_pct = (expenses_variance / ytd_expenses_budget * 100) if ytd_expenses_budget > 0 else 0
     months_cash_on_hand = total_cash / monthly_expenses_avg if monthly_expenses_avg > 0 else 0
     admin_program_ratio = (admin_expenses / program_expenses * 100) if program_expenses > 0 else 0
@@ -1866,25 +1866,24 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        delta_color = "normal" if revenue_variance >= 0 else "inverse"
+        # Revenue: higher is better, so use "normal" (positive=green, negative=red)
         st.metric(
             "YTD Revenue",
             f"${ytd_revenue:,.0f}",
-            delta=f"${revenue_variance:+,.0f} ({revenue_variance_pct:+.1f}%)" if ytd_revenue_budget > 0 else None,
-            delta_color=delta_color
+            delta=f"${revenue_variance:+,.0f} ({revenue_variance_pct:+.1f}%) vs budget" if ytd_revenue_budget > 0 else None,
+            delta_color="normal"
         )
 
     with col2:
         st.metric("Revenue Budget", f"${ytd_revenue_budget:,.0f}")
 
     with col3:
-        # For expenses, under budget is good (positive variance)
-        delta_color = "normal" if expenses_variance >= 0 else "inverse"
+        # Expenses: lower is better, so use "inverse" (positive=red, negative=green)
         st.metric(
             "YTD Expenses",
             f"${ytd_expenses:,.0f}",
-            delta=f"${expenses_variance:+,.0f} ({expenses_variance_pct:+.1f}%)" if ytd_expenses_budget > 0 else None,
-            delta_color=delta_color,
+            delta=f"${expenses_variance:+,.0f} ({expenses_variance_pct:+.1f}%) vs budget" if ytd_expenses_budget > 0 else None,
+            delta_color="inverse",
             help="Green = under budget, Red = over budget"
         )
 
@@ -1899,11 +1898,16 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
 
     with col1:
         # Color code months of cash
-        cash_status = "🟢" if months_cash_on_hand >= 6 else "🟡" if months_cash_on_hand >= 3 else "🔴"
+        if months_cash_on_hand > 0:
+            cash_status = "🟢" if months_cash_on_hand >= 6 else "🟡" if months_cash_on_hand >= 3 else "🔴"
+            runway_text = f"{months_cash_on_hand:.1f} months runway"
+        else:
+            cash_status = ""
+            runway_text = "Set monthly_expenses_avg to calculate" if total_cash > 0 else None
         st.metric(
             f"Total Cash {cash_status}",
             f"${total_cash:,.0f}",
-            delta=f"{months_cash_on_hand:.1f} months runway",
+            delta=runway_text,
             delta_color="off"
         )
 
