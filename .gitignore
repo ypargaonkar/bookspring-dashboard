@@ -1,0 +1,38 @@
+# Environment and secrets
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Reports output
+reports/*.xlsx
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Java
+*.class
+*.jar
+Main.java
+
+# Claude settings
+.claude/
+
+# Documents (may contain sensitive info)
+*.pdf
+strategic_plan_text.txt
