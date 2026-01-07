@@ -1866,26 +1866,40 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        # Revenue: higher is better, so use "normal" (positive=green, negative=red)
-        st.metric(
-            "YTD Revenue",
-            f"${ytd_revenue:,.0f}",
-            delta=f"${revenue_variance:+,.0f} ({revenue_variance_pct:+.1f}%) vs budget" if ytd_revenue_budget > 0 else None,
-            delta_color="normal"
-        )
+        # Revenue: actual - budget
+        # Negative = below budget (down arrow, red)
+        # Positive = above budget (up arrow, green)
+        if ytd_revenue_budget > 0:
+            rev_diff = ytd_revenue - ytd_revenue_budget  # negative if under budget
+            rev_pct = (rev_diff / ytd_revenue_budget * 100)
+            st.metric(
+                "YTD Revenue",
+                f"${ytd_revenue:,.0f}",
+                delta=f"${rev_diff:,.0f} ({rev_pct:.1f}%)",
+                delta_color="normal"  # negative=red (bad), positive=green (good)
+            )
+        else:
+            st.metric("YTD Revenue", f"${ytd_revenue:,.0f}")
 
     with col2:
         st.metric("Revenue Budget", f"${ytd_revenue_budget:,.0f}")
 
     with col3:
-        # Expenses: lower is better, so use "inverse" (positive=red, negative=green)
-        st.metric(
-            "YTD Expenses",
-            f"${ytd_expenses:,.0f}",
-            delta=f"${expenses_variance:+,.0f} ({expenses_variance_pct:+.1f}%) vs budget" if ytd_expenses_budget > 0 else None,
-            delta_color="inverse",
-            help="Green = under budget, Red = over budget"
-        )
+        # Expenses: actual - budget
+        # Negative = under budget (down arrow, green - good!)
+        # Positive = over budget (up arrow, red - bad!)
+        if ytd_expenses_budget > 0:
+            exp_diff = ytd_expenses - ytd_expenses_budget  # negative if under budget
+            exp_pct = (exp_diff / ytd_expenses_budget * 100)
+            st.metric(
+                "YTD Expenses",
+                f"${ytd_expenses:,.0f}",
+                delta=f"${exp_diff:,.0f} ({exp_pct:.1f}%)",
+                delta_color="inverse",  # negative=green (good), positive=red (bad)
+                help="Green = under budget, Red = over budget"
+            )
+        else:
+            st.metric("YTD Expenses", f"${ytd_expenses:,.0f}")
 
     with col4:
         st.metric("Expenses Budget", f"${ytd_expenses_budget:,.0f}")
