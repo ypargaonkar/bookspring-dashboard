@@ -1,6 +1,8 @@
 # Environment and secrets
 .env
 *.env
+.streamlit/secrets.toml
+src/dashboard/.streamlit/secrets.toml
 
 # Python
 __pycache__/
