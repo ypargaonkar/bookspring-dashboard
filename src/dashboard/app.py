@@ -881,6 +881,147 @@ st.markdown("""
     .goal-card:nth-child(2) { animation-delay: 0.2s; }
     .goal-card:nth-child(3) { animation-delay: 0.3s; }
     .goal-card:nth-child(4) { animation-delay: 0.4s; }
+
+    /* ========================================
+       RESPONSIVE / MOBILE STYLES
+       ======================================== */
+
+    /* Tablet styles */
+    @media screen and (max-width: 1024px) {
+        .main .block-container {
+            padding: 1rem 1.5rem 2rem 1.5rem;
+            max-width: 100%;
+        }
+
+        .hero-container {
+            padding: 1.5rem 2rem;
+        }
+
+        .hero-stat-value {
+            font-size: 2rem !important;
+        }
+
+        .section-title {
+            font-size: 1.3rem !important;
+        }
+    }
+
+    /* Mobile styles */
+    @media screen and (max-width: 768px) {
+        .main .block-container {
+            padding: 0.75rem 1rem 2rem 1rem;
+        }
+
+        .hero-container {
+            padding: 1.25rem 1.5rem;
+            border-radius: var(--radius-lg);
+        }
+
+        .hero-stat-value {
+            font-size: 1.5rem !important;
+        }
+
+        .hero-stat-label {
+            font-size: 0.7rem !important;
+        }
+
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 0.5rem;
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+        }
+
+        .section-title {
+            font-size: 1.1rem !important;
+        }
+
+        .section-subtitle {
+            font-size: 0.75rem !important;
+        }
+
+        /* Stack metric cards on mobile */
+        div[data-testid="column"] {
+            min-width: 100% !important;
+        }
+
+        div[data-testid="metric-container"] {
+            padding: 0.75rem !important;
+        }
+
+        div[data-testid="metric-container"] label {
+            font-size: 0.75rem !important;
+        }
+
+        div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
+            font-size: 1.25rem !important;
+        }
+
+        /* Progress bars */
+        .progress-container {
+            height: 8px;
+        }
+
+        /* Charts responsive */
+        .js-plotly-plot, .plotly {
+            width: 100% !important;
+        }
+
+        /* Sidebar adjustments */
+        section[data-testid="stSidebar"] {
+            width: 280px !important;
+            min-width: 280px !important;
+        }
+
+        section[data-testid="stSidebar"] > div {
+            padding: 1rem;
+        }
+    }
+
+    /* Small mobile styles */
+    @media screen and (max-width: 480px) {
+        .main .block-container {
+            padding: 0.5rem 0.75rem 1.5rem 0.75rem;
+        }
+
+        .hero-container {
+            padding: 1rem;
+        }
+
+        .hero-stat-value {
+            font-size: 1.25rem !important;
+        }
+
+        .section-title {
+            font-size: 1rem !important;
+        }
+
+        div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
+            font-size: 1.1rem !important;
+        }
+
+        /* Hide less important elements on very small screens */
+        .section-subtitle {
+            display: none;
+        }
+    }
+
+    /* Ensure touch-friendly tap targets */
+    @media (hover: none) and (pointer: coarse) {
+        button, .stButton > button {
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        input, select, textarea {
+            font-size: 16px !important; /* Prevents zoom on iOS */
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
