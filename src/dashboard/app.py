@@ -379,6 +379,45 @@ st.markdown("""
         color: #822727;
     }
 
+    /* Custom metric box to match Streamlit metrics */
+    .metric-box {
+        background: linear-gradient(135deg, var(--surface) 0%, #f7fafc 100%);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.25rem;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.2s ease;
+    }
+
+    .metric-box:hover {
+        box-shadow: var(--shadow);
+        border-color: #cbd5e0;
+    }
+
+    .metric-box .metric-label {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        font-weight: 500;
+        margin: 0 0 0.25rem 0;
+    }
+
+    .metric-box .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text);
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+
+    .metric-box .metric-delta {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        margin: 0.25rem 0 0 0;
+        padding: 0;
+        display: block;
+        background: none;
+    }
+
     /* Override Streamlit metric containers */
     div[data-testid="metric-container"] {
         background: linear-gradient(135deg, var(--surface) 0%, #f7fafc 100%);
@@ -1891,14 +1930,14 @@ def render_goal3_advance_innovation(books_data: list):
             st.plotly_chart(fig, use_container_width=True)
 
 
-def render_goal4_sustainability(processor: DataProcessor):
+def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataFrame = None):
     """Render Goal 4: Optimize Sustainability."""
     st.markdown("""
     <div class="section-header">
         <div class="section-icon goal4">🌱</div>
         <div class="section-title-group">
             <h2 class="section-title">Goal 4: Optimize Sustainability</h2>
-            <p class="section-subtitle">Target: $3M fundraising | 600K books distributed annually by 2030</p>
+            <p class="section-subtitle">Target: Diversified funding to $3M annually | 600K books distributed by 2030</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1907,6 +1946,19 @@ def render_goal4_sustainability(processor: DataProcessor):
     books = int(stats.get("totals", {}).get("_of_books_distributed", 0))
     target = 600_000
     progress = min((books / target) * 100, 100)
+
+    # Get grants data from financial data
+    grants_received = 0
+    grants_goal = 0
+    if financial_df is not None and not financial_df.empty:
+        if 'date' in financial_df.columns:
+            latest = financial_df.sort_values('date', ascending=False).iloc[0] if len(financial_df) > 0 else {}
+        else:
+            latest = financial_df.iloc[0] if len(financial_df) > 0 else {}
+        grants_received = float(latest.get('grants_received', 0) or 0)
+        grants_goal = float(latest.get('grants_goal', 0) or 0)
+
+    grants_pct_achieved = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
 
     col1, col2 = st.columns(2)
 
@@ -1938,6 +1990,7 @@ def render_goal4_sustainability(processor: DataProcessor):
         </div>
         """, unsafe_allow_html=True)
 
+    # Book distribution progress bar
     st.markdown(f"""
     <div style="margin-top: 1rem;">
         <div class="progress-container">
@@ -1950,18 +2003,65 @@ def render_goal4_sustainability(processor: DataProcessor):
     </div>
     """, unsafe_allow_html=True)
 
+    # Grants progress
+    if grants_goal > 0:
+        grants_status = "🟢" if grants_pct_achieved >= 90 else "🟡" if grants_pct_achieved >= 70 else "🔴"
+        st.markdown(f"""
+        <div style="margin-top: 1rem;">
+            <div class="progress-container">
+                <div class="progress-bar" style="width: {min(grants_pct_achieved, 100)}%; background: linear-gradient(90deg, #fa709a, #fee140);"></div>
+            </div>
+            <div class="progress-label">
+                <span>Grants Progress {grants_status} ${grants_received:,.0f} of ${grants_goal:,.0f}</span>
+                <span><strong>{grants_pct_achieved:.1f}%</strong></span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
 
 def render_financial_metrics(financial_df: pd.DataFrame = None):
     """Render Financial Metrics section with real data from Google Sheets."""
-    st.markdown("""
-    <div class="section-header">
-        <div class="section-icon financial">💰</div>
-        <div class="section-title-group">
-            <h2 class="section-title">Financial Metrics</h2>
-            <p class="section-subtitle">Target: Diversified funding to $3M annually by 2030</p>
+    # Check if running on localhost for refresh button
+    is_localhost = os.getenv("HOSTNAME", "localhost") == "localhost" or "localhost" in os.getenv("STREAMLIT_SERVER_ADDRESS", "localhost")
+
+    # Style for inline refresh button
+    if is_localhost:
+        st.markdown("""
+        <style>
+        .financial-header-row { display: flex; align-items: center; gap: 0; }
+        .financial-header-row .stButton { margin: 0 !important; padding: 0 !important; }
+        .financial-header-row .stButton button {
+            background: transparent !important;
+            border: none !important;
+            padding: 2px 6px !important;
+            font-size: 12px !important;
+            opacity: 0.4;
+            min-height: 0 !important;
+            line-height: 1 !important;
+        }
+        .financial-header-row .stButton button:hover { opacity: 1; }
+        </style>
+        """, unsafe_allow_html=True)
+
+    # Build header with inline refresh button for localhost
+    col1, col2 = st.columns([20, 1]) if is_localhost else (st.container(), None)
+
+    with col1:
+        st.markdown("""
+        <div class="section-header">
+            <div class="section-icon financial">💰</div>
+            <div class="section-title-group">
+                <h2 class="section-title">Financial Metrics</h2>
+                <p class="section-subtitle">Fiscal year to date (July 1 – present) · Updated weekly</p>
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+
+    if is_localhost and col2:
+        with col2:
+            if st.button("↻", key="refresh_financial"):
+                load_financial_data.clear()
+                st.rerun()
 
     # Check if we have financial data
     if financial_df is None or financial_df.empty:
@@ -1986,6 +2086,8 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
     ytd_revenue_budget = float(latest.get('ytd_revenue_budget', 0) or 0)
     ytd_expenses = float(latest.get('ytd_expenses', 0) or 0)
     ytd_expenses_budget = float(latest.get('ytd_expenses_budget', 0) or 0)
+    ytd_income = float(latest.get('ytd_income', 0) or 0)
+    ytd_income_budget = float(latest.get('ytd_income_budget', 0) or 0)
     total_cash = float(latest.get('total_cash', 0) or 0)
     monthly_expenses_avg = float(latest.get('monthly_expenses_avg', 0) or 0)
     inventory_value = float(latest.get('inventory_value', 0) or 0)
@@ -2003,9 +2105,9 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
     admin_program_ratio = (admin_expenses / program_expenses * 100) if program_expenses > 0 else 0
     grants_pct_achieved = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
 
-    # Row 1: YTD Revenue & Expenses with Budget Variance
+    # Row 1: YTD Actuals with Budget Variance
     st.markdown("##### 📊 YTD Revenue & Expenses")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         # Revenue: budget - actual
@@ -2014,7 +2116,6 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         if ytd_revenue_budget > 0:
             rev_diff = ytd_revenue_budget - ytd_revenue  # positive if under budget
             rev_pct = (rev_diff / ytd_revenue_budget * 100)
-            # Negate for display so positive variance shows as down arrow
             st.metric(
                 "YTD Revenue",
                 f"${ytd_revenue:,.0f}",
@@ -2025,34 +2126,52 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
             st.metric("YTD Revenue", f"${ytd_revenue:,.0f}")
 
     with col2:
-        st.metric("Revenue Budget", f"${ytd_revenue_budget:,.0f}")
-
-    with col3:
         # Expenses: budget - actual
         # Positive = under budget (down arrow needed, green - good!)
         # Negative = over budget (up arrow needed, red - bad!)
         if ytd_expenses_budget > 0:
             exp_diff = ytd_expenses_budget - ytd_expenses  # positive if under budget
             exp_pct = (exp_diff / ytd_expenses_budget * 100)
-            # Negate for display so positive variance (under budget) shows as down arrow
             st.metric(
                 "YTD Expenses",
                 f"${ytd_expenses:,.0f}",
                 delta=f"-${exp_diff:,.0f} ({-exp_pct:.1f}%)" if exp_diff > 0 else f"+${-exp_diff:,.0f} ({-exp_pct:.1f}%)",
-                delta_color="inverse",  # negative=green (under budget), positive=red (over budget)
-                help="Green = under budget, Red = over budget"
+                delta_color="inverse"
             )
         else:
             st.metric("YTD Expenses", f"${ytd_expenses:,.0f}")
 
-    with col4:
+    with col3:
+        # Income: actual - budget (positive is good)
+        if ytd_income_budget != 0:
+            inc_diff = ytd_income - ytd_income_budget
+            inc_pct = (inc_diff / abs(ytd_income_budget) * 100) if ytd_income_budget != 0 else 0
+            st.metric(
+                "YTD Net Income",
+                f"${ytd_income:,.0f}",
+                delta=f"+${inc_diff:,.0f} ({inc_pct:.1f}%)" if inc_diff >= 0 else f"${inc_diff:,.0f} ({inc_pct:.1f}%)",
+                delta_color="normal"  # positive=green (good), negative=red (bad)
+            )
+        else:
+            st.metric("YTD Net Income", f"${ytd_income:,.0f}")
+
+    # Row 2: Budgets
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("Revenue Budget", f"${ytd_revenue_budget:,.0f}")
+
+    with col2:
         st.metric("Expenses Budget", f"${ytd_expenses_budget:,.0f}")
+
+    with col3:
+        st.metric("Net Income Budget", f"${ytd_income_budget:,.0f}")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Row 2: Cash, Inventory, Admin Ratio, Grants
+    # Row 3: Cash, Inventory, Admin Ratio
     st.markdown("##### 💵 Financial Health")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         # Color code months of cash
@@ -2076,31 +2195,9 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         # Admin ratio - lower is generally better for nonprofits
         ratio_status = "🟢" if admin_program_ratio <= 20 else "🟡" if admin_program_ratio <= 30 else "🔴"
         st.metric(
-            f"Admin:Program Ratio {ratio_status}",
-            f"{admin_program_ratio:.1f}%",
-            help="Admin expenses as % of program expenses. Lower is better."
+            f"Admin to Program Expense Ratio {ratio_status}",
+            f"{admin_program_ratio:.1f}%"
         )
-
-    with col4:
-        grants_status = "🟢" if grants_pct_achieved >= 90 else "🟡" if grants_pct_achieved >= 70 else "🔴"
-        st.metric(
-            f"Grants Progress {grants_status}",
-            f"{grants_pct_achieved:.1f}%",
-            delta=f"${grants_received:,.0f} of ${grants_goal:,.0f}",
-            delta_color="off"
-        )
-
-    # Progress bar for grants
-    if grants_goal > 0:
-        st.markdown(f"""
-        <div class="progress-container">
-            <div class="progress-bar" style="width: {min(grants_pct_achieved, 100)}%; background: linear-gradient(90deg, #fa709a, #fee140);"></div>
-        </div>
-        <div class="progress-label">
-            <span>Grants Goal Progress</span>
-            <span><strong>{grants_pct_achieved:.1f}%</strong></span>
-        </div>
-        """, unsafe_allow_html=True)
 
     # Show last updated date
     if 'date' in latest and pd.notna(latest.get('date')):
@@ -2395,7 +2492,7 @@ def main():
     render_goal3_advance_innovation(original_books)
     st.markdown("---")
 
-    render_goal4_sustainability(processor)
+    render_goal4_sustainability(processor, financial_data)
     st.markdown("---")
 
     render_financial_metrics(financial_data)
