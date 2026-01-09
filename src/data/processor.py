@@ -14,8 +14,22 @@ class DataProcessor:
     # BookSpring fiscal year starts July 1
     FISCAL_YEAR_START_MONTH = 7
 
+    # Children count columns that should be zeroed for previously served children
+    CHILDREN_COUNT_COLUMNS = [
+        "total_children",
+        "children_035_months",
+        "children_03_years",
+        "children_35_years",
+        "children_34_years",
+        "children_68_years",
+        "children_512_years",
+        "children_912_years",
+        "teens",
+    ]
+
     def __init__(self, records: list):
         self.df = self._records_to_dataframe(records)
+        self._exclude_previously_served_children()
         self._add_calculated_metrics()
 
     def _records_to_dataframe(self, records: list) -> pd.DataFrame:
@@ -46,6 +60,30 @@ class DataProcessor:
                 df[col] = pd.to_datetime(df[col], errors="coerce")
 
         return df
+
+    def _exclude_previously_served_children(self):
+        """Zero out children counts for rows where children were previously served this FY.
+
+        This ensures that previously served children are not double-counted in metrics
+        like total children served, average books per child, and age group breakdowns.
+        """
+        if self.df.empty:
+            return
+
+        # Check if the previously_served field exists
+        if "previously_served_this_fy" not in self.df.columns:
+            return
+
+        # Create mask for rows where children were previously served
+        # Handle various possible values: "Yes", "yes", True, "true", etc.
+        prev_served = self.df["previously_served_this_fy"].apply(
+            lambda x: str(x).lower() in ("yes", "true", "1") if pd.notna(x) else False
+        )
+
+        # Zero out children counts for previously served rows
+        for col in self.CHILDREN_COUNT_COLUMNS:
+            if col in self.df.columns:
+                self.df.loc[prev_served, col] = 0
 
     def _add_calculated_metrics(self):
         """Add calculated metrics like books per child by age group."""

@@ -44,6 +44,7 @@ LEGACY_PASSTHROUGH_FIELDS = [
     "parents_or_caregivers",
     "_of_books_distributed",
     "total_children",
+    "previously_served_this_fy",
 ]
 
 # Brand Colors
