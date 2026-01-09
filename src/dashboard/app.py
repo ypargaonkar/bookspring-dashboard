@@ -1631,72 +1631,41 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
 
     with col1:
         st.markdown("##### Overall Trend")
-        # Calculate weighted average (total books / total children) per period
-        trend_df = processor.aggregate_by_time(time_unit, ["_of_books_distributed", "total_children"])
-        if not trend_df.empty:
-            # Calculate proper weighted average per period
-            trend_df["avg_books_per_child"] = trend_df.apply(
-                lambda row: row["_of_books_distributed"] / row["total_children"]
-                if row["total_children"] > 0 else 0, axis=1
-            )
-            fig = px.area(
-                trend_df,
-                x="period",
-                y="avg_books_per_child",
-                color_discrete_sequence=["#667eea"]
-            )
-            fig.add_hline(y=4.0, line_dash="dash", line_color="#22c55e",
-                         annotation_text="Target: 4.0", annotation_position="top right",
-                         annotation_font_color="#22c55e")
-            fig = style_plotly_chart(fig, height=280)
-            fig.update_traces(fill='tozeroy', fillcolor='rgba(102, 126, 234, 0.2)')
-            # Set Y-axis range from 0 to max of 5 or data max + 0.5 for granularity
-            y_max = max(5, trend_df["avg_books_per_child"].max() + 0.5)
-            fig.update_layout(
-                yaxis_title="Avg Books/Child",
-                xaxis_title="",
-                showlegend=False,
-                yaxis=dict(range=[0, y_max], dtick=0.5, gridcolor='#e5e7eb')
-            )
-            st.plotly_chart(fig, use_container_width=True)
+        if "avg_books_per_child" in processor.df.columns:
+            trend_df = processor.aggregate_by_time(time_unit, ["avg_books_per_child"])
+            if not trend_df.empty:
+                fig = px.area(
+                    trend_df,
+                    x="period",
+                    y="avg_books_per_child",
+                    color_discrete_sequence=["#667eea"]
+                )
+                fig.add_hline(y=4.0, line_dash="dash", line_color="#22c55e",
+                             annotation_text="Target: 4.0", annotation_position="top right",
+                             annotation_font_color="#22c55e")
+                fig = style_plotly_chart(fig, height=280)
+                fig.update_traces(fill='tozeroy', fillcolor='rgba(102, 126, 234, 0.2)')
+                # Set Y-axis range from 0 to max of 5 or data max + 0.5 for granularity
+                y_max = max(5, trend_df["avg_books_per_child"].max() + 0.5)
+                fig.update_layout(
+                    yaxis_title="Avg Books/Child",
+                    xaxis_title="",
+                    showlegend=False,
+                    yaxis=dict(range=[0, y_max], dtick=0.5, gridcolor='#e5e7eb')
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.markdown("##### By Age Group")
-        # Age group source columns mapping
-        age_group_sources = {
-            "books_per_child_0_2": ["children_035_months", "children_03_years"],
-            "books_per_child_3_5": ["children_35_years", "children_34_years"],
-            "books_per_child_6_8": ["children_68_years", "children_512_years"],
-            "books_per_child_9_12": ["children_912_years"],
-            "books_per_child_teens": ["teens"],
-        }
+        age_metrics = ["books_per_child_0_2", "books_per_child_3_5",
+                       "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
+        available_age = [m for m in age_metrics if m in processor.df.columns]
 
-        # Get all children columns needed
-        all_children_cols = ["_of_books_distributed", "total_children"]
-        for sources in age_group_sources.values():
-            all_children_cols.extend([c for c in sources if c in processor.df.columns])
-        all_children_cols = list(set(all_children_cols))
-
-        trend_df = processor.aggregate_by_time(time_unit, all_children_cols)
-        if not trend_df.empty:
-            # Calculate weighted average for each age group per period
-            for metric_col, source_cols in age_group_sources.items():
-                available_sources = [c for c in source_cols if c in trend_df.columns]
-                if available_sources:
-                    trend_df[metric_col] = trend_df.apply(
-                        lambda row: row["_of_books_distributed"] / row["total_children"]
-                        if row["total_children"] > 0 and sum(row[c] for c in available_sources) > 0 else 0,
-                        axis=1
-                    )
-
-            age_metrics = ["books_per_child_0_2", "books_per_child_3_5",
-                           "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
-            available_age = [m for m in age_metrics if m in trend_df.columns]
-
-            if available_age:
-                rename_map = {c: get_friendly_name(c) for c in available_age}
-                for old_name, new_name in rename_map.items():
-                    trend_df[new_name] = trend_df[old_name]
+        if available_age:
+            trend_df = processor.aggregate_by_time(time_unit, available_age)
+            if not trend_df.empty:
+                rename_map = {c: get_friendly_name(c) for c in trend_df.columns if c != "period"}
+                trend_df = trend_df.rename(columns=rename_map)
 
                 # Better color palette for age groups
                 age_colors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"]
