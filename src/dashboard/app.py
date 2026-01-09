@@ -1631,8 +1631,11 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
 
     with col1:
         st.markdown("##### Overall Trend")
-        if "avg_books_per_child" in processor.df.columns:
-            trend_df = processor.aggregate_by_time(time_unit, ["avg_books_per_child"])
+        # Sum books and children per period, then calculate avg
+        trend_df = processor.aggregate_by_time(time_unit, ["_of_books_distributed", "total_children"])
+        if not trend_df.empty and "total_children" in trend_df.columns and "_of_books_distributed" in trend_df.columns:
+            trend_df["avg_books_per_child"] = trend_df["_of_books_distributed"] / trend_df["total_children"].replace(0, float('nan'))
+            trend_df["avg_books_per_child"] = trend_df["avg_books_per_child"].fillna(0)
             if not trend_df.empty:
                 fig = px.area(
                     trend_df,
@@ -1657,22 +1660,39 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
 
     with col2:
         st.markdown("##### By Age Group")
-        age_metrics = ["books_per_child_0_2", "books_per_child_3_5",
-                       "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
-        available_age = [m for m in age_metrics if m in processor.df.columns]
+        # Map age group labels to their source columns
+        age_group_map = {
+            "Books/Child (0-2 yrs)": ["children_035_months", "children_03_years"],
+            "Books/Child (3-5 yrs)": ["children_35_years", "children_34_years"],
+            "Books/Child (6-8 yrs)": ["children_68_years", "children_512_years"],
+            "Books/Child (9-12 yrs)": ["children_912_years"],
+            "Books/Child (Teens)": ["teens"],
+        }
 
-        if available_age:
-            trend_df = processor.aggregate_by_time(time_unit, available_age)
-            if not trend_df.empty:
-                rename_map = {c: get_friendly_name(c) for c in trend_df.columns if c != "period"}
-                trend_df = trend_df.rename(columns=rename_map)
+        # Get all columns needed for aggregation
+        agg_cols = ["_of_books_distributed"]
+        for cols in age_group_map.values():
+            agg_cols.extend([c for c in cols if c in processor.df.columns])
+        agg_cols = list(set(agg_cols))
 
+        trend_df = processor.aggregate_by_time(time_unit, agg_cols)
+        if not trend_df.empty and "_of_books_distributed" in trend_df.columns:
+            # Calculate books/child for each age group: total_books / age_group_children
+            for label, source_cols in age_group_map.items():
+                avail_cols = [c for c in source_cols if c in trend_df.columns]
+                if avail_cols:
+                    age_children = trend_df[avail_cols].sum(axis=1)
+                    trend_df[label] = trend_df["_of_books_distributed"] / age_children.replace(0, float('nan'))
+                    trend_df[label] = trend_df[label].fillna(0)
+
+            available_labels = [l for l in age_group_map.keys() if l in trend_df.columns]
+            if available_labels:
                 # Better color palette for age groups
                 age_colors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"]
                 fig = px.line(
                     trend_df,
                     x="period",
-                    y=[get_friendly_name(m) for m in available_age],
+                    y=available_labels,
                     markers=True,
                     color_discrete_sequence=age_colors
                 )
@@ -1680,8 +1700,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                              annotation_text="Target", annotation_font_color="#22c55e")
                 fig = style_plotly_chart(fig, height=280)
                 # Granular Y-axis with 0.5 increments
-                numeric_cols = [get_friendly_name(m) for m in available_age]
-                y_max = max(5, trend_df[numeric_cols].max().max() + 0.5)
+                y_max = max(5, trend_df[available_labels].max().max() + 0.5)
                 fig.update_layout(
                     yaxis_title="Books/Child",
                     xaxis_title="",
