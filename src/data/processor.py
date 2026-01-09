@@ -72,34 +72,20 @@ class DataProcessor:
 
         # Check if the previously_served field exists
         if "previously_served_this_fy" not in self.df.columns:
-            print(f"DEBUG: previously_served_this_fy column NOT FOUND")
             return
 
         # Create mask for rows where children were previously served
         # Handle boolean True/False or string "true"/"false"
-        def is_previously_served(x):
-            if pd.isna(x):
-                return False
-            if isinstance(x, bool):
-                return x
-            return str(x).lower() in ("yes", "true", "1")
+        prev_served = self.df["previously_served_this_fy"].apply(
+            lambda x: (x is True) or (pd.notna(x) and str(x).lower() in ("yes", "true", "1"))
+        )
 
-        prev_served = self.df["previously_served_this_fy"].apply(is_previously_served)
-
-        # DEBUG
-        print(f"DEBUG: Total rows: {len(self.df)}")
-        print(f"DEBUG: Rows with previously_served=True: {prev_served.sum()}")
-        if "total_children" in self.df.columns:
-            print(f"DEBUG: Total children BEFORE zeroing: {self.df['total_children'].sum()}")
-
-        # Zero out children counts for previously served rows
+        # Zero out children counts for previously served rows using .where()
         for col in self.CHILDREN_COUNT_COLUMNS:
             if col in self.df.columns:
-                self.df.loc[prev_served, col] = 0
-
-        # DEBUG
-        if "total_children" in self.df.columns:
-            print(f"DEBUG: Total children AFTER zeroing: {self.df['total_children'].sum()}")
+                # .where keeps values where condition is True, replaces with 0 where False
+                # We want to keep values where NOT previously_served, so use ~prev_served
+                self.df[col] = self.df[col].where(~prev_served, 0)
 
     def _add_calculated_metrics(self):
         """Add calculated metrics like books per child by age group."""
