@@ -2469,6 +2469,11 @@ def main():
             st.write(f"Field exists: YES")
             st.write(f"Value counts: {processor.df['previously_served_this_fy'].value_counts().to_dict()}")
             st.write(f"Total children (current): {processor.df['total_children'].sum():,}")
+            # Check children for previously_served=True rows
+            true_mask = processor.df['previously_served_this_fy'] == True
+            false_mask = processor.df['previously_served_this_fy'] == False
+            st.write(f"Children in True rows: {processor.df.loc[true_mask, 'total_children'].sum():,}")
+            st.write(f"Children in False rows: {processor.df.loc[false_mask, 'total_children'].sum():,}")
         else:
             st.write("Field exists: NO")
             st.write(f"Available columns: {list(processor.df.columns)}")

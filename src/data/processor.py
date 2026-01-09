@@ -72,6 +72,7 @@ class DataProcessor:
 
         # Check if the previously_served field exists
         if "previously_served_this_fy" not in self.df.columns:
+            print(f"DEBUG: previously_served_this_fy column NOT FOUND")
             return
 
         # Create mask for rows where children were previously served
@@ -85,10 +86,20 @@ class DataProcessor:
 
         prev_served = self.df["previously_served_this_fy"].apply(is_previously_served)
 
+        # DEBUG
+        print(f"DEBUG: Total rows: {len(self.df)}")
+        print(f"DEBUG: Rows with previously_served=True: {prev_served.sum()}")
+        if "total_children" in self.df.columns:
+            print(f"DEBUG: Total children BEFORE zeroing: {self.df['total_children'].sum()}")
+
         # Zero out children counts for previously served rows
         for col in self.CHILDREN_COUNT_COLUMNS:
             if col in self.df.columns:
                 self.df.loc[prev_served, col] = 0
+
+        # DEBUG
+        if "total_children" in self.df.columns:
+            print(f"DEBUG: Total children AFTER zeroing: {self.df['total_children'].sum()}")
 
     def _add_calculated_metrics(self):
         """Add calculated metrics like books per child by age group."""
