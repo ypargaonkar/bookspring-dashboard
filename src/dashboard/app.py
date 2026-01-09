@@ -2450,15 +2450,6 @@ def main():
         st.error("Could not load activity data. Please check API credentials.")
         return
 
-    # DEBUG: Check for previously_served field
-    if activity_records:
-        sample = activity_records[0]
-        prev_served_fields = [k for k in sample.keys() if 'prev' in k.lower() or 'served' in k.lower()]
-        st.sidebar.write(f"DEBUG - Fields with 'prev' or 'served': {prev_served_fields}")
-        for f in prev_served_fields:
-            values = set(str(r.get(f, '')) for r in activity_records[:50])
-            st.sidebar.write(f"DEBUG - {f} values: {values}")
-
     # Show data source info in sidebar
     with st.sidebar:
         if legacy_count > 0:

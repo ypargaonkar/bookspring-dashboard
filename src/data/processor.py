@@ -75,10 +75,15 @@ class DataProcessor:
             return
 
         # Create mask for rows where children were previously served
-        # Handle various possible values: "Yes", "yes", True, "true", etc.
-        prev_served = self.df["previously_served_this_fy"].apply(
-            lambda x: str(x).lower() in ("yes", "true", "1") if pd.notna(x) else False
-        )
+        # Handle boolean True/False or string "true"/"false"
+        def is_previously_served(x):
+            if pd.isna(x):
+                return False
+            if isinstance(x, bool):
+                return x
+            return str(x).lower() in ("yes", "true", "1")
+
+        prev_served = self.df["previously_served_this_fy"].apply(is_previously_served)
 
         # Zero out children counts for previously served rows
         for col in self.CHILDREN_COUNT_COLUMNS:
