@@ -2462,6 +2462,18 @@ def main():
         st.warning("No data found for the selected date range.")
         return
 
+    # Zero out children counts for previously served rows
+    if "previously_served_this_fy" in processor.df.columns:
+        prev_served = processor.df["previously_served_this_fy"] == True
+        children_cols = [
+            "total_children", "children_035_months", "children_03_years",
+            "children_35_years", "children_34_years", "children_68_years",
+            "children_512_years", "children_912_years", "teens"
+        ]
+        for col in children_cols:
+            if col in processor.df.columns:
+                processor.df.loc[prev_served, col] = 0
+
     # DEBUG: Check previously_served filtering
     with st.sidebar:
         st.write("--- DEBUG ---")
