@@ -2456,13 +2456,11 @@ def main():
     if legacy_records:
         with st.sidebar.expander("🔍 Debug: Legacy Data Fields"):
             sample = legacy_records[0] if legacy_records else {}
-            # Show normalized record
-            normalized = normalize_legacy_record(sample)
-            st.write("Normalized legacy fields:", list(normalized.keys()))
-            age_fields = ["children_03_years", "children_34_years", "children_512_years", "children_912_years", "teens", "_of_books_distributed"]
-            st.write("Normalized age values:")
-            for f in age_fields:
-                st.write(f"  {f}: {normalized.get(f, 'NOT COPIED')}")
+            # Show ALL raw fields with 'child' or age-related names and their values
+            st.write("Raw legacy age-related fields:")
+            for key, val in sample.items():
+                if 'child' in key.lower() or 'month' in key.lower() or 'year' in key.lower() or 'teen' in key.lower() or 'book' in key.lower():
+                    st.write(f"  {key}: {val}")
 
     processor = DataProcessor(combined_records)
 
