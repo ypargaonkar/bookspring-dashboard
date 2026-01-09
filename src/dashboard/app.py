@@ -2465,6 +2465,14 @@ def main():
     # DEBUG: Check previously_served filtering
     with st.sidebar:
         st.write("--- DEBUG ---")
+        # Check BEFORE date filtering
+        pre_filter_processor = DataProcessor(combined_records)
+        st.write(f"BEFORE date filter - total_children: {pre_filter_processor.df['total_children'].sum():,}")
+        if "previously_served_this_fy" in pre_filter_processor.df.columns:
+            pre_true = pre_filter_processor.df['previously_served_this_fy'] == True
+            st.write(f"BEFORE - Children in True rows: {pre_filter_processor.df.loc[pre_true, 'total_children'].sum():,}")
+
+        st.write("---")
         if "previously_served_this_fy" in processor.df.columns:
             st.write(f"Field exists: YES")
             st.write(f"Value counts: {processor.df['previously_served_this_fy'].value_counts().to_dict()}")
