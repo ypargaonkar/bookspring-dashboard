@@ -2021,47 +2021,15 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
 
 def render_financial_metrics(financial_df: pd.DataFrame = None):
     """Render Financial Metrics section with real data from Google Sheets."""
-    # Check if running on localhost for refresh button
-    is_localhost = os.getenv("HOSTNAME", "localhost") == "localhost" or "localhost" in os.getenv("STREAMLIT_SERVER_ADDRESS", "localhost")
-
-    # Style for inline refresh button
-    if is_localhost:
-        st.markdown("""
-        <style>
-        .financial-header-row { display: flex; align-items: center; gap: 0; }
-        .financial-header-row .stButton { margin: 0 !important; padding: 0 !important; }
-        .financial-header-row .stButton button {
-            background: transparent !important;
-            border: none !important;
-            padding: 2px 6px !important;
-            font-size: 12px !important;
-            opacity: 0.4;
-            min-height: 0 !important;
-            line-height: 1 !important;
-        }
-        .financial-header-row .stButton button:hover { opacity: 1; }
-        </style>
-        """, unsafe_allow_html=True)
-
-    # Build header with inline refresh button for localhost
-    col1, col2 = st.columns([20, 1]) if is_localhost else (st.container(), None)
-
-    with col1:
-        st.markdown("""
-        <div class="section-header">
-            <div class="section-icon financial">💰</div>
-            <div class="section-title-group">
-                <h2 class="section-title">Financial Metrics</h2>
-                <p class="section-subtitle">Fiscal year to date (July 1 – present) · Updated weekly</p>
-            </div>
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-icon financial">💰</div>
+        <div class="section-title-group">
+            <h2 class="section-title">Financial Metrics</h2>
+            <p class="section-subtitle">Fiscal year to date (July 1 – present) · Updated weekly</p>
         </div>
-        """, unsafe_allow_html=True)
-
-    if is_localhost and col2:
-        with col2:
-            if st.button("↻", key="refresh_financial"):
-                load_financial_data.clear()
-                st.rerun()
+    </div>
+    """, unsafe_allow_html=True)
 
     # Check if we have financial data
     if financial_df is None or financial_df.empty:
@@ -2441,7 +2409,16 @@ def main():
 
         st.markdown("---")
 
-        # Refresh Data at bottom
+        # Refresh buttons
+        # Check if running on localhost for financial refresh button
+        is_localhost = os.getenv("HOSTNAME", "localhost") == "localhost" or "localhost" in os.getenv("STREAMLIT_SERVER_ADDRESS", "localhost")
+
+        if is_localhost:
+            if st.button("🔄 Refresh Financial Metrics", use_container_width=True, help="Refresh financial data from Google Sheets"):
+                load_financial_data.clear()
+                st.toast("Refreshing financial metrics...", icon="💰")
+                st.rerun()
+
         if st.button("🔄 Refresh Data from Fusioo", use_container_width=True, help="Click to pull latest data from Fusioo"):
             st.cache_data.clear()
             st.toast("Fetching fresh data from Fusioo...", icon="🔄")
