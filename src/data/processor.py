@@ -84,13 +84,13 @@ class DataProcessor:
             if available_sources:
                 # Sum children from all available source columns for this age group
                 # This handles cases where both legacy and current columns have data
-                self.df[metric_col] = self.df.apply(
-                    lambda row, cols=available_sources: (
-                        row[books_col] / row["_total_children_calc"]
-                        if row["_total_children_calc"] > 0 and sum(row[c] if pd.notna(row[c]) else 0 for c in cols) > 0
-                        else 0
-                    ),
-                    axis=1
+                age_children = self.df[available_sources].fillna(0).sum(axis=1)
+
+                # Calculate: books / total_children, but only where this age group has children
+                self.df[metric_col] = 0.0
+                mask = (self.df["_total_children_calc"] > 0) & (age_children > 0)
+                self.df.loc[mask, metric_col] = (
+                    self.df.loc[mask, books_col] / self.df.loc[mask, "_total_children_calc"]
                 )
 
         # Overall average books per child
