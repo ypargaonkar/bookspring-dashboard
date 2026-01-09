@@ -2400,7 +2400,9 @@ def main():
         # Date Range
         st.markdown("##### 📅 Date Range")
         today = date.today()
-        default_start = today - relativedelta(years=1)
+        # Fiscal year to date: July 1 of current fiscal year
+        fiscal_year = today.year if today.month >= 7 else today.year - 1
+        default_start = date(fiscal_year, 7, 1)
         start_date = st.date_input("From", default_start)
         end_date = st.date_input("To", today)
 
