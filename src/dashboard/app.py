@@ -1793,11 +1793,13 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
                         "total_newsletter_views": "Newsletter"
                     })
 
+                    # Consistent colors: Digital=blue, Newsletter=green
+                    view_colors = {"Digital": "#3b82f6", "Newsletter": "#10b981"}
                     fig = px.area(
                         trend_df,
                         x="Period",
                         y=[c for c in ["Digital", "Newsletter"] if c in trend_df.columns],
-                        color_discrete_sequence=["#3b82f6", "#10b981"]  # Blue and green
+                        color_discrete_map=view_colors
                     )
                     fig = style_plotly_chart(fig, height=280)
                     fig.update_traces(stackgroup='one')
@@ -1815,13 +1817,13 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
                 "Type": ["Digital Views", "Newsletter Views"],
                 "Count": [digital_views, newsletter_views]
             })
-            # Clean, readable colors
+            # Consistent colors: Digital=blue, Newsletter=green
             fig = px.pie(
                 pie_data,
                 values="Count",
                 names="Type",
                 hole=0.5,
-                color_discrete_sequence=["#3b82f6", "#10b981"]  # Blue and green
+                color_discrete_map={"Digital Views": "#3b82f6", "Newsletter Views": "#10b981"}
             )
             fig = style_plotly_chart(fig, height=280)
             fig.update_traces(
@@ -2448,6 +2450,17 @@ def main():
     with st.sidebar:
         if legacy_count > 0:
             st.info(f"📊 Includes {legacy_count:,} legacy records (pre-July 2025)")
+
+    # DEBUG: Show legacy data fields
+    if legacy_records:
+        with st.sidebar.expander("🔍 Debug: Legacy Data Fields"):
+            sample = legacy_records[0] if legacy_records else {}
+            st.write("Raw legacy record fields:", list(sample.keys()))
+            # Show age-related field VALUES
+            age_fields = ["children_03_years", "children_34_years", "children_512_years", "children_912_years", "teens", "_of_books_distributed"]
+            st.write("Sample age field values:")
+            for f in age_fields:
+                st.write(f"  {f}: {sample.get(f, 'MISSING')}")
 
     processor = DataProcessor(combined_records)
     processor = processor.filter_by_date_range(start_date, end_date)
