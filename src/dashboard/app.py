@@ -2462,6 +2462,17 @@ def main():
         st.warning("No data found for the selected date range.")
         return
 
+    # DEBUG: Check previously_served filtering
+    with st.sidebar:
+        st.write("--- DEBUG ---")
+        if "previously_served_this_fy" in processor.df.columns:
+            st.write(f"Field exists: YES")
+            st.write(f"Value counts: {processor.df['previously_served_this_fy'].value_counts().to_dict()}")
+            st.write(f"Total children (current): {processor.df['total_children'].sum():,}")
+        else:
+            st.write("Field exists: NO")
+            st.write(f"Available columns: {list(processor.df.columns)}")
+
     # Hero header
     render_hero_header(processor)
 
