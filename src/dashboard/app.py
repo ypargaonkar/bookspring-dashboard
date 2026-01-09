@@ -2474,36 +2474,40 @@ def main():
             if col in processor.df.columns:
                 processor.df.loc[prev_served, col] = 0
 
-    # DEBUG: Check previously_served filtering
-    with st.sidebar:
-        st.write("--- DEBUG ---")
-        # Check column names containing "prev" or "served"
-        prev_cols = [c for c in processor.df.columns if 'prev' in c.lower() or 'served' in c.lower()]
-        st.write(f"Columns with prev/served: {prev_cols}")
+        # Recalculate average books per child metrics after zeroing
+        books_col = "_of_books_distributed"
+        if books_col in processor.df.columns:
+            # Recalculate total children from age columns
+            age_cols = [c for c in children_cols if c != "total_children" and c in processor.df.columns]
+            processor.df["_total_children_calc"] = processor.df[age_cols].fillna(0).sum(axis=1)
 
-        # Check BEFORE date filtering
-        pre_filter_processor = DataProcessor(combined_records)
-        st.write(f"BEFORE date filter - total_children: {pre_filter_processor.df['total_children'].sum():,}")
-        if "previously_served_this_fy" in pre_filter_processor.df.columns:
-            col_val = pre_filter_processor.df['previously_served_this_fy'].iloc[0]
-            st.write(f"Sample value: {col_val}, type: {type(col_val)}")
-            pre_true = pre_filter_processor.df['previously_served_this_fy'] == True
-            st.write(f"Mask sum (True count): {pre_true.sum()}")
-            st.write(f"BEFORE - Children in True rows: {pre_filter_processor.df.loc[pre_true, 'total_children'].sum():,}")
+            # Recalculate overall avg books per child
+            processor.df["avg_books_per_child"] = processor.df.apply(
+                lambda row: row[books_col] / row["_total_children_calc"]
+                if row["_total_children_calc"] > 0 else 0, axis=1
+            )
 
-        st.write("---")
-        if "previously_served_this_fy" in processor.df.columns:
-            st.write(f"Field exists: YES")
-            st.write(f"Value counts: {processor.df['previously_served_this_fy'].value_counts().to_dict()}")
-            st.write(f"Total children (current): {processor.df['total_children'].sum():,}")
-            # Check children for previously_served=True rows
-            true_mask = processor.df['previously_served_this_fy'] == True
-            false_mask = processor.df['previously_served_this_fy'] == False
-            st.write(f"Children in True rows: {processor.df.loc[true_mask, 'total_children'].sum():,}")
-            st.write(f"Children in False rows: {processor.df.loc[false_mask, 'total_children'].sum():,}")
-        else:
-            st.write("Field exists: NO")
-            st.write(f"Available columns: {list(processor.df.columns)}")
+            # Recalculate books per child by age group
+            age_group_sources = {
+                "books_per_child_0_2": ["children_035_months", "children_03_years"],
+                "books_per_child_3_5": ["children_35_years", "children_34_years"],
+                "books_per_child_6_8": ["children_68_years", "children_512_years"],
+                "books_per_child_9_12": ["children_912_years"],
+                "books_per_child_teens": ["teens"],
+            }
+            for metric_col, source_cols in age_group_sources.items():
+                available_sources = [c for c in source_cols if c in processor.df.columns]
+                if available_sources:
+                    age_children = processor.df[available_sources].fillna(0).sum(axis=1)
+                    processor.df[metric_col] = 0.0
+                    mask = (processor.df["_total_children_calc"] > 0) & (age_children > 0)
+                    processor.df.loc[mask, metric_col] = (
+                        processor.df.loc[mask, books_col] / processor.df.loc[mask, "_total_children_calc"]
+                    )
+
+            # Clean up temp column
+            if "_total_children_calc" in processor.df.columns:
+                processor.df.drop("_total_children_calc", axis=1, inplace=True)
 
     # Hero header
     render_hero_header(processor)
