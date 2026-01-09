@@ -1817,12 +1817,13 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
                 "Type": ["Digital Views", "Newsletter Views"],
                 "Count": [digital_views, newsletter_views]
             })
-            # Consistent colors: Digital=blue, Newsletter=green
+            # Consistent colors: Digital=blue, Newsletter=green (matching area chart)
             fig = px.pie(
                 pie_data,
                 values="Count",
                 names="Type",
                 hole=0.5,
+                color="Type",
                 color_discrete_map={"Digital Views": "#3b82f6", "Newsletter Views": "#10b981"}
             )
             fig = style_plotly_chart(fig, height=280)
