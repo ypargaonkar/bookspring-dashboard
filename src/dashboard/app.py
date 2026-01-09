@@ -1631,48 +1631,72 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
 
     with col1:
         st.markdown("##### Overall Trend")
-        if "avg_books_per_child" in processor.df.columns:
-            trend_df = processor.aggregate_by_time(time_unit, ["avg_books_per_child"])
-            if not trend_df.empty:
-                fig = px.area(
-                    trend_df,
-                    x="period",
-                    y="avg_books_per_child",
-                    color_discrete_sequence=["#667eea"]
-                )
-                fig.add_hline(y=4.0, line_dash="dash", line_color="#22c55e",
-                             annotation_text="Target: 4.0", annotation_position="top right",
-                             annotation_font_color="#22c55e")
-                fig = style_plotly_chart(fig, height=280)
-                fig.update_traces(fill='tozeroy', fillcolor='rgba(102, 126, 234, 0.2)')
-                # Set Y-axis range from 0 to max of 5 or data max + 0.5 for granularity
-                y_max = max(5, trend_df["avg_books_per_child"].max() + 0.5)
-                fig.update_layout(
-                    yaxis_title="Avg Books/Child",
-                    xaxis_title="",
-                    showlegend=False,
-                    yaxis=dict(range=[0, y_max], dtick=0.5, gridcolor='#e5e7eb')
-                )
-                st.plotly_chart(fig, use_container_width=True)
+        # Calculate: sum(all books) / sum(children where previously_served=False)
+        # Children are already zeroed for previously_served=True rows, so just sum both
+        trend_df = processor.aggregate_by_time(time_unit, ["_of_books_distributed", "total_children"])
+        if not trend_df.empty and "total_children" in trend_df.columns:
+            trend_df["avg_books_per_child"] = trend_df.apply(
+                lambda row: row["_of_books_distributed"] / row["total_children"]
+                if row["total_children"] > 0 else 0, axis=1
+            )
+            fig = px.area(
+                trend_df,
+                x="period",
+                y="avg_books_per_child",
+                color_discrete_sequence=["#667eea"]
+            )
+            fig.add_hline(y=4.0, line_dash="dash", line_color="#22c55e",
+                         annotation_text="Target: 4.0", annotation_position="top right",
+                         annotation_font_color="#22c55e")
+            fig = style_plotly_chart(fig, height=280)
+            fig.update_traces(fill='tozeroy', fillcolor='rgba(102, 126, 234, 0.2)')
+            # Set Y-axis range from 0 to max of 5 or data max + 0.5 for granularity
+            y_max = max(5, trend_df["avg_books_per_child"].max() + 0.5)
+            fig.update_layout(
+                yaxis_title="Avg Books/Child",
+                xaxis_title="",
+                showlegend=False,
+                yaxis=dict(range=[0, y_max], dtick=0.5, gridcolor='#e5e7eb')
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.markdown("##### By Age Group")
-        age_metrics = ["books_per_child_0_2", "books_per_child_3_5",
-                       "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
-        available_age = [m for m in age_metrics if m in processor.df.columns]
+        # Get children columns for each age group
+        age_group_cols = {
+            "Books/Child (0-2 yrs)": ["children_035_months", "children_03_years"],
+            "Books/Child (3-5 yrs)": ["children_35_years", "children_34_years"],
+            "Books/Child (6-8 yrs)": ["children_68_years", "children_512_years"],
+            "Books/Child (9-12 yrs)": ["children_912_years"],
+            "Books/Child (Teens)": ["teens"],
+        }
 
-        if available_age:
-            trend_df = processor.aggregate_by_time(time_unit, available_age)
-            if not trend_df.empty:
-                rename_map = {c: get_friendly_name(c) for c in trend_df.columns if c != "period"}
-                trend_df = trend_df.rename(columns=rename_map)
+        # Collect all needed columns
+        all_cols = ["_of_books_distributed"]
+        for sources in age_group_cols.values():
+            all_cols.extend([c for c in sources if c in processor.df.columns])
+        all_cols = list(set(all_cols))
 
+        trend_df = processor.aggregate_by_time(time_unit, all_cols)
+        if not trend_df.empty:
+            # Calculate avg books per child for each age group
+            # Numerator: all books, Denominator: children in that age group (already zeroed for prev_served=True)
+            for label, source_cols in age_group_cols.items():
+                available_sources = [c for c in source_cols if c in trend_df.columns]
+                if available_sources:
+                    trend_df[label] = trend_df.apply(
+                        lambda row, cols=available_sources: row["_of_books_distributed"] / sum(row[c] for c in cols)
+                        if sum(row[c] for c in cols) > 0 else 0, axis=1
+                    )
+
+            available_labels = [l for l in age_group_cols.keys() if l in trend_df.columns]
+            if available_labels:
                 # Better color palette for age groups
                 age_colors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"]
                 fig = px.line(
                     trend_df,
                     x="period",
-                    y=[get_friendly_name(m) for m in available_age],
+                    y=available_labels,
                     markers=True,
                     color_discrete_sequence=age_colors
                 )
@@ -1680,8 +1704,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                              annotation_text="Target", annotation_font_color="#22c55e")
                 fig = style_plotly_chart(fig, height=280)
                 # Granular Y-axis with 0.5 increments
-                numeric_cols = [get_friendly_name(m) for m in available_age]
-                y_max = max(5, trend_df[numeric_cols].max().max() + 0.5)
+                y_max = max(5, trend_df[available_labels].max().max() + 0.5)
                 fig.update_layout(
                     yaxis_title="Books/Child",
                     xaxis_title="",
