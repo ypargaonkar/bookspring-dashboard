@@ -2026,7 +2026,7 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         <div class="section-icon financial">💰</div>
         <div class="section-title-group">
             <h2 class="section-title">Financial Metrics</h2>
-            <p class="section-subtitle">Fiscal year to date (July 1 – present) · Updated weekly</p>
+            <p class="section-subtitle">Fiscal year to date (July 1 – present) · Updated Sundays 9am</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
