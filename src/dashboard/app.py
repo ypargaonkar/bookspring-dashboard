@@ -2465,11 +2465,18 @@ def main():
     # DEBUG: Check previously_served filtering
     with st.sidebar:
         st.write("--- DEBUG ---")
+        # Check column names containing "prev" or "served"
+        prev_cols = [c for c in processor.df.columns if 'prev' in c.lower() or 'served' in c.lower()]
+        st.write(f"Columns with prev/served: {prev_cols}")
+
         # Check BEFORE date filtering
         pre_filter_processor = DataProcessor(combined_records)
         st.write(f"BEFORE date filter - total_children: {pre_filter_processor.df['total_children'].sum():,}")
         if "previously_served_this_fy" in pre_filter_processor.df.columns:
+            col_val = pre_filter_processor.df['previously_served_this_fy'].iloc[0]
+            st.write(f"Sample value: {col_val}, type: {type(col_val)}")
             pre_true = pre_filter_processor.df['previously_served_this_fy'] == True
+            st.write(f"Mask sum (True count): {pre_true.sum()}")
             st.write(f"BEFORE - Children in True rows: {pre_filter_processor.df.loc[pre_true, 'total_children'].sum():,}")
 
         st.write("---")
