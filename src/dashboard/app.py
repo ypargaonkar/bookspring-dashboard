@@ -2452,39 +2452,7 @@ def main():
         if legacy_count > 0:
             st.info(f"📊 Includes {legacy_count:,} legacy records (pre-July 2025)")
 
-    # DEBUG: Show legacy data fields
-    if legacy_records:
-        with st.sidebar.expander("🔍 Debug: Legacy Data Fields"):
-            sample = legacy_records[0] if legacy_records else {}
-            # Show ALL raw fields with 'child' or age-related names and their values
-            st.write("Raw legacy age-related fields:")
-            for key, val in sample.items():
-                if 'child' in key.lower() or 'month' in key.lower() or 'year' in key.lower() or 'teen' in key.lower() or 'book' in key.lower():
-                    st.write(f"  {key}: {val}")
-
     processor = DataProcessor(combined_records)
-
-    # DEBUG: Show processor columns
-    if legacy_records:
-        with st.sidebar.expander("🔍 Debug: Processor Data"):
-            # Show sample of calculated metrics for legacy data
-            legacy_df = processor.df[processor.df.get('_is_legacy', False) == True] if '_is_legacy' in processor.df.columns else pd.DataFrame()
-            if not legacy_df.empty:
-                st.write(f"Legacy rows in processor: {len(legacy_df)}")
-                metric_cols = ["books_per_child_0_2", "books_per_child_3_5", "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
-                for col in metric_cols:
-                    if col in legacy_df.columns:
-                        st.write(f"  {col} mean: {legacy_df[col].mean():.3f}")
-
-                # Debug 6-8 specifically
-                st.write("--- Debug 6-8 age group ---")
-                src_cols = ["children_68_years", "children_512_years"]
-                for col in src_cols:
-                    if col in legacy_df.columns:
-                        non_zero = (legacy_df[col].fillna(0) > 0).sum()
-                        st.write(f"  {col}: {non_zero} non-zero rows, sum={legacy_df[col].fillna(0).sum():.0f}")
-                    else:
-                        st.write(f"  {col}: NOT IN COLUMNS")
     processor = processor.filter_by_date_range(start_date, end_date)
 
     if processor.df.empty:
