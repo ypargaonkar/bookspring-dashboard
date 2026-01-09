@@ -2456,14 +2456,29 @@ def main():
     if legacy_records:
         with st.sidebar.expander("🔍 Debug: Legacy Data Fields"):
             sample = legacy_records[0] if legacy_records else {}
-            st.write("Raw legacy record fields:", list(sample.keys()))
-            # Show age-related field VALUES
+            # Show normalized record
+            normalized = normalize_legacy_record(sample)
+            st.write("Normalized legacy fields:", list(normalized.keys()))
             age_fields = ["children_03_years", "children_34_years", "children_512_years", "children_912_years", "teens", "_of_books_distributed"]
-            st.write("Sample age field values:")
+            st.write("Normalized age values:")
             for f in age_fields:
-                st.write(f"  {f}: {sample.get(f, 'MISSING')}")
+                st.write(f"  {f}: {normalized.get(f, 'NOT COPIED')}")
 
     processor = DataProcessor(combined_records)
+
+    # DEBUG: Show processor columns
+    if legacy_records:
+        with st.sidebar.expander("🔍 Debug: Processor Data"):
+            age_cols = [c for c in processor.df.columns if 'child' in c.lower() or 'teen' in c.lower() or 'books_per' in c.lower()]
+            st.write("Age-related columns in processor:", age_cols)
+            # Show sample of calculated metrics for legacy data
+            legacy_df = processor.df[processor.df.get('_is_legacy', False) == True] if '_is_legacy' in processor.df.columns else pd.DataFrame()
+            if not legacy_df.empty:
+                st.write(f"Legacy rows in processor: {len(legacy_df)}")
+                metric_cols = ["books_per_child_0_2", "books_per_child_3_5", "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
+                for col in metric_cols:
+                    if col in legacy_df.columns:
+                        st.write(f"  {col} mean: {legacy_df[col].mean():.3f}")
     processor = processor.filter_by_date_range(start_date, end_date)
 
     if processor.df.empty:
