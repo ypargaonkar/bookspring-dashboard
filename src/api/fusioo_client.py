@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Module version for cache busting
+__version__ = "1.1.0"
+
 
 class FusiooClient:
     """Client for interacting with the Fusioo API."""
