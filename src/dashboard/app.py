@@ -1745,11 +1745,11 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     with col1:
         delta_val = enrollment_count - home_target
         if delta_val >= 0:
-            st.metric("B3 In-home delivery enrollments", f"{enrollment_count:,}", delta=f"+{delta_val:,} vs target")
+            st.metric("B3 In-home delivery enrollments (all time)", f"{enrollment_count:,}", delta=f"+{delta_val:,} vs target")
         else:
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
-                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">B3 In-home delivery enrollments</p>
+                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">B3 In-home delivery enrollments (all time)</p>
                 <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{enrollment_count:,}</p>
                 <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
             </div>
@@ -1771,31 +1771,31 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
 
     # Book Bank Section
     st.markdown("##### 📚 Book Bank Model (Open Book Distribution)")
-    book_bank_target = 80_000
+    book_bank_target = 55_000
     book_bank_progress = min(book_bank_children / book_bank_target * 100, 100) if book_bank_target > 0 else 0
 
     col1, col2 = st.columns(2)
     with col1:
         delta_val = book_bank_children - book_bank_target
         if delta_val >= 0:
-            st.metric("Children Served", f"{book_bank_children:,}", delta=f"+{delta_val:,} vs target")
+            st.metric("Children Served (in date range)", f"{book_bank_children:,}", delta=f"+{delta_val:,} vs target")
         else:
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
-                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Children Served</p>
+                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Children Served (in date range)</p>
                 <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{book_bank_children:,}</p>
                 <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
             </div>
             """, unsafe_allow_html=True)
     with col2:
-        st.metric("2030 Target", "80K children")
+        st.metric("2030 Target", "55K children")
 
     st.markdown(f"""
     <div class="progress-container">
         <div class="progress-bar goal2" style="width: {book_bank_progress}%"></div>
     </div>
     <div class="progress-label">
-        <span>Progress toward 80K partner program children</span>
+        <span>Progress toward 55K partner program children</span>
         <span><strong>{book_bank_progress:.1f}%</strong></span>
     </div>
     """, unsafe_allow_html=True)
