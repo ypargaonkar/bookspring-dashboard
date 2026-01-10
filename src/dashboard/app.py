@@ -1752,8 +1752,8 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
 
     # In-Person Events - Featured at top
     st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%); border: 1px solid #e9d5ff; border-radius: 16px;">
-        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);">
+    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #fef2f8 0%, #fce7f3 100%); border: 1px solid #fbcfe8; border-radius: 16px;">
+        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245, 87, 108, 0.4);">
             <span style="font-size: 1.75rem; font-weight: 800; color: white;">{inperson_events:,}</span>
         </div>
         <div>
