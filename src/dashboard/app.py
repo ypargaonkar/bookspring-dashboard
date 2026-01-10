@@ -17,7 +17,7 @@ from google.oauth2.service_account import Credentials
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.api.fusioo_client import FusiooClient, ACTIVITY_REPORT_APP_ID, LEGACY_DATA_APP_ID, B3_CHILD_FAMILY_APP_ID
+from src.api.fusioo_client import FusiooClient, ACTIVITY_REPORT_APP_ID, LEGACY_DATA_APP_ID, B3_CHILD_FAMILY_APP_ID, EVENTS_APP_ID
 from src.data.processor import DataProcessor, get_friendly_name, TimeUnit
 from src.reports.excel_generator import generate_standard_report
 
@@ -1240,6 +1240,18 @@ def load_financial_data():
         return None
 
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_events_data():
+    """Load events data from Fusioo."""
+    try:
+        client = FusiooClient()
+        records = client.get_all_records(EVENTS_APP_ID)
+        return records
+    except Exception as e:
+        st.error(f"Failed to load events data: {e}")
+        return []
+
+
 def normalize_legacy_record(record: dict) -> dict:
     """Normalize a legacy record, keeping original field names for DataProcessor."""
     normalized = {}
@@ -2306,6 +2318,95 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         st.markdown(f"<p style='color: #94a3b8; font-size: 0.75rem; text-align: right; margin-top: 1rem;'>Financial data as of {last_updated}</p>", unsafe_allow_html=True)
 
 
+def render_upcoming_events(events_data: list):
+    """Render upcoming events section."""
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);">📅</div>
+        <div class="section-title-group">
+            <h2 class="section-title">Upcoming Events</h2>
+            <p class="section-subtitle">BookSpring events in the next 2 months</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if not events_data:
+        st.info("No events data available")
+        return
+
+    # Convert to DataFrame
+    df = pd.DataFrame(events_data)
+
+    # Convert list columns to strings
+    for col in df.columns:
+        if df[col].apply(lambda x: isinstance(x, list)).any():
+            df[col] = df[col].apply(
+                lambda x: x[0] if isinstance(x, list) and len(x) == 1
+                else ", ".join(str(i) for i in x) if isinstance(x, list)
+                else x
+            )
+
+    # Find the date column (decided_date or similar)
+    date_col = None
+    for col in ['decided_date', 'event_date', 'date', 'start_date']:
+        if col in df.columns:
+            date_col = col
+            break
+
+    if not date_col:
+        st.warning("No date field found in events data")
+        return
+
+    # Parse dates
+    df['_event_date'] = pd.to_datetime(df[date_col], errors='coerce')
+
+    # Filter for events within next 2 months
+    today = pd.Timestamp.now().normalize()
+    two_months_later = today + pd.DateOffset(months=2)
+    upcoming_mask = (df['_event_date'] >= today) & (df['_event_date'] <= two_months_later)
+    upcoming_df = df[upcoming_mask].sort_values('_event_date')
+
+    if upcoming_df.empty:
+        st.info("No upcoming events in the next 2 months")
+        return
+
+    # Display count
+    st.markdown(f"**{len(upcoming_df)} upcoming event{'s' if len(upcoming_df) != 1 else ''}**")
+
+    # Display events as compact cards
+    for _, event in upcoming_df.iterrows():
+        event_date = event['_event_date'].strftime('%b %d, %Y') if pd.notna(event['_event_date']) else 'TBD'
+        event_day = event['_event_date'].strftime('%a') if pd.notna(event['_event_date']) else ''
+
+        # Get event details - try common field names
+        event_name = event.get('event_name', event.get('name', event.get('title', 'Untitled Event')))
+        location = event.get('location', event.get('venue', ''))
+        event_type = event.get('event_type', event.get('type', ''))
+        partner = event.get('partner', event.get('organization', ''))
+
+        # Build details string
+        details = []
+        if location:
+            details.append(f"📍 {location}")
+        if event_type:
+            details.append(f"🏷️ {event_type}")
+        if partner:
+            details.append(f"🤝 {partner}")
+
+        st.markdown(f"""
+        <div style="display: flex; gap: 1rem; padding: 1rem; margin-bottom: 0.75rem; background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border: 1px solid #e5e7eb; border-radius: 12px; border-left: 4px solid #8b5cf6;">
+            <div style="min-width: 60px; text-align: center;">
+                <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase;">{event_day}</div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: #1a202c;">{event_date}</div>
+            </div>
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: #1a202c; margin-bottom: 0.25rem;">{event_name}</div>
+                <div style="font-size: 0.8rem; color: #6b7280;">{' · '.join(details) if details else ''}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
 def render_trends_section(processor: DataProcessor, time_unit: str, views_data: list = None, start_date: date = None, end_date: date = None):
     """Render trends over time section."""
     st.markdown("""
@@ -2567,6 +2668,7 @@ def main():
         content_views = load_content_views()
         financial_data = load_financial_data()
         enrollment_count = load_active_enrollment_count()
+        events_data = load_events_data()
 
     # Combine current and legacy activity data
     legacy_count = 0
@@ -2679,6 +2781,9 @@ def main():
     st.markdown("---")
 
     render_financial_metrics(financial_data)
+    st.markdown("---")
+
+    render_upcoming_events(events_data)
     st.markdown("---")
 
     render_trends_section(processor, time_unit, content_views, start_date, end_date)
