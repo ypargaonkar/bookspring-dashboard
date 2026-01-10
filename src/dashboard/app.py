@@ -1738,7 +1738,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 st.plotly_chart(fig, use_container_width=True)
 
 
-def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0):
+def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0, inperson_events: int = 0):
     """Render Goal 2: Inspire Engagement with Content Views."""
     st.markdown("""
     <div class="section-header">
@@ -1813,6 +1813,21 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         <span><strong>{book_bank_progress:.1f}%</strong></span>
     </div>
     """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # In-Person Events Section
+    st.markdown("##### 🎉 BookSpring In-Person Events")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Events (in date range)", f"{inperson_events:,}")
+    with col2:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #fff 0%, #f0fdf4 100%); border: 1px solid #bbf7d0; border-radius: 10px; padding: 1rem;">
+            <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Activity Types Included</p>
+            <p style="font-size: 0.9rem; color: #1a202c; margin: 0;">Literacy Materials Distribution, Family Literacy Activity</p>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("##### 📱 Digital Engagement")
@@ -2636,6 +2651,18 @@ def main():
         if "total_children" in processor.df.columns:
             book_bank_children = int(processor.df.loc[book_bank_mask, "total_children"].sum())
 
+    # Calculate in-person events count
+    # Count records where activity_type contains "Literacy Materials Distribution" OR "Family Literacy Activity"
+    # A record with both types counts as one event
+    inperson_events = 0
+    if "activity_type" in processor.df.columns:
+        # Check if activity_type contains either value (handles both single values and comma-separated lists)
+        event_mask = processor.df["activity_type"].apply(
+            lambda x: "Literacy Materials Distribution" in str(x) or "Family Literacy Activity" in str(x)
+            if pd.notna(x) else False
+        )
+        inperson_events = int(event_mask.sum())
+
     # Hero header
     render_hero_header(processor)
 
@@ -2643,7 +2670,7 @@ def main():
     render_goal1_strengthen_impact(processor, time_unit)
     st.markdown("---")
 
-    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count, book_bank_children)
+    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count, book_bank_children, inperson_events)
     st.markdown("---")
 
     render_goal3_advance_innovation(original_books)
