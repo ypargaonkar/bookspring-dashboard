@@ -1764,68 +1764,67 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     </div>
     """, unsafe_allow_html=True)
 
-    # Program Metrics - Side by side with circular progress
+    # Home Delivery Section
+    st.markdown("##### 🏠 B3 In-Home Delivery Program")
     home_target = 25_000
     home_progress = min(enrollment_count / home_target * 100, 100) if home_target > 0 else 0
-    home_circumference = 2 * 3.14159 * 36  # radius = 36
-    home_offset = home_circumference - (home_progress / 100) * home_circumference
 
-    book_bank_target = 55_000
-    book_bank_progress = min(book_bank_children / book_bank_target * 100, 100) if book_bank_target > 0 else 0
-    book_bank_offset = home_circumference - (book_bank_progress / 100) * home_circumference
+    col1, col2 = st.columns(2)
+    with col1:
+        delta_val = enrollment_count - home_target
+        if delta_val >= 0:
+            st.metric("B3 In-home delivery enrollments (all time)", f"{enrollment_count:,}", delta=f"+{delta_val:,} vs target")
+        else:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
+                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">B3 In-home delivery enrollments (all time)</p>
+                <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{enrollment_count:,}</p>
+                <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
+            </div>
+            """, unsafe_allow_html=True)
+    with col2:
+        st.metric("2030 Target", "25K families")
 
     st.markdown(f"""
-    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
-        <!-- B3 In-Home Delivery -->
-        <div style="flex: 1; min-width: 280px; background: linear-gradient(135deg, #fff 0%, #fef2f8 100%); border: 1px solid #fbcfe8; border-radius: 16px; padding: 1.25rem; display: flex; align-items: center; gap: 1rem;">
-            <div style="position: relative; width: 80px; height: 80px; flex-shrink: 0;">
-                <svg width="80" height="80" viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="36" fill="none" stroke="#fce7f3" stroke-width="6"/>
-                    <circle cx="40" cy="40" r="36" fill="none" stroke="url(#grad1)" stroke-width="6"
-                            stroke-linecap="round" stroke-dasharray="{home_circumference}"
-                            stroke-dashoffset="{home_offset}" transform="rotate(-90 40 40)"/>
-                    <defs>
-                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:#f093fb"/>
-                            <stop offset="100%" style="stop-color:#f5576c"/>
-                        </linearGradient>
-                    </defs>
-                </svg>
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                    <span style="font-size: 0.9rem; font-weight: 700; color: #1a202c;">{home_progress:.0f}%</span>
-                </div>
+    <div class="progress-container">
+        <div class="progress-bar goal2" style="width: {home_progress}%"></div>
+    </div>
+    <div class="progress-label">
+        <span>Progress toward 25K home delivery enrollments</span>
+        <span><strong>{home_progress:.1f}%</strong></span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Book Bank Section
+    st.markdown("##### 📚 Book Bank Model (Open Book Distribution)")
+    book_bank_target = 55_000
+    book_bank_progress = min(book_bank_children / book_bank_target * 100, 100) if book_bank_target > 0 else 0
+
+    col1, col2 = st.columns(2)
+    with col1:
+        delta_val = book_bank_children - book_bank_target
+        if delta_val >= 0:
+            st.metric("Children Served (in date range)", f"{book_bank_children:,}", delta=f"+{delta_val:,} vs target")
+        else:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
+                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Children Served (in date range)</p>
+                <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{book_bank_children:,}</p>
+                <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
             </div>
-            <div style="flex: 1;">
-                <p style="font-size: 0.75rem; color: #9ca3af; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">🏠 B3 In-Home Delivery</p>
-                <p style="font-size: 1.5rem; font-weight: 700; color: #1a202c; margin: 0.25rem 0;">{enrollment_count:,}</p>
-                <p style="font-size: 0.75rem; color: #6b7280; margin: 0;">of 25K target (all time)</p>
-            </div>
-        </div>
-        <!-- Book Bank Model -->
-        <div style="flex: 1; min-width: 280px; background: linear-gradient(135deg, #fff 0%, #fef2f8 100%); border: 1px solid #fbcfe8; border-radius: 16px; padding: 1.25rem; display: flex; align-items: center; gap: 1rem;">
-            <div style="position: relative; width: 80px; height: 80px; flex-shrink: 0;">
-                <svg width="80" height="80" viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="36" fill="none" stroke="#fce7f3" stroke-width="6"/>
-                    <circle cx="40" cy="40" r="36" fill="none" stroke="url(#grad2)" stroke-width="6"
-                            stroke-linecap="round" stroke-dasharray="{home_circumference}"
-                            stroke-dashoffset="{book_bank_offset}" transform="rotate(-90 40 40)"/>
-                    <defs>
-                        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:#f093fb"/>
-                            <stop offset="100%" style="stop-color:#f5576c"/>
-                        </linearGradient>
-                    </defs>
-                </svg>
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                    <span style="font-size: 0.9rem; font-weight: 700; color: #1a202c;">{book_bank_progress:.0f}%</span>
-                </div>
-            </div>
-            <div style="flex: 1;">
-                <p style="font-size: 0.75rem; color: #9ca3af; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">📚 Book Bank Model</p>
-                <p style="font-size: 1.5rem; font-weight: 700; color: #1a202c; margin: 0.25rem 0;">{book_bank_children:,}</p>
-                <p style="font-size: 0.75rem; color: #6b7280; margin: 0;">of 55K target (in date range)</p>
-            </div>
-        </div>
+            """, unsafe_allow_html=True)
+    with col2:
+        st.metric("2030 Target", "55K children")
+
+    st.markdown(f"""
+    <div class="progress-container">
+        <div class="progress-bar goal2" style="width: {book_bank_progress}%"></div>
+    </div>
+    <div class="progress-label">
+        <span>Progress toward 55K partner program children</span>
+        <span><strong>{book_bank_progress:.1f}%</strong></span>
     </div>
     """, unsafe_allow_html=True)
 
