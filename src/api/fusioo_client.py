@@ -75,13 +75,13 @@ class FusiooClient:
         Only reads the active_enrollment field value for counting.
         Other fields are not accessed or stored.
         """
-        # Use count endpoint with filter
+        # Use count/filter endpoint
         filters = {
             "filter": {
-                "active_enrollment": {"eq": True}
+                "active_enrollment": {"equal": True}
             }
         }
-        result = self._request("POST", f"records/apps/{app_id}/count", json=filters)
+        result = self._request("POST", f"records/apps/{app_id}/count/filter", json=filters)
         return result.get("data", {}).get("count", 0)
 
 
