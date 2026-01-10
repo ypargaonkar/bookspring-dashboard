@@ -1162,10 +1162,10 @@ def load_active_enrollment_count():
     """
     try:
         client = FusiooClient()
-        # Filter for active_enrollment_check = true, returns only count
+        # Filter for active_enrollment = true, returns only count
         count = client.get_record_count(
             B3_CHILD_FAMILY_APP_ID,
-            filters={"active_enrollment_check": {"equal": True}}
+            filters={"active_enrollment": {"equal": True}}
         )
         return count
     except Exception as e:
@@ -1728,7 +1728,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 st.plotly_chart(fig, use_container_width=True)
 
 
-def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0):
+def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date):
     """Render Goal 2: Inspire Engagement with Content Views."""
     st.markdown("""
     <div class="section-header">
@@ -1739,40 +1739,6 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    # Home Delivery Section
-    st.markdown("##### 🏠 In-Home Delivery Program")
-    home_target = 25_000
-    home_progress = min(enrollment_count / home_target * 100, 100) if home_target > 0 else 0
-
-    col1, col2 = st.columns(2)
-    with col1:
-        delta_val = enrollment_count - home_target
-        if delta_val >= 0:
-            st.metric("Active Enrollments", f"{enrollment_count:,}", delta=f"+{delta_val:,} vs target")
-        else:
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
-                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Active Enrollments</p>
-                <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{enrollment_count:,}</p>
-                <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
-            </div>
-            """, unsafe_allow_html=True)
-    with col2:
-        st.metric("2030 Target", "25K families")
-
-    st.markdown(f"""
-    <div class="progress-container">
-        <div class="progress-bar goal2" style="width: {home_progress}%"></div>
-    </div>
-    <div class="progress-label">
-        <span>Progress toward 25K home delivery enrollments</span>
-        <span><strong>{home_progress:.1f}%</strong></span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("##### 📱 Digital Engagement")
 
     if not views_data:
         st.warning("No Content Views data available")
@@ -2509,7 +2475,6 @@ def main():
         original_books = load_original_books()
         content_views = load_content_views()
         financial_data = load_financial_data()
-        enrollment_count = load_active_enrollment_count()
 
     # Combine current and legacy activity data
     legacy_count = 0
@@ -2589,7 +2554,7 @@ def main():
     render_goal1_strengthen_impact(processor, time_unit)
     st.markdown("---")
 
-    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count)
+    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date)
     st.markdown("---")
 
     render_goal3_advance_innovation(original_books)
