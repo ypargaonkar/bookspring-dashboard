@@ -1724,7 +1724,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 st.plotly_chart(fig, use_container_width=True)
 
 
-def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0):
+def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0):
     """Render Goal 2: Inspire Engagement with Content Views."""
     st.markdown("""
     <div class="section-header">
@@ -1764,6 +1764,39 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     <div class="progress-label">
         <span>Progress toward 25K home delivery enrollments</span>
         <span><strong>{home_progress:.1f}%</strong></span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Book Bank Section
+    st.markdown("##### 📚 Book Bank Model (Open Book Distribution)")
+    book_bank_target = 80_000
+    book_bank_progress = min(book_bank_children / book_bank_target * 100, 100) if book_bank_target > 0 else 0
+
+    col1, col2 = st.columns(2)
+    with col1:
+        delta_val = book_bank_children - book_bank_target
+        if delta_val >= 0:
+            st.metric("Children Served", f"{book_bank_children:,}", delta=f"+{delta_val:,} vs target")
+        else:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
+                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Children Served</p>
+                <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{book_bank_children:,}</p>
+                <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
+            </div>
+            """, unsafe_allow_html=True)
+    with col2:
+        st.metric("2030 Target", "80K children")
+
+    st.markdown(f"""
+    <div class="progress-container">
+        <div class="progress-bar goal2" style="width: {book_bank_progress}%"></div>
+    </div>
+    <div class="progress-label">
+        <span>Progress toward 80K partner program children</span>
+        <span><strong>{book_bank_progress:.1f}%</strong></span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2578,6 +2611,17 @@ def main():
             if "_total_children_calc" in processor.df.columns:
                 processor.df.drop("_total_children_calc", axis=1, inplace=True)
 
+    # Calculate book bank children (Open Book Distribution program)
+    book_bank_children = 0
+    if "program" in processor.df.columns:
+        # Filter for book bank programs
+        book_bank_mask = processor.df["program"].isin([
+            "Open Book Distribution",
+            "ReBook/Open Book Distribution"
+        ])
+        if "total_children" in processor.df.columns:
+            book_bank_children = int(processor.df.loc[book_bank_mask, "total_children"].sum())
+
     # Hero header
     render_hero_header(processor)
 
@@ -2585,7 +2629,7 @@ def main():
     render_goal1_strengthen_impact(processor, time_unit)
     st.markdown("---")
 
-    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count)
+    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count, book_bank_children)
     st.markdown("---")
 
     render_goal3_advance_innovation(original_books)
