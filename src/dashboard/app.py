@@ -1737,7 +1737,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     """, unsafe_allow_html=True)
 
     # Home Delivery Section
-    st.markdown("##### 🏠 In-Home Delivery Program")
+    st.markdown("##### 🏠 B3 In-Home Delivery Program")
     home_target = 25_000
     home_progress = min(enrollment_count / home_target * 100, 100) if home_target > 0 else 0
 
