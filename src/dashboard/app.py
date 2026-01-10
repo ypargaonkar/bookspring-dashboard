@@ -1161,9 +1161,16 @@ def load_active_enrollment_count():
     Only reads the active_enrollment field for counting - other fields are not stored.
     """
     try:
-        client = FusiooClient()
-        count = client.count_active_enrollments(B3_CHILD_FAMILY_APP_ID)
-        return count
+        import requests
+        token = os.getenv("FUSIOO_ACCESS_TOKEN")
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"https://api.fusioo.com/v3/records/apps/{B3_CHILD_FAMILY_APP_ID}/count/filter"
+        filters = {
+            "active_enrollment": {"equal": True}
+        }
+        response = requests.post(url, headers=headers, json=filters)
+        response.raise_for_status()
+        return response.json().get("data", {}).get("count", 0)
     except Exception as e:
         st.error(f"Failed to load enrollment count: {e}")
         return 0
