@@ -2360,18 +2360,18 @@ def render_upcoming_events(events_data: list):
     # Parse dates
     df['_event_date'] = pd.to_datetime(df[date_col], errors='coerce')
 
-    # Filter for events within next 2 months
+    # Filter for events within last 5 months (temporary for testing)
     today = pd.Timestamp.now().normalize()
-    two_months_later = today + pd.DateOffset(months=2)
-    upcoming_mask = (df['_event_date'] >= today) & (df['_event_date'] <= two_months_later)
-    upcoming_df = df[upcoming_mask].sort_values('_event_date')
+    five_months_ago = today - pd.DateOffset(months=5)
+    upcoming_mask = (df['_event_date'] >= five_months_ago) & (df['_event_date'] <= today)
+    upcoming_df = df[upcoming_mask].sort_values('_event_date', ascending=False)
 
     if upcoming_df.empty:
-        st.info("No upcoming events in the next 2 months")
+        st.info("No events in the last 5 months")
         return
 
     # Display count
-    st.markdown(f"**{len(upcoming_df)} upcoming event{'s' if len(upcoming_df) != 1 else ''}**")
+    st.markdown(f"**{len(upcoming_df)} event{'s' if len(upcoming_df) != 1 else ''} in last 5 months**")
 
     # Display events as compact cards
     for _, event in upcoming_df.iterrows():
