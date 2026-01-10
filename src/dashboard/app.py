@@ -395,6 +395,39 @@ st.markdown("""
         border-color: #cbd5e0;
     }
 
+    /* ========================================
+       STREAMLIT METRIC STYLING
+       ======================================== */
+    [data-testid="metric-container"] {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        transition: all 0.2s ease;
+    }
+
+    [data-testid="metric-container"]:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        border-color: #cbd5e0;
+        transform: translateY(-1px);
+    }
+
+    [data-testid="metric-container"] label {
+        font-weight: 600 !important;
+        color: #4a5568 !important;
+        font-size: 0.875rem !important;
+    }
+
+    [data-testid="metric-container"] [data-testid="stMetricValue"] {
+        font-weight: 700 !important;
+        color: #1a202c !important;
+    }
+
+    [data-testid="metric-container"] [data-testid="stMetricDelta"] {
+        font-weight: 600 !important;
+    }
+
     .metric-box .metric-label {
         font-size: 0.875rem;
         color: var(--text-muted);
