@@ -2373,35 +2373,42 @@ def render_upcoming_events(events_data: list):
     # Display count
     st.markdown(f"**{len(upcoming_df)} upcoming event{'s' if len(upcoming_df) != 1 else ''}**")
 
-    # Display events as compact cards
-    for _, event in upcoming_df.iterrows():
-        event_date = event['_event_date'].strftime('%b %d, %Y') if pd.notna(event['_event_date']) else 'TBD'
-        event_day = event['_event_date'].strftime('%a') if pd.notna(event['_event_date']) else ''
+    # Display events as compact cards - 2 per row
+    events_list = upcoming_df.to_dict('records')
+    for i in range(0, len(events_list), 2):
+        cols = st.columns(2)
+        for j, col in enumerate(cols):
+            if i + j < len(events_list):
+                event = events_list[i + j]
+                event_dt = pd.to_datetime(event.get('_event_date'))
+                event_date = event_dt.strftime('%b %d, %Y') if pd.notna(event_dt) else 'TBD'
+                event_day = event_dt.strftime('%a') if pd.notna(event_dt) else ''
 
-        # Get event details from Fusioo fields
-        org_site = event.get('organizationsite_name_1', '') or 'Event'
-        program = event.get('program', '')
-        contact = event.get('bookspring_contact', '')
+                # Get event details from Fusioo fields
+                org_site = event.get('organizationsite_name_1', '') or 'Event'
+                program = event.get('program', '')
+                contact = event.get('bookspring_contact', '')
 
-        # Build details string
-        details = []
-        if program:
-            details.append(f"🏷️ {program}")
-        if contact:
-            details.append(f"👤 {contact}")
+                # Build details string
+                details = []
+                if program:
+                    details.append(f"🏷️ {program}")
+                if contact:
+                    details.append(f"👤 {contact}")
 
-        st.markdown(f"""
-        <div style="display: flex; gap: 1rem; padding: 1rem; margin-bottom: 0.75rem; background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border: 1px solid #e5e7eb; border-radius: 12px; border-left: 4px solid #8b5cf6;">
-            <div style="min-width: 60px; text-align: center;">
-                <div style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase;">{event_day}</div>
-                <div style="font-size: 1.1rem; font-weight: 700; color: #1a202c;">{event_date}</div>
-            </div>
-            <div style="flex: 1;">
-                <div style="font-weight: 600; color: #1a202c; margin-bottom: 0.25rem;">📍 {org_site}</div>
-                <div style="font-size: 0.8rem; color: #6b7280;">{' · '.join(details) if details else ''}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+                with col:
+                    st.markdown(f"""
+                    <div style="display: flex; gap: 0.75rem; padding: 0.875rem; background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border: 1px solid #e5e7eb; border-radius: 12px; border-left: 4px solid #8b5cf6; height: 100%;">
+                        <div style="min-width: 50px; text-align: center;">
+                            <div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase;">{event_day}</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: #1a202c;">{event_date}</div>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; color: #1a202c; margin-bottom: 0.25rem; font-size: 0.9rem;">📍 {org_site}</div>
+                            <div style="font-size: 0.75rem; color: #6b7280; overflow: hidden; text-overflow: ellipsis;">{' · '.join(details) if details else ''}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
 
 def render_trends_section(processor: DataProcessor, time_unit: str, views_data: list = None, start_date: date = None, end_date: date = None):
