@@ -1750,6 +1750,20 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     </div>
     """, unsafe_allow_html=True)
 
+    # In-Person Events - Featured at top
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%); border: 1px solid #e9d5ff; border-radius: 16px;">
+        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);">
+            <span style="font-size: 1.75rem; font-weight: 800; color: white;">{inperson_events:,}</span>
+        </div>
+        <div>
+            <p style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin: 0;">BookSpring In-Person Events</p>
+            <p style="font-size: 0.85rem; color: #6b7280; margin: 0.25rem 0 0 0;">(in date range)</p>
+            <p style="font-size: 0.75rem; color: #9ca3af; margin: 0.5rem 0 0 0; font-style: italic;">Includes: Literacy Materials Distribution, Family Literacy Activity</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     # Home Delivery Section
     st.markdown("##### 🏠 B3 In-Home Delivery Program")
     home_target = 25_000
@@ -1813,21 +1827,6 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         <span><strong>{book_bank_progress:.1f}%</strong></span>
     </div>
     """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # In-Person Events Section
-    st.markdown("##### 🎉 BookSpring In-Person Events")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Events (in date range)", f"{inperson_events:,}")
-    with col2:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #fff 0%, #f0fdf4 100%); border: 1px solid #bbf7d0; border-radius: 10px; padding: 1rem;">
-            <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Activity Types Included</p>
-            <p style="font-size: 0.9rem; color: #1a202c; margin: 0;">Literacy Materials Distribution, Family Literacy Activity</p>
-        </div>
-        """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("##### 📱 Digital Engagement")
