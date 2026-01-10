@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import date, timedelta
+from collections import Counter
 from dateutil.relativedelta import relativedelta
 import sys
 import os
@@ -17,7 +18,7 @@ from google.oauth2.service_account import Credentials
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.api.fusioo_client import FusiooClient, ACTIVITY_REPORT_APP_ID, LEGACY_DATA_APP_ID, B3_CHILD_FAMILY_APP_ID, EVENTS_APP_ID
+from src.api.fusioo_client import FusiooClient, ACTIVITY_REPORT_APP_ID, LEGACY_DATA_APP_ID, B3_CHILD_FAMILY_APP_ID, EVENTS_APP_ID, PARTNERS_APP_ID
 from src.data.processor import DataProcessor, get_friendly_name, TimeUnit
 from src.reports.excel_generator import generate_standard_report
 
@@ -1252,6 +1253,18 @@ def load_events_data():
         return []
 
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_partners_data():
+    """Load partners data from Fusioo."""
+    try:
+        client = FusiooClient()
+        records = client.get_all_records(PARTNERS_APP_ID)
+        return records
+    except Exception as e:
+        st.error(f"Failed to load partners data: {e}")
+        return []
+
+
 def normalize_legacy_record(record: dict) -> dict:
     """Normalize a legacy record, keeping original field names for DataProcessor."""
     normalized = {}
@@ -1750,7 +1763,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 st.plotly_chart(fig, use_container_width=True)
 
 
-def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0, inperson_events: int = 0):
+def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0, inperson_events: int = 0, activity_records: list = None, partners_data: list = None):
     """Render Goal 2: Inspire Engagement with Content Views."""
     st.markdown("""
     <div class="section-header">
@@ -1762,19 +1775,74 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     </div>
     """, unsafe_allow_html=True)
 
-    # In-Person Events - Featured at top
-    st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #fef2f8 0%, #fce7f3 100%); border: 1px solid #fbcfe8; border-radius: 16px;">
-        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245, 87, 108, 0.4);">
-            <span style="font-size: 1.75rem; font-weight: 800; color: white;">{inperson_events:,}</span>
+    # Calculate recurring partners from activity records
+    recurring_partners = []
+    recurring_count = 0
+    if activity_records and partners_data:
+        # Build partner ID to name mapping
+        partner_names = {}
+        for partner in partners_data:
+            pid = partner.get('id', '')
+            site_name = partner.get('site_name', '')
+            if isinstance(site_name, list):
+                site_name = site_name[0] if site_name else ''
+            if pid and site_name:
+                partner_names[pid] = site_name
+
+        # Count partner occurrences from activity records
+        partner_counts = Counter()
+        for record in activity_records:
+            partner_id = record.get('partners_testing', '')
+            if isinstance(partner_id, list):
+                partner_id = partner_id[0] if partner_id else ''
+            if partner_id:
+                partner_counts[partner_id] += 1
+
+        # Get recurring partners (appeared more than once)
+        recurring_partners = [(pid, count) for pid, count in partner_counts.most_common() if count > 1]
+        recurring_count = len(recurring_partners)
+
+    # In-Person Events and Recurring Partners - Side by side
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 1rem; padding: 1.25rem; background: linear-gradient(135deg, #fef2f8 0%, #fce7f3 100%); border: 1px solid #fbcfe8; border-radius: 16px; height: 100%;">
+            <div style="width: 70px; height: 70px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245, 87, 108, 0.4); flex-shrink: 0;">
+                <span style="font-size: 1.5rem; font-weight: 800; color: white;">{inperson_events:,}</span>
+            </div>
+            <div>
+                <p style="font-size: 1rem; font-weight: 700; color: #1a202c; margin: 0;">BookSpring In-Person Events</p>
+                <p style="font-size: 0.8rem; color: #6b7280; margin: 0.25rem 0 0 0;">(in date range)</p>
+            </div>
         </div>
-        <div>
-            <p style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin: 0;">BookSpring In-Person Events</p>
-            <p style="font-size: 0.85rem; color: #6b7280; margin: 0.25rem 0 0 0;">(in date range)</p>
-            <p style="font-size: 0.75rem; color: #9ca3af; margin: 0.5rem 0 0 0; font-style: italic;">Includes: Literacy Materials Distribution, Family Literacy Activity</p>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        # Build top partners list (limit to 5 for display)
+        top_partners_html = ""
+        if recurring_partners and partners_data:
+            top_5 = recurring_partners[:5]
+            partner_items = []
+            for pid, count in top_5:
+                name = partner_names.get(pid, pid[:8] + '...')
+                partner_items.append(f"<span style='font-size: 0.75rem; color: #4b5563;'>{name} ({count})</span>")
+            top_partners_html = " · ".join(partner_items)
+
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 1rem; padding: 1.25rem; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #bbf7d0; border-radius: 16px; height: 100%;">
+            <div style="width: 70px; height: 70px; background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4); flex-shrink: 0;">
+                <span style="font-size: 1.5rem; font-weight: 800; color: white;">{recurring_count:,}</span>
+            </div>
+            <div style="min-width: 0; flex: 1;">
+                <p style="font-size: 1rem; font-weight: 700; color: #1a202c; margin: 0;">Recurring Partners</p>
+                <p style="font-size: 0.8rem; color: #6b7280; margin: 0.25rem 0 0 0;">(2+ activities in date range)</p>
+                <p style="font-size: 0.7rem; color: #6b7280; margin: 0.35rem 0 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{top_partners_html if top_partners_html else ''}</p>
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
 
     # Home Delivery Section
     st.markdown("##### 🏠 B3 In-Home Delivery Program")
@@ -2725,6 +2793,7 @@ def main():
         financial_data = load_financial_data()
         enrollment_count = load_active_enrollment_count()
         events_data = load_events_data()
+        partners_data = load_partners_data()
 
     # Combine current and legacy activity data
     legacy_count = 0
@@ -2827,7 +2896,7 @@ def main():
     render_goal1_strengthen_impact(processor, time_unit)
     st.markdown("---")
 
-    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count, book_bank_children, inperson_events)
+    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count, book_bank_children, inperson_events, activity_records, partners_data)
     st.markdown("---")
 
     render_goal3_advance_innovation(original_books)
