@@ -2711,6 +2711,11 @@ def main():
             st.toast("Fetching fresh data from Fusioo...", icon="🔄")
             st.rerun()
 
+        if st.button("📅 Refresh Events", use_container_width=True, help="Refresh only upcoming events data"):
+            load_events_data.clear()
+            st.toast("Refreshing events data...", icon="📅")
+            st.rerun()
+
     # Load data
     with st.spinner("Loading data..."):
         activity_records = load_activity_data()
