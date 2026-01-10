@@ -1255,10 +1255,11 @@ def load_events_data():
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def load_partners_data():
-    """Load partners data from Fusioo for partner name lookups."""
+    """Load partners data from Fusioo for partner name lookups (minimal fields for privacy)."""
     try:
         client = FusiooClient()
-        records = client.get_all_records(PARTNERS_APP_ID)
+        # Only fetch fields needed for display - avoid loading PII
+        records = client.get_all_records(PARTNERS_APP_ID, fields=["id", "site_name", "main_organization_from_list"])
         return records
     except Exception as e:
         st.error(f"Failed to load partners data: {e}")
