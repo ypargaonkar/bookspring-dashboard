@@ -70,26 +70,19 @@ class FusiooClient:
         return result.get("data", [])
 
     def count_active_enrollments(self, app_id: str) -> int:
-        """Count records where active_enrollment is True.
+        """Count records where active_enrollment is True using filter API.
 
         Only reads the active_enrollment field value for counting.
         Other fields are not accessed or stored.
         """
-        count = 0
-        offset = 0
-        limit = 200
-
-        while True:
-            records = self.get_records(app_id, limit=limit, offset=offset)
-            if not records:
-                break
-            # Only look at active_enrollment field
-            count += sum(1 for r in records if r.get('active_enrollment') in (True, 'True'))
-            if len(records) < limit:
-                break
-            offset += limit
-
-        return count
+        # Use count endpoint with filter
+        filters = {
+            "filter": {
+                "active_enrollment": {"eq": True}
+            }
+        }
+        result = self._request("POST", f"records/apps/{app_id}/count", json=filters)
+        return result.get("data", {}).get("count", 0)
 
 
 # Pre-configured app IDs
