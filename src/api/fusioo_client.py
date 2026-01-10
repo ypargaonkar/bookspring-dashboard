@@ -80,9 +80,7 @@ class FusiooClient:
         """
         # Use count/filter endpoint
         filters = {
-            "filter": {
-                "active_enrollment": {"equal": "true"}
-            }
+            "active_enrollment": {"equal": True}
         }
         result = self._request("POST", f"records/apps/{app_id}/count/filter", json=filters)
         return result.get("data", {}).get("count", 0)
