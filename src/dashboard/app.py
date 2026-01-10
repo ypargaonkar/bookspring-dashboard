@@ -2360,38 +2360,35 @@ def render_upcoming_events(events_data: list):
     # Parse dates
     df['_event_date'] = pd.to_datetime(df[date_col], errors='coerce')
 
-    # Filter for events within last 5 months (temporary for testing)
+    # Filter for events within next 2 months
     today = pd.Timestamp.now().normalize()
-    five_months_ago = today - pd.DateOffset(months=5)
-    upcoming_mask = (df['_event_date'] >= five_months_ago) & (df['_event_date'] <= today)
-    upcoming_df = df[upcoming_mask].sort_values('_event_date', ascending=False)
+    two_months_later = today + pd.DateOffset(months=2)
+    upcoming_mask = (df['_event_date'] >= today) & (df['_event_date'] <= two_months_later)
+    upcoming_df = df[upcoming_mask].sort_values('_event_date')
 
     if upcoming_df.empty:
-        st.info("No events in the last 5 months")
+        st.info("No upcoming events in the next 2 months")
         return
 
     # Display count
-    st.markdown(f"**{len(upcoming_df)} event{'s' if len(upcoming_df) != 1 else ''} in last 5 months**")
+    st.markdown(f"**{len(upcoming_df)} upcoming event{'s' if len(upcoming_df) != 1 else ''}**")
 
     # Display events as compact cards
     for _, event in upcoming_df.iterrows():
         event_date = event['_event_date'].strftime('%b %d, %Y') if pd.notna(event['_event_date']) else 'TBD'
         event_day = event['_event_date'].strftime('%a') if pd.notna(event['_event_date']) else ''
 
-        # Get event details - try common field names
-        event_name = event.get('event_name', event.get('name', event.get('title', 'Untitled Event')))
-        location = event.get('location', event.get('venue', ''))
-        event_type = event.get('event_type', event.get('type', ''))
-        partner = event.get('partner', event.get('organization', ''))
+        # Get event details from Fusioo fields
+        org_site = event.get('organizationsite_name_1', '') or 'Event'
+        program = event.get('program', '')
+        contact = event.get('bookspring_contact', '')
 
         # Build details string
         details = []
-        if location:
-            details.append(f"📍 {location}")
-        if event_type:
-            details.append(f"🏷️ {event_type}")
-        if partner:
-            details.append(f"🤝 {partner}")
+        if program:
+            details.append(f"🏷️ {program}")
+        if contact:
+            details.append(f"👤 {contact}")
 
         st.markdown(f"""
         <div style="display: flex; gap: 1rem; padding: 1rem; margin-bottom: 0.75rem; background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border: 1px solid #e5e7eb; border-radius: 12px; border-left: 4px solid #8b5cf6;">
@@ -2400,7 +2397,7 @@ def render_upcoming_events(events_data: list):
                 <div style="font-size: 1.1rem; font-weight: 700; color: #1a202c;">{event_date}</div>
             </div>
             <div style="flex: 1;">
-                <div style="font-weight: 600; color: #1a202c; margin-bottom: 0.25rem;">{event_name}</div>
+                <div style="font-weight: 600; color: #1a202c; margin-bottom: 0.25rem;">📍 {org_site}</div>
                 <div style="font-size: 0.8rem; color: #6b7280;">{' · '.join(details) if details else ''}</div>
             </div>
         </div>
