@@ -69,8 +69,31 @@ class FusiooClient:
                                json=filters, params=params)
         return result.get("data", [])
 
+    def count_active_enrollments(self, app_id: str) -> int:
+        """Count records where active_enrollment is True.
+
+        Only reads the active_enrollment field value for counting.
+        Other fields are not accessed or stored.
+        """
+        count = 0
+        offset = 0
+        limit = 200
+
+        while True:
+            records = self.get_records(app_id, limit=limit, offset=offset)
+            if not records:
+                break
+            # Only look at active_enrollment field
+            count += sum(1 for r in records if r.get('active_enrollment') in (True, 'True'))
+            if len(records) < limit:
+                break
+            offset += limit
+
+        return count
+
 
 # Pre-configured app IDs
 ACTIVITY_REPORT_APP_ID = os.getenv("ACTIVITY_REPORT_APP_ID", "i71d7fa767e2546aaa40fdd007b608719")
 PROGRAM_PARTNERS_APP_ID = os.getenv("PROGRAM_PARTNERS_APP_ID", "i6972b09e40f745d9a8a8bf6e41a6e840")
 LEGACY_DATA_APP_ID = os.getenv("LEGACY_DATA_APP_ID", "i6972b09e40f745d9a8a8bf6e41a6e840")
+B3_CHILD_FAMILY_APP_ID = os.getenv("B3_CHILD_FAMILY_APP_ID", "i8e6d5204817042dc8d9e02598538a7f4")

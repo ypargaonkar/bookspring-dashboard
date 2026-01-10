@@ -17,7 +17,7 @@ from google.oauth2.service_account import Credentials
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.api.fusioo_client import FusiooClient, ACTIVITY_REPORT_APP_ID, LEGACY_DATA_APP_ID
+from src.api.fusioo_client import FusiooClient, ACTIVITY_REPORT_APP_ID, LEGACY_DATA_APP_ID, B3_CHILD_FAMILY_APP_ID
 from src.data.processor import DataProcessor, get_friendly_name, TimeUnit
 from src.reports.excel_generator import generate_standard_report
 
@@ -1155,6 +1155,21 @@ def load_legacy_data():
 
 
 @st.cache_data(ttl=86400)  # Cache for 24 hours
+def load_active_enrollment_count():
+    """Load count of active enrollments from B3 Child/Family table.
+
+    Only reads the active_enrollment field for counting - other fields are not stored.
+    """
+    try:
+        client = FusiooClient()
+        count = client.count_active_enrollments(B3_CHILD_FAMILY_APP_ID)
+        return count
+    except Exception as e:
+        st.error(f"Failed to load enrollment count: {e}")
+        return 0
+
+
+@st.cache_data(ttl=86400)  # Cache for 24 hours
 def load_financial_data():
     """Load financial data from Google Sheets."""
     try:
@@ -1709,7 +1724,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 st.plotly_chart(fig, use_container_width=True)
 
 
-def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date):
+def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0):
     """Render Goal 2: Inspire Engagement with Content Views."""
     st.markdown("""
     <div class="section-header">
@@ -1720,6 +1735,40 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # Home Delivery Section
+    st.markdown("##### 🏠 In-Home Delivery Program")
+    home_target = 25_000
+    home_progress = min(enrollment_count / home_target * 100, 100) if home_target > 0 else 0
+
+    col1, col2 = st.columns(2)
+    with col1:
+        delta_val = enrollment_count - home_target
+        if delta_val >= 0:
+            st.metric("Active Enrollments", f"{enrollment_count:,}", delta=f"+{delta_val:,} vs target")
+        else:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
+                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Active Enrollments</p>
+                <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{enrollment_count:,}</p>
+                <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
+            </div>
+            """, unsafe_allow_html=True)
+    with col2:
+        st.metric("2030 Target", "25K families")
+
+    st.markdown(f"""
+    <div class="progress-container">
+        <div class="progress-bar goal2" style="width: {home_progress}%"></div>
+    </div>
+    <div class="progress-label">
+        <span>Progress toward 25K home delivery enrollments</span>
+        <span><strong>{home_progress:.1f}%</strong></span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("##### 📱 Digital Engagement")
 
     if not views_data:
         st.warning("No Content Views data available")
@@ -2456,6 +2505,7 @@ def main():
         original_books = load_original_books()
         content_views = load_content_views()
         financial_data = load_financial_data()
+        enrollment_count = load_active_enrollment_count()
 
     # Combine current and legacy activity data
     legacy_count = 0
@@ -2535,7 +2585,7 @@ def main():
     render_goal1_strengthen_impact(processor, time_unit)
     st.markdown("---")
 
-    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date)
+    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count)
     st.markdown("---")
 
     render_goal3_advance_innovation(original_books)
