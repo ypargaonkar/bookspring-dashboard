@@ -1659,7 +1659,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
             </div>
             """, unsafe_allow_html=True)
     with col2:
-        st.metric("Target", "4.00")
+        st.metric("Annual Target", "4.00 books/child")
 
     # Custom progress bar
     st.markdown(f"""
@@ -1667,7 +1667,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
         <div class="progress-bar goal1" style="width: {progress}%"></div>
     </div>
     <div class="progress-label">
-        <span>Progress toward 4 books/child</span>
+        <span>Progress toward 4 books/child/year</span>
         <span><strong>{progress:.1f}%</strong></span>
     </div>
     """, unsafe_allow_html=True)
@@ -1888,7 +1888,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     with col3:
         st.metric("Newsletter Views", f"{int(newsletter_views):,}")
     with col4:
-        st.metric("2030 Target", "1.5M views")
+        st.metric("Annual Target", "1.5M views/year")
 
     # Progress bar
     st.markdown(f"""
@@ -1896,7 +1896,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         <div class="progress-bar goal2" style="width: {progress}%"></div>
     </div>
     <div class="progress-label">
-        <span>Progress toward 1.5M annual views</span>
+        <span>Progress toward 1.5M views/year</span>
         <span><strong>{progress:.1f}%</strong></span>
     </div>
     """, unsafe_allow_html=True)
