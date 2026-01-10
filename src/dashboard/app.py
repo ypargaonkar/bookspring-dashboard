@@ -1255,10 +1255,11 @@ def load_events_data():
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def load_partners_data():
-    """Load partners data from Fusioo."""
+    """Load partners data from Fusioo (only id and site_name for privacy)."""
     try:
         client = FusiooClient()
-        records = client.get_all_records(PARTNERS_APP_ID)
+        # Only fetch id and site_name to avoid loading PII
+        records = client.get_all_records(PARTNERS_APP_ID, fields=["id", "site_name"])
         return records
     except Exception as e:
         st.error(f"Failed to load partners data: {e}")
@@ -1775,12 +1776,12 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     </div>
     """, unsafe_allow_html=True)
 
-    # Calculate recurring partners from activity records
+    # Calculate recurring partners from activity records (filtered by date range)
     recurring_partners = []
     recurring_count = 0
+    partner_names = {}
     if activity_records and partners_data:
         # Build partner ID to name mapping
-        partner_names = {}
         for partner in partners_data:
             pid = partner.get('id', '')
             site_name = partner.get('site_name', '')
@@ -1789,9 +1790,22 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
             if pid and site_name:
                 partner_names[pid] = site_name
 
-        # Count partner occurrences from activity records
+        # Filter activity records by date range and count partner occurrences
         partner_counts = Counter()
         for record in activity_records:
+            # Check date range
+            record_date = record.get('date_of_activity') or record.get('date')
+            if record_date:
+                if isinstance(record_date, str):
+                    try:
+                        record_dt = pd.to_datetime(record_date)
+                        if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
+                            continue
+                    except:
+                        continue
+                else:
+                    continue
+
             partner_id = record.get('partners_testing', '')
             if isinstance(partner_id, list):
                 partner_id = partner_id[0] if partner_id else ''
@@ -1802,47 +1816,43 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         recurring_partners = [(pid, count) for pid, count in partner_counts.most_common() if count > 1]
         recurring_count = len(recurring_partners)
 
-    # In-Person Events and Recurring Partners - Side by side
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 1rem; padding: 1.25rem; background: linear-gradient(135deg, #fef2f8 0%, #fce7f3 100%); border: 1px solid #fbcfe8; border-radius: 16px; height: 100%;">
-            <div style="width: 70px; height: 70px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245, 87, 108, 0.4); flex-shrink: 0;">
-                <span style="font-size: 1.5rem; font-weight: 800; color: white;">{inperson_events:,}</span>
-            </div>
-            <div>
-                <p style="font-size: 1rem; font-weight: 700; color: #1a202c; margin: 0;">BookSpring In-Person Events</p>
-                <p style="font-size: 0.8rem; color: #6b7280; margin: 0.25rem 0 0 0;">(in date range)</p>
-            </div>
+    # In-Person Events box
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #fef2f8 0%, #fce7f3 100%); border: 1px solid #fbcfe8; border-radius: 16px;">
+        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245, 87, 108, 0.4); flex-shrink: 0;">
+            <span style="font-size: 1.75rem; font-weight: 800; color: white;">{inperson_events:,}</span>
         </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        # Build top partners list (limit to 5 for display)
-        top_partners_html = ""
-        if recurring_partners and partners_data:
-            top_5 = recurring_partners[:5]
-            partner_items = []
-            for pid, count in top_5:
-                name = partner_names.get(pid, pid[:8] + '...')
-                partner_items.append(f"<span style='font-size: 0.75rem; color: #4b5563;'>{name} ({count})</span>")
-            top_partners_html = " · ".join(partner_items)
-
-        st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 1rem; padding: 1.25rem; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #bbf7d0; border-radius: 16px; height: 100%;">
-            <div style="width: 70px; height: 70px; background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4); flex-shrink: 0;">
-                <span style="font-size: 1.5rem; font-weight: 800; color: white;">{recurring_count:,}</span>
-            </div>
-            <div style="min-width: 0; flex: 1;">
-                <p style="font-size: 1rem; font-weight: 700; color: #1a202c; margin: 0;">Recurring Partners</p>
-                <p style="font-size: 0.8rem; color: #6b7280; margin: 0.25rem 0 0 0;">(2+ activities in date range)</p>
-                <p style="font-size: 0.7rem; color: #6b7280; margin: 0.35rem 0 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{top_partners_html if top_partners_html else ''}</p>
-            </div>
+        <div>
+            <p style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin: 0;">BookSpring In-Person Events</p>
+            <p style="font-size: 0.85rem; color: #6b7280; margin: 0.25rem 0 0 0;">(in date range)</p>
+            <p style="font-size: 0.75rem; color: #9ca3af; margin: 0.5rem 0 0 0; font-style: italic;">Includes: Literacy Materials Distribution, Family Literacy Activity</p>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown("<div style='margin-bottom: 1rem;'></div>", unsafe_allow_html=True)
+    # Recurring Partners box (below In-Person Events)
+    # Build top partners list (more space now - show up to 8)
+    top_partners_html = ""
+    if recurring_partners:
+        top_partners = recurring_partners[:8]
+        partner_items = []
+        for pid, count in top_partners:
+            name = partner_names.get(pid, pid[:12] + '...')
+            partner_items.append(f"<span style='background: #d1fae5; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; color: #065f46; white-space: nowrap;'>{name} <strong>({count})</strong></span>")
+        top_partners_html = " ".join(partner_items)
+
+    st.markdown(f"""
+    <div style="display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #bbf7d0; border-radius: 16px;">
+        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4); flex-shrink: 0;">
+            <span style="font-size: 1.75rem; font-weight: 800; color: white;">{recurring_count:,}</span>
+        </div>
+        <div style="flex: 1; min-width: 0;">
+            <p style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin: 0;">Recurring Partners</p>
+            <p style="font-size: 0.85rem; color: #6b7280; margin: 0.25rem 0 0 0;">(2+ activities in date range)</p>
+            <div style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">{top_partners_html if top_partners_html else '<span style="font-size: 0.8rem; color: #9ca3af;">No recurring partners in date range</span>'}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Home Delivery Section
     st.markdown("##### 🏠 B3 In-Home Delivery Program")

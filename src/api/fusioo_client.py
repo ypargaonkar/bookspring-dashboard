@@ -39,22 +39,35 @@ class FusiooClient:
         return result.get("data", {})
 
     def get_records(self, app_id: str, limit: int = 200, offset: int = 0,
-                    sort_by: Optional[str] = None, order: str = "asc") -> list:
-        """Get records from an app with pagination."""
+                    sort_by: Optional[str] = None, order: str = "asc",
+                    fields: Optional[list] = None) -> list:
+        """Get records from an app with pagination.
+
+        Args:
+            fields: Optional list of field names to return (comma-separated in API)
+        """
         params = {"limit": limit, "offset": offset, "order": order}
         if sort_by:
             params["sort_by"] = sort_by
+        if fields:
+            params["fields"] = ",".join(fields)
         result = self._request("GET", f"records/apps/{app_id}", params=params)
         return result.get("data", [])
 
-    def get_all_records(self, app_id: str, sort_by: Optional[str] = None) -> list:
-        """Get all records from an app (handles pagination)."""
+    def get_all_records(self, app_id: str, sort_by: Optional[str] = None, fields: Optional[list] = None) -> list:
+        """Get all records from an app (handles pagination).
+
+        Args:
+            app_id: The app ID to fetch records from
+            sort_by: Optional field to sort by
+            fields: Optional list of field names to return (reduces data transfer)
+        """
         all_records = []
         offset = 0
         limit = 200
 
         while True:
-            records = self.get_records(app_id, limit=limit, offset=offset, sort_by=sort_by)
+            records = self.get_records(app_id, limit=limit, offset=offset, sort_by=sort_by, fields=fields)
             if not records:
                 break
             all_records.extend(records)
