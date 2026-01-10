@@ -1615,12 +1615,12 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
         delta_val = avg_overall - target
         # Show red when below target (normal = green up/red down, off = no color)
         if delta_val >= 0:
-            st.metric("Avg Books/Child", f"{avg_overall:.2f}", delta=f"{delta_val:+.2f} vs target")
+            st.metric("Avg Books/Child (in date range)", f"{avg_overall:.2f}", delta=f"{delta_val:+.2f} vs target")
         else:
             # Custom HTML for red indicator when below target
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
-                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Avg Books/Child</p>
+                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Avg Books/Child (in date range)</p>
                 <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{avg_overall:.2f}</p>
                 <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):.2f} below target</p>
             </div>
