@@ -69,8 +69,17 @@ class FusiooClient:
                                json=filters, params=params)
         return result.get("data", [])
 
+    def get_record_count(self, app_id: str, filters: dict = None) -> int:
+        """Get count of records matching a filter. Returns only a count, no record data."""
+        if filters:
+            result = self._request("POST", f"records/apps/{app_id}/count/filter", json=filters)
+        else:
+            result = self._request("GET", f"records/apps/{app_id}/count")
+        return result.get("data", {}).get("count", 0)
+
 
 # Pre-configured app IDs
 ACTIVITY_REPORT_APP_ID = os.getenv("ACTIVITY_REPORT_APP_ID", "i71d7fa767e2546aaa40fdd007b608719")
 PROGRAM_PARTNERS_APP_ID = os.getenv("PROGRAM_PARTNERS_APP_ID", "i6972b09e40f745d9a8a8bf6e41a6e840")
 LEGACY_DATA_APP_ID = os.getenv("LEGACY_DATA_APP_ID", "i6972b09e40f745d9a8a8bf6e41a6e840")
+B3_CHILD_FAMILY_APP_ID = os.getenv("B3_CHILD_FAMILY_APP_ID", "i8e6d5204817042dc8d9e02598538a7f4")

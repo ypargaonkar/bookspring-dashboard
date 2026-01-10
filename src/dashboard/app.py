@@ -17,7 +17,7 @@ from google.oauth2.service_account import Credentials
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.api.fusioo_client import FusiooClient, ACTIVITY_REPORT_APP_ID, LEGACY_DATA_APP_ID
+from src.api.fusioo_client import FusiooClient, ACTIVITY_REPORT_APP_ID, LEGACY_DATA_APP_ID, B3_CHILD_FAMILY_APP_ID
 from src.data.processor import DataProcessor, get_friendly_name, TimeUnit
 from src.reports.excel_generator import generate_standard_report
 
@@ -1152,6 +1152,25 @@ def load_legacy_data():
     except Exception as e:
         st.error(f"Failed to load legacy data: {e}")
         return []
+
+
+@st.cache_data(ttl=86400)  # Cache for 24 hours
+def load_active_enrollment_count():
+    """Load count of active enrollments from B3 Child/Family table.
+
+    Only returns a count - no record data is loaded to protect sensitive information.
+    """
+    try:
+        client = FusiooClient()
+        # Filter for active_enrollment = true, returns only count
+        count = client.get_record_count(
+            B3_CHILD_FAMILY_APP_ID,
+            filters={"active_enrollment": {"equal": True}}
+        )
+        return count
+    except Exception as e:
+        st.error(f"Failed to load enrollment count: {e}")
+        return 0
 
 
 @st.cache_data(ttl=86400)  # Cache for 24 hours
