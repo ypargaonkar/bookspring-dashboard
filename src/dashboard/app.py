@@ -2346,6 +2346,16 @@ def render_upcoming_events(events_data: list):
                 else x
             )
 
+    # Filter by status first
+    valid_statuses = ["Date decided", "Ready for Delivery", "Completed"]
+    if "status" in df.columns:
+        status_mask = df["status"].isin(valid_statuses)
+        df = df[status_mask].copy()
+
+    if df.empty:
+        st.info("No events with valid status")
+        return
+
     # Find the date column (decided_date or similar)
     date_col = None
     for col in ['decided_date', 'event_date', 'date', 'start_date']:
@@ -2357,8 +2367,34 @@ def render_upcoming_events(events_data: list):
         st.warning("No date field found in events data")
         return
 
-    # Parse dates
-    df['_event_date'] = pd.to_datetime(df[date_col], errors='coerce')
+    # Parse dates - handle date ranges (e.g., "2026-01-15 to 2026-01-17" or date range objects)
+    def parse_event_date(date_val):
+        """Parse event date, handling ranges by returning start date."""
+        if pd.isna(date_val):
+            return pd.NaT
+        if isinstance(date_val, str):
+            # Handle range format "date1 to date2" or "date1 - date2"
+            for sep in [' to ', ' - ', '|']:
+                if sep in date_val:
+                    date_val = date_val.split(sep)[0].strip()
+                    break
+        return pd.to_datetime(date_val, errors='coerce')
+
+    def parse_event_end_date(row):
+        """Parse event end date if it's a range."""
+        date_val = row.get(date_col)
+        if pd.isna(date_val):
+            return pd.NaT
+        if isinstance(date_val, str):
+            for sep in [' to ', ' - ', '|']:
+                if sep in date_val:
+                    parts = date_val.split(sep)
+                    if len(parts) > 1:
+                        return pd.to_datetime(parts[1].strip(), errors='coerce')
+        return pd.NaT
+
+    df['_event_date'] = df[date_col].apply(parse_event_date)
+    df['_event_end_date'] = df.apply(parse_event_end_date, axis=1)
 
     # Filter for events within next 2 months
     today = pd.Timestamp.now().normalize()
@@ -2381,8 +2417,19 @@ def render_upcoming_events(events_data: list):
             if i + j < len(events_list):
                 event = events_list[i + j]
                 event_dt = pd.to_datetime(event.get('_event_date'))
-                event_date = event_dt.strftime('%b %d, %Y') if pd.notna(event_dt) else 'TBD'
-                event_day = event_dt.strftime('%a') if pd.notna(event_dt) else ''
+                event_end_dt = pd.to_datetime(event.get('_event_end_date')) if pd.notna(event.get('_event_end_date')) else None
+
+                # Format date - show range if end date exists
+                if pd.notna(event_dt):
+                    event_day = event_dt.strftime('%a')
+                    if event_end_dt and pd.notna(event_end_dt) and event_end_dt != event_dt:
+                        # Date range
+                        event_date = f"{event_dt.strftime('%b %d')} - {event_end_dt.strftime('%b %d')}"
+                    else:
+                        event_date = event_dt.strftime('%b %d, %Y')
+                else:
+                    event_day = ''
+                    event_date = 'TBD'
 
                 # Get event details from Fusioo fields
                 org_site = event.get('organizationsite_name_1', '') or 'Event'
@@ -2399,9 +2446,9 @@ def render_upcoming_events(events_data: list):
                 with col:
                     st.markdown(f"""
                     <div style="display: flex; gap: 0.75rem; padding: 0.875rem; background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border: 1px solid #e5e7eb; border-radius: 12px; border-left: 4px solid #8b5cf6; height: 100%;">
-                        <div style="min-width: 50px; text-align: center;">
+                        <div style="min-width: 55px; text-align: center;">
                             <div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase;">{event_day}</div>
-                            <div style="font-size: 0.95rem; font-weight: 700; color: #1a202c;">{event_date}</div>
+                            <div style="font-size: 0.85rem; font-weight: 700; color: #1a202c;">{event_date}</div>
                         </div>
                         <div style="flex: 1; min-width: 0;">
                             <div style="font-weight: 600; color: #1a202c; margin-bottom: 0.25rem; font-size: 0.9rem;">📍 {org_site}</div>
