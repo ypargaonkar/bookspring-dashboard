@@ -1825,16 +1825,54 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         recurring_partners = [(pid, count) for pid, count in partner_counts.most_common() if count > 1]
         recurring_count = len(recurring_partners)
 
+    # Calculate partners for in-person events (same date range filter)
+    inperson_event_partners = set()
+    if activity_records and partner_names:
+        for record in activity_records:
+            # Check date range
+            record_date = record.get('date_of_activity') or record.get('date')
+            if record_date:
+                if isinstance(record_date, str):
+                    try:
+                        record_dt = pd.to_datetime(record_date)
+                        if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
+                            continue
+                    except:
+                        continue
+                else:
+                    continue
+
+            # Check if it's an in-person event
+            activity_type = record.get('activity_type', '')
+            if isinstance(activity_type, list):
+                activity_type = ', '.join(str(x) for x in activity_type)
+            if not ("Literacy Materials Distribution" in str(activity_type) or "Family Literacy Activity" in str(activity_type)):
+                continue
+
+            # Get partner
+            partner_id = record.get('partners_testing', '')
+            if isinstance(partner_id, list):
+                partner_id = partner_id[0] if partner_id else ''
+            if partner_id and partner_id in partner_names:
+                inperson_event_partners.add(partner_names[partner_id])
+
+    # Build in-person event partners HTML
+    inperson_partners_html = ""
+    if inperson_event_partners:
+        partner_items = [f"<span style='background: #fce7f3; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; color: #9d174d; white-space: nowrap;'>{name}</span>" for name in sorted(inperson_event_partners)]
+        inperson_partners_html = " ".join(partner_items)
+
     # In-Person Events box
     st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #fef2f8 0%, #fce7f3 100%); border: 1px solid #fbcfe8; border-radius: 16px;">
+    <div style="display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1rem; padding: 1.25rem 1.5rem; background: linear-gradient(135deg, #fef2f8 0%, #fce7f3 100%); border: 1px solid #fbcfe8; border-radius: 16px;">
         <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(245, 87, 108, 0.4); flex-shrink: 0;">
             <span style="font-size: 1.75rem; font-weight: 800; color: white;">{inperson_events:,}</span>
         </div>
-        <div>
+        <div style="flex: 1; min-width: 0;">
             <p style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin: 0;">BookSpring In-Person Events</p>
             <p style="font-size: 0.85rem; color: #6b7280; margin: 0.25rem 0 0 0;">(in date range)</p>
             <p style="font-size: 0.75rem; color: #9ca3af; margin: 0.5rem 0 0 0; font-style: italic;">Includes: Literacy Materials Distribution, Family Literacy Activity</p>
+            <div style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.4rem;">{inperson_partners_html if inperson_partners_html else ''}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
