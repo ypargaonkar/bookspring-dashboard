@@ -2511,21 +2511,16 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         </div>
         """, unsafe_allow_html=True)
 
-        # Two columns: Contact comparison chart + CC Campaign Status breakdown
+        # Two columns: Contact comparison chart + CC Campaign Status chart
         col1, col2 = st.columns(2)
 
         with col1:
-            # Create grouped bar chart for YoY comparison with % change labels
+            # Create grouped bar chart for YoY comparison
             comparison_df = pd.DataFrame(comparison_data)
             chart_df = comparison_df.copy()
 
-            # Create labels with value and % change
-            def make_label(row):
-                curr = row[current_col]
-                prev = row[prior_col]
-                pct = ((curr - prev) / prev * 100) if prev > 0 else 0
-                color = '#38a169' if pct >= 0 else '#e53e3e'
-                return f'{curr:,.0f}'
+            # Get max value for y-axis range
+            max_val = max(chart_df[current_col].max(), chart_df[prior_col].max())
 
             fig = go.Figure()
             fig.add_trace(go.Bar(
@@ -2533,10 +2528,9 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 x=chart_df['Contact Type'],
                 y=chart_df[current_col],
                 marker_color='#667eea',
-                text=[f"{v:,.0f} <span style='color:{'#38a169' if p >= 0 else '#e53e3e'}'>({'+' if p >= 0 else ''}{p:.0f}%)</span>"
-                      for v, p in zip(chart_df[current_col], chart_df['% Change'])],
+                text=chart_df[current_col].apply(lambda x: f'{x:,.0f}'),
                 textposition='outside',
-                textfont=dict(size=10)
+                textfont=dict(size=11)
             ))
             fig.add_trace(go.Bar(
                 name=prior_col,
@@ -2545,60 +2539,48 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 marker_color='#cbd5e0',
                 text=chart_df[prior_col].apply(lambda x: f'{x:,.0f}'),
                 textposition='outside',
-                textfont=dict(size=10)
+                textfont=dict(size=11)
             ))
 
             fig = style_plotly_chart(fig, height=320)
             fig.update_layout(
                 barmode='group',
-                title=dict(text='Contact Volume by Type (YoY)', font=dict(size=14)),
-                yaxis=dict(range=[0, chart_df[current_col].max() * 1.25])  # Add headroom for labels
+                title=dict(text='Contact Volume by Type', font=dict(size=14)),
+                yaxis=dict(range=[0, max_val * 1.4])  # 40% headroom for labels
             )
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            # CC Campaign Status breakdown
-            st.markdown("""
-            <div style="font-size: 0.95rem; font-weight: 600; color: #1a365d; margin-bottom: 0.75rem;">
-                📧 Constant Contact by Campaign Status
-            </div>
-            """, unsafe_allow_html=True)
+            # CC Campaign Status - Horizontal Bar Chart
+            if current_metrics['cc_by_status']:
+                # Sort by current FY value descending
+                cc_data = [(status, current_metrics['cc_by_status'].get(status, 0))
+                           for status in current_metrics['cc_by_status'].keys()]
+                cc_data.sort(key=lambda x: x[1], reverse=True)
 
-            if current_metrics['cc_by_status'] or prior_metrics['cc_by_status']:
-                all_statuses = set(current_metrics['cc_by_status'].keys()) | set(prior_metrics['cc_by_status'].keys())
-                cc_details = []
-                for status in sorted(all_statuses):
-                    current_count = current_metrics['cc_by_status'].get(status, 0)
-                    prior_count = prior_metrics['cc_by_status'].get(status, 0)
-                    change = current_count - prior_count
-                    pct_chg = ((current_count - prior_count) / prior_count * 100) if prior_count > 0 else 0
-                    cc_details.append({
-                        'Status': status,
-                        current_col: current_count,
-                        prior_col: prior_count,
-                        'Change': change,
-                        '% Chg': pct_chg
-                    })
-                cc_df = pd.DataFrame(cc_details)
+                statuses = [d[0] for d in cc_data]
+                values = [d[1] for d in cc_data]
 
-                def style_change_cc(val):
-                    if isinstance(val, (int, float)):
-                        if val > 0:
-                            return 'color: #38a169; font-weight: 600;'
-                        elif val < 0:
-                            return 'color: #e53e3e; font-weight: 600;'
-                    return ''
+                fig_cc = go.Figure()
+                fig_cc.add_trace(go.Bar(
+                    y=statuses,
+                    x=values,
+                    orientation='h',
+                    marker_color='#667eea',
+                    text=[f'{v:,.0f}' for v in values],
+                    textposition='outside',
+                    textfont=dict(size=11)
+                ))
 
-                styled_cc = cc_df.style.format({
-                    current_col: '{:,.0f}',
-                    prior_col: '{:,.0f}',
-                    'Change': '{:+,.0f}',
-                    '% Chg': '{:+.1f}%'
-                }).map(style_change_cc, subset=['Change', '% Chg'])
+                fig_cc = style_plotly_chart(fig_cc, height=320)
+                fig_cc.update_layout(
+                    title=dict(text='Constant Contact by Status', font=dict(size=14)),
+                    xaxis=dict(range=[0, max(values) * 1.3]),  # Headroom for labels
+                    yaxis=dict(autorange='reversed')  # Largest at top
+                )
+                st.plotly_chart(fig_cc, use_container_width=True)
 
-                st.dataframe(styled_cc, hide_index=True, use_container_width=True, height=280)
-
-        # Monthly trend chart - LINE CHART full width
+        # Monthly trend chart - LINE CHART with month names on X-axis
         st.markdown("""
         <div style="font-size: 0.95rem; font-weight: 600; color: #1a365d; margin: 1.5rem 0 0.75rem 0;">
             📈 Monthly Contact Trend
@@ -2606,124 +2588,60 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         """, unsafe_allow_html=True)
 
         if current_metrics['by_month'] or prior_metrics['by_month']:
-            all_months_current = current_metrics['by_month']
-            all_months_prior = prior_metrics['by_month']
+            # Month name mapping for fiscal year order
+            month_names = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+            month_order = {7: 0, 8: 1, 9: 2, 10: 3, 11: 4, 12: 5, 1: 6, 2: 7, 3: 8, 4: 9, 5: 10, 6: 11}
+
+            def get_month_name(year_month_str):
+                # Convert "2025-07" to month number
+                month_num = int(year_month_str.split('-')[1])
+                return month_names[month_order[month_num]]
+
+            def get_month_sort_key(year_month_str):
+                month_num = int(year_month_str.split('-')[1])
+                return month_order[month_num]
 
             fig_monthly = go.Figure()
 
             # Current FY line
-            if all_months_current:
-                months_curr = sorted(all_months_current.keys())
-                values_curr = [all_months_current[m] for m in months_curr]
+            if current_metrics['by_month']:
+                sorted_months = sorted(current_metrics['by_month'].keys(), key=get_month_sort_key)
+                x_labels = [get_month_name(m) for m in sorted_months]
+                y_values = [current_metrics['by_month'][m] for m in sorted_months]
+
                 fig_monthly.add_trace(go.Scatter(
                     name=current_fy,
-                    x=months_curr,
-                    y=values_curr,
+                    x=x_labels,
+                    y=y_values,
                     mode='lines+markers',
                     line=dict(color='#667eea', width=3),
                     marker=dict(size=8),
+                    fill='tozeroy',
+                    fillcolor='rgba(102, 126, 234, 0.15)',
                     hovertemplate='%{x}<br>%{y:,.0f} contacts<extra></extra>'
                 ))
 
             # Prior FY line
-            if all_months_prior:
-                months_prior = sorted(all_months_prior.keys())
-                values_prior = [all_months_prior[m] for m in months_prior]
+            if prior_metrics['by_month']:
+                sorted_months = sorted(prior_metrics['by_month'].keys(), key=get_month_sort_key)
+                x_labels = [get_month_name(m) for m in sorted_months]
+                y_values = [prior_metrics['by_month'][m] for m in sorted_months]
+
                 fig_monthly.add_trace(go.Scatter(
                     name=prior_fy,
-                    x=months_prior,
-                    y=values_prior,
+                    x=x_labels,
+                    y=y_values,
                     mode='lines+markers',
-                    line=dict(color='#cbd5e0', width=2, dash='dot'),
+                    line=dict(color='#38a169', width=2),
                     marker=dict(size=6),
                     hovertemplate='%{x}<br>%{y:,.0f} contacts<extra></extra>'
                 ))
 
             fig_monthly = style_plotly_chart(fig_monthly, height=280)
-            fig_monthly.update_traces(fill='tozeroy', fillcolor='rgba(102, 126, 234, 0.1)', selector=dict(name=current_fy))
             st.plotly_chart(fig_monthly, use_container_width=True)
 
     except Exception as e:
         st.warning(f"Unable to load donor contacts data: {e}")
-
-    # Divider before remaining Goal 4 content
-    st.markdown("<div style='margin: 1.5rem 0;'></div>", unsafe_allow_html=True)
-
-    stats = processor.get_summary_stats()
-    books = int(stats.get("totals", {}).get("_of_books_distributed", 0))
-    target = 600_000
-    progress = min((books / target) * 100, 100)
-
-    # Get grants data from financial data
-    grants_received = 0
-    grants_goal = 0
-    if financial_df is not None and not financial_df.empty:
-        if 'date' in financial_df.columns:
-            latest = financial_df.sort_values('date', ascending=False).iloc[0] if len(financial_df) > 0 else {}
-        else:
-            latest = financial_df.iloc[0] if len(financial_df) > 0 else {}
-        grants_received = float(latest.get('grants_received', 0) or 0)
-        grants_goal = float(latest.get('grants_goal', 0) or 0)
-
-    grants_pct_achieved = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("""
-        <div class="placeholder-card">
-            <h4>📦 Distribution Capacity</h4>
-            <p>Track progress toward 600K annual books:</p>
-            <ul>
-                <li>Home delivery channel</li>
-                <li>Partner distribution</li>
-                <li>Book bank model</li>
-                <li>Geographic expansion</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown("""
-        <div class="placeholder-card">
-            <h4>📈 Operational Efficiency</h4>
-            <p>Key capacity indicators:</p>
-            <ul>
-                <li>Cost per book distributed</li>
-                <li>Partner organization growth</li>
-                <li>Staff productivity</li>
-                <li>Inventory management</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # Book distribution progress bar
-    st.markdown(f"""
-    <div style="margin-top: 1rem;">
-        <div class="progress-container">
-            <div class="progress-bar goal4" style="width: {progress}%"></div>
-        </div>
-        <div class="progress-label">
-            <span>{books:,} books distributed</span>
-            <span><strong>{progress:.1f}%</strong> of 600K target</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Grants progress
-    if grants_goal > 0:
-        grants_status = "🟢" if grants_pct_achieved >= 90 else "🟡" if grants_pct_achieved >= 70 else "🔴"
-        st.markdown(f"""
-        <div style="margin-top: 1rem;">
-            <div class="progress-container">
-                <div class="progress-bar" style="width: {min(grants_pct_achieved, 100)}%; background: linear-gradient(90deg, #fa709a, #fee140);"></div>
-            </div>
-            <div class="progress-label">
-                <span>Grants Progress {grants_status} ${grants_received:,.0f} of ${grants_goal:,.0f}</span>
-                <span><strong>{grants_pct_achieved:.1f}%</strong></span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
 
 def render_financial_metrics(financial_df: pd.DataFrame = None):
