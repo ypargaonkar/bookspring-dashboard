@@ -2578,21 +2578,22 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1, font=dict(size=10))
             )
 
-            # Add annotations for % change with color coding
+            # Add % change annotations positioned relative to current FY bar text
             for i, (val, pct) in enumerate(zip(current_vals, pct_changes)):
-                if pct != 0:
-                    color = '#38a169' if pct > 0 else '#e53e3e'
-                    sign = '+' if pct > 0 else ''
-                    fig.add_annotation(
-                        x=val + max_val * 0.08,
-                        y=contact_types[i],
-                        text=f'({sign}{pct:.0f}%)',
-                        showarrow=False,
-                        font=dict(size=10, color=color, weight='bold'),
-                        xanchor='left',
-                        yanchor='middle',
-                        yshift=-12  # Negative to align with current FY bar (offset=0.18 shifts down)
-                    )
+                color = '#38a169' if pct > 0 else '#e53e3e'
+                sign = '+' if pct > 0 else ''
+                # Position at end of bar value text, aligned with current FY bar
+                fig.add_annotation(
+                    x=val,
+                    y=contact_types[i],
+                    text=f'  <b>({sign}{pct:.0f}%)</b>',
+                    showarrow=False,
+                    font=dict(size=10, color=color),
+                    xanchor='left',
+                    yanchor='middle',
+                    xshift=45,  # Shift right past the number text
+                    yshift=-15  # Align with current FY bar
+                )
 
             st.plotly_chart(fig, use_container_width=True)
 
@@ -2670,21 +2671,21 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1, font=dict(size=10))
                 )
 
-                # Add annotations for % change with color coding
+                # Add % change annotations positioned relative to current FY bar text
                 for i, (val, pct) in enumerate(zip(current_vals, pct_changes)):
-                    if pct != 0:
-                        color = '#38a169' if pct > 0 else '#e53e3e'  # Green for positive, red for negative
-                        sign = '+' if pct > 0 else ''
-                        fig_cc.add_annotation(
-                            x=val + max_val * 0.08,  # Position after the number
-                            y=statuses[i],  # Use actual status name, not index
-                            text=f'({sign}{pct:.0f}%)',
-                            showarrow=False,
-                            font=dict(size=10, color=color, weight='bold'),
-                            xanchor='left',
-                            yanchor='middle',
-                            yshift=-12  # Negative to align with current FY bar (offset=0.18 shifts down)
-                        )
+                    color = '#38a169' if pct > 0 else '#e53e3e'
+                    sign = '+' if pct > 0 else ''
+                    fig_cc.add_annotation(
+                        x=val,
+                        y=statuses[i],
+                        text=f'  <b>({sign}{pct:.0f}%)</b>',
+                        showarrow=False,
+                        font=dict(size=10, color=color),
+                        xanchor='left',
+                        yanchor='middle',
+                        xshift=45,  # Shift right past the number text
+                        yshift=-15  # Align with current FY bar
+                    )
 
                 st.plotly_chart(fig_cc, use_container_width=True)
 
