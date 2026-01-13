@@ -1274,34 +1274,24 @@ def load_partners_data():
         return []
 
 
-@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
-def load_donorperfect_contacts(start_date: str, end_date: str, debug: bool = False) -> tuple:
-    """Load contacts data from DonorPerfect API.
+def _execute_donorperfect_query(query: str) -> tuple:
+    """Execute a single DonorPerfect query and return results.
 
     Args:
-        start_date: Start date in YYYY-MM-DD format
-        end_date: End date in YYYY-MM-DD format
-        debug: If True, return debug info along with data
+        query: SQL query string
 
     Returns:
-        Tuple of (DataFrame, debug_info dict) if debug=True, else just DataFrame
+        Tuple of (list of record dicts, debug_info dict)
     """
-    debug_info = {}
+    debug_info = {'query': query}
     try:
-        # Build the SQL query for DonorPerfect
-        query = f"SELECT contact_date, activity_code, em_campaign_status, mailing_code FROM dpcontact WHERE contact_date BETWEEN '{start_date}' AND '{end_date}'"
-        debug_info['query'] = query
-
-        # URL encode the action parameter
         url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass={DONORPERFECT_PASSWORD}&action={quote(query)}"
-        # Mask password in debug URL
-        debug_url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass=****&action={quote(query)}"
-        debug_info['url'] = debug_url
+        debug_info['url'] = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass=****&action={quote(query)}"
 
         response = requests.get(url, timeout=60)
         response.raise_for_status()
         debug_info['status_code'] = response.status_code
-        debug_info['response_preview'] = response.text[:500] if response.text else "Empty response"
+        debug_info['response_preview'] = response.text[:1000] if response.text else "Empty response"
 
         # Parse XML response
         root = ET.fromstring(response.content)
@@ -1316,22 +1306,97 @@ def load_donorperfect_contacts(start_date: str, end_date: str, debug: bool = Fal
             records.append(record)
 
         debug_info['records_found'] = len(records)
-
-        df = pd.DataFrame(records)
-
-        # Convert contact_date to datetime
-        if 'contact_date' in df.columns:
-            df['contact_date'] = pd.to_datetime(df['contact_date'], errors='coerce')
-
-        if debug:
-            return df, debug_info
-        return df
+        return records, debug_info
 
     except Exception as e:
         debug_info['error'] = str(e)
-        if debug:
-            return pd.DataFrame(), debug_info
-        return pd.DataFrame()
+        return [], debug_info
+
+
+@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
+def load_donorperfect_contact_metrics(start_date: str, end_date: str) -> dict:
+    """Load aggregated contact metrics from DonorPerfect using GROUP BY queries.
+
+    Uses multiple small aggregated queries instead of pulling raw data to avoid
+    DonorPerfect's 500 row limit.
+
+    Args:
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
+
+    Returns:
+        Dictionary with aggregated metrics and debug info
+    """
+    debug_info = {'queries': []}
+
+    # Query 1: Count by activity_code
+    query_by_type = f"SELECT activity_code, COUNT(*) as cnt FROM dpcontact WHERE contact_date BETWEEN '{start_date}' AND '{end_date}' GROUP BY activity_code"
+    by_type_records, by_type_debug = _execute_donorperfect_query(query_by_type)
+    debug_info['queries'].append({'name': 'by_type', **by_type_debug})
+
+    # Query 2: CC contacts by em_campaign_status
+    query_cc_status = f"SELECT em_campaign_status, COUNT(*) as cnt FROM dpcontact WHERE contact_date BETWEEN '{start_date}' AND '{end_date}' AND activity_code = 'CC' GROUP BY em_campaign_status"
+    cc_status_records, cc_status_debug = _execute_donorperfect_query(query_cc_status)
+    debug_info['queries'].append({'name': 'cc_by_status', **cc_status_debug})
+
+    # Query 3: LT/blank contacts by mailing_code
+    query_lt_mailing = f"SELECT mailing_code, COUNT(*) as cnt FROM dpcontact WHERE contact_date BETWEEN '{start_date}' AND '{end_date}' AND (activity_code = 'LT' OR activity_code IS NULL OR activity_code = '') GROUP BY mailing_code"
+    lt_mailing_records, lt_mailing_debug = _execute_donorperfect_query(query_lt_mailing)
+    debug_info['queries'].append({'name': 'lt_by_mailing', **lt_mailing_debug})
+
+    # Query 4: Monthly breakdown
+    query_monthly = f"SELECT MONTH(contact_date) as month, YEAR(contact_date) as year, COUNT(*) as cnt FROM dpcontact WHERE contact_date BETWEEN '{start_date}' AND '{end_date}' GROUP BY YEAR(contact_date), MONTH(contact_date)"
+    monthly_records, monthly_debug = _execute_donorperfect_query(query_monthly)
+    debug_info['queries'].append({'name': 'monthly', **monthly_debug})
+
+    # Process results into metrics dict
+    by_type = {}
+    total = 0
+    for rec in by_type_records:
+        code = rec.get('activity_code') or 'LT'  # Treat blank as LT
+        if code == '':
+            code = 'LT'
+        cnt = int(rec.get('cnt', 0) or 0)
+        # Merge blank into LT
+        if code in by_type:
+            by_type[code] += cnt
+        else:
+            by_type[code] = cnt
+        total += cnt
+
+    cc_by_status = {}
+    for rec in cc_status_records:
+        status = rec.get('em_campaign_status') or 'Unknown'
+        if status == '':
+            status = 'Unknown'
+        cnt = int(rec.get('cnt', 0) or 0)
+        cc_by_status[status] = cnt
+
+    lt_by_mailing = {}
+    for rec in lt_mailing_records:
+        mailing = rec.get('mailing_code') or 'Unknown'
+        if mailing == '':
+            mailing = 'Unknown'
+        cnt = int(rec.get('cnt', 0) or 0)
+        lt_by_mailing[mailing] = cnt
+
+    by_month = {}
+    for rec in monthly_records:
+        month = rec.get('month')
+        year = rec.get('year')
+        cnt = int(rec.get('cnt', 0) or 0)
+        if month and year:
+            period = f"{year}-{int(month):02d}"
+            by_month[period] = cnt
+
+    return {
+        'total': total,
+        'by_type': by_type,
+        'cc_by_status': cc_by_status,
+        'lt_by_mailing': lt_by_mailing,
+        'by_month': by_month,
+        'debug': debug_info
+    }
 
 
 def get_fiscal_year_info(reference_date: date = None) -> dict:
@@ -1378,14 +1443,11 @@ def get_fiscal_year_info(reference_date: date = None) -> dict:
     }
 
 
-def get_contact_metrics_comparison(debug: bool = False) -> dict:
-    """Get contact metrics for current FY vs prior FY to date.
-
-    Args:
-        debug: If True, include debug info in return dict
+def get_contact_metrics_comparison() -> dict:
+    """Get contact metrics for current FY vs prior FY to date using aggregated queries.
 
     Returns:
-        Dictionary with 'current_fy' and 'prior_fy' DataFrames plus labels
+        Dictionary with current and prior FY metrics plus labels and debug info
     """
     today = date.today()
     fy_info = get_fiscal_year_info(today)
@@ -1398,95 +1460,20 @@ def get_contact_metrics_comparison(debug: bool = False) -> dict:
     prior_fy_start = fy_info['prior_fy_start'].strftime("%Y-%m-%d")
     prior_fy_end = today.replace(year=today.year - 1).strftime("%Y-%m-%d")
 
-    debug_info = {}
-    if debug:
-        current_result = load_donorperfect_contacts(current_fy_start, current_fy_end, debug=True)
-        prior_result = load_donorperfect_contacts(prior_fy_start, prior_fy_end, debug=True)
-        current_df, current_debug = current_result
-        prior_df, prior_debug = prior_result
-        debug_info = {
-            'current_fy_debug': current_debug,
-            'prior_fy_debug': prior_debug
-        }
-    else:
-        current_df = load_donorperfect_contacts(current_fy_start, current_fy_end)
-        prior_df = load_donorperfect_contacts(prior_fy_start, prior_fy_end)
+    # Load aggregated metrics (these use GROUP BY queries to avoid 500 row limit)
+    current_metrics = load_donorperfect_contact_metrics(current_fy_start, current_fy_end)
+    prior_metrics = load_donorperfect_contact_metrics(prior_fy_start, prior_fy_end)
 
     current_fy_short = fy_info['current_fy_short']
     prior_fy_short = fy_info['prior_fy_short']
 
-    result = {
-        'current_fy': current_df,
-        'prior_fy': prior_df,
+    return {
+        'current_fy': current_metrics,
+        'prior_fy': prior_metrics,
         'current_fy_label': f"{current_fy_short} YTD ({current_fy_start} - {current_fy_end})",
         'prior_fy_label': f"{prior_fy_short} YTD ({prior_fy_start} - {prior_fy_end})",
         'current_fy_short': current_fy_short,
         'prior_fy_short': prior_fy_short
-    }
-
-    if debug:
-        result['debug'] = debug_info
-
-    return result
-
-
-def summarize_contacts(df: pd.DataFrame) -> dict:
-    """Summarize contact data by activity type.
-
-    Args:
-        df: DataFrame with contact records
-
-    Returns:
-        Dictionary with summary metrics
-    """
-    if df.empty:
-        return {
-            'total': 0,
-            'by_type': {},
-            'cc_by_status': {},
-            'lt_by_mailing': {},
-            'by_month': {}
-        }
-
-    # Normalize activity_code - treat blank/None as 'LT' (Letter)
-    df = df.copy()
-    df['activity_code'] = df['activity_code'].fillna('LT')
-    df['activity_code'] = df['activity_code'].replace('', 'LT')
-
-    # Contact type labels
-    type_labels = {
-        'CC': 'Constant Contact',
-        'EO': 'Email Out',
-        'RCPTSNT': 'Receipt Sent',
-        'LT': 'Letter'
-    }
-
-    # Count by activity type
-    by_type = df['activity_code'].value_counts().to_dict()
-
-    # For CC contacts, group by em_campaign_status
-    cc_df = df[df['activity_code'] == 'CC']
-    cc_by_status = cc_df['em_campaign_status'].fillna('Unknown').value_counts().to_dict() if not cc_df.empty else {}
-
-    # For LT contacts, group by mailing_code
-    lt_df = df[df['activity_code'] == 'LT']
-    lt_by_mailing = lt_df['mailing_code'].fillna('Unknown').value_counts().to_dict() if not lt_df.empty else {}
-
-    # Monthly breakdown
-    by_month = {}
-    if 'contact_date' in df.columns and not df['contact_date'].isna().all():
-        df['month'] = df['contact_date'].dt.to_period('M')
-        by_month = df.groupby('month').size().to_dict()
-        # Convert Period keys to strings for JSON serialization
-        by_month = {str(k): v for k, v in by_month.items()}
-
-    return {
-        'total': len(df),
-        'by_type': by_type,
-        'type_labels': type_labels,
-        'cc_by_status': cc_by_status,
-        'lt_by_mailing': lt_by_mailing,
-        'by_month': by_month
     }
 
 
@@ -2515,9 +2502,9 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
     st.markdown("##### 📬 Donor Contacts - Year over Year Comparison")
 
     try:
-        contact_data = get_contact_metrics_comparison(debug=True)
-        current_summary = summarize_contacts(contact_data['current_fy'])
-        prior_summary = summarize_contacts(contact_data['prior_fy'])
+        contact_data = get_contact_metrics_comparison()
+        current_metrics = contact_data['current_fy']
+        prior_metrics = contact_data['prior_fy']
 
         # Dynamic FY labels
         current_fy = contact_data['current_fy_short']
@@ -2525,29 +2512,28 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         current_col = f"{current_fy} YTD"
         prior_col = f"{prior_fy} YTD"
 
-        # Debug info expander
-        if 'debug' in contact_data:
-            with st.expander("🔧 API Debug Info"):
-                debug = contact_data['debug']
-                if 'current_fy_debug' in debug:
-                    st.markdown(f"**{current_fy} Query:**")
-                    st.code(debug['current_fy_debug'].get('query', 'N/A'))
-                    st.markdown(f"**{current_fy} URL (password masked):**")
-                    st.code(debug['current_fy_debug'].get('url', 'N/A'))
-                    st.markdown(f"**{current_fy} Response Status:** {debug['current_fy_debug'].get('status_code', 'N/A')}")
-                    st.markdown(f"**{current_fy} Records Found:** {debug['current_fy_debug'].get('records_found', 'N/A')}")
-                    if 'error' in debug['current_fy_debug']:
-                        st.error(f"Error: {debug['current_fy_debug']['error']}")
-                    st.markdown(f"**{current_fy} Response Preview:**")
-                    st.code(debug['current_fy_debug'].get('response_preview', 'N/A'))
-
-                if 'prior_fy_debug' in debug:
+        # Debug info expander - shows all queries executed
+        with st.expander("🔧 API Debug Info"):
+            st.markdown(f"**{current_fy} Queries:**")
+            if 'debug' in current_metrics:
+                for q in current_metrics['debug'].get('queries', []):
+                    st.markdown(f"*{q.get('name', 'query')}:*")
+                    st.code(q.get('query', 'N/A'))
+                    st.markdown(f"Status: {q.get('status_code', 'N/A')} | Records: {q.get('records_found', 'N/A')}")
+                    if 'error' in q:
+                        st.error(f"Error: {q['error']}")
+                    st.markdown(f"Response preview:")
+                    st.code(q.get('response_preview', 'N/A')[:500])
                     st.markdown("---")
-                    st.markdown(f"**{prior_fy} Query:**")
-                    st.code(debug['prior_fy_debug'].get('query', 'N/A'))
-                    st.markdown(f"**{prior_fy} Records Found:** {debug['prior_fy_debug'].get('records_found', 'N/A')}")
-                    if 'error' in debug['prior_fy_debug']:
-                        st.error(f"Error: {debug['prior_fy_debug']['error']}")
+
+            st.markdown(f"**{prior_fy} Queries:**")
+            if 'debug' in prior_metrics:
+                for q in prior_metrics['debug'].get('queries', []):
+                    st.markdown(f"*{q.get('name', 'query')}:*")
+                    st.code(q.get('query', 'N/A'))
+                    st.markdown(f"Status: {q.get('status_code', 'N/A')} | Records: {q.get('records_found', 'N/A')}")
+                    if 'error' in q:
+                        st.error(f"Error: {q['error']}")
 
         # Type labels for display
         type_labels = {
@@ -2561,8 +2547,8 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         contact_types = ['CC', 'EO', 'RCPTSNT', 'LT']
         comparison_data = []
         for ct in contact_types:
-            current_count = current_summary['by_type'].get(ct, 0)
-            prior_count = prior_summary['by_type'].get(ct, 0)
+            current_count = current_metrics['by_type'].get(ct, 0)
+            prior_count = prior_metrics['by_type'].get(ct, 0)
             change = current_count - prior_count
             pct_change = ((current_count - prior_count) / prior_count * 100) if prior_count > 0 else (100 if current_count > 0 else 0)
             comparison_data.append({
@@ -2578,10 +2564,10 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         # Add totals row
         totals_row = pd.DataFrame([{
             'Contact Type': 'TOTAL',
-            current_col: current_summary['total'],
-            prior_col: prior_summary['total'],
-            'Change': current_summary['total'] - prior_summary['total'],
-            '% Change': ((current_summary['total'] - prior_summary['total']) / prior_summary['total'] * 100) if prior_summary['total'] > 0 else 0
+            current_col: current_metrics['total'],
+            prior_col: prior_metrics['total'],
+            'Change': current_metrics['total'] - prior_metrics['total'],
+            '% Change': ((current_metrics['total'] - prior_metrics['total']) / prior_metrics['total'] * 100) if prior_metrics['total'] > 0 else 0
         }])
         comparison_df = pd.concat([comparison_df, totals_row], ignore_index=True)
 
@@ -2644,12 +2630,12 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
 
         # Detailed breakdowns in expandable sections
         with st.expander("📧 Constant Contact Details (by Campaign Status)"):
-            if current_summary['cc_by_status'] or prior_summary['cc_by_status']:
-                all_statuses = set(current_summary['cc_by_status'].keys()) | set(prior_summary['cc_by_status'].keys())
+            if current_metrics['cc_by_status'] or prior_metrics['cc_by_status']:
+                all_statuses = set(current_metrics['cc_by_status'].keys()) | set(prior_metrics['cc_by_status'].keys())
                 cc_details = []
                 for status in sorted(all_statuses):
-                    current_count = current_summary['cc_by_status'].get(status, 0)
-                    prior_count = prior_summary['cc_by_status'].get(status, 0)
+                    current_count = current_metrics['cc_by_status'].get(status, 0)
+                    prior_count = prior_metrics['cc_by_status'].get(status, 0)
                     cc_details.append({
                         'Campaign Status': status,
                         current_col: current_count,
@@ -2666,12 +2652,12 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 st.info("No Constant Contact data available for this period.")
 
         with st.expander("✉️ Letter Details (by Mailing Code)"):
-            if current_summary['lt_by_mailing'] or prior_summary['lt_by_mailing']:
-                all_mailings = set(current_summary['lt_by_mailing'].keys()) | set(prior_summary['lt_by_mailing'].keys())
+            if current_metrics['lt_by_mailing'] or prior_metrics['lt_by_mailing']:
+                all_mailings = set(current_metrics['lt_by_mailing'].keys()) | set(prior_metrics['lt_by_mailing'].keys())
                 lt_details = []
                 for mailing in sorted(all_mailings):
-                    current_count = current_summary['lt_by_mailing'].get(mailing, 0)
-                    prior_count = prior_summary['lt_by_mailing'].get(mailing, 0)
+                    current_count = current_metrics['lt_by_mailing'].get(mailing, 0)
+                    prior_count = prior_metrics['lt_by_mailing'].get(mailing, 0)
                     lt_details.append({
                         'Mailing Code': mailing,
                         current_col: current_count,
@@ -2689,10 +2675,10 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
 
         # Monthly trend chart (only show if data is meaningful)
         with st.expander("📈 Monthly Contact Trend"):
-            if current_summary['by_month'] or prior_summary['by_month']:
+            if current_metrics['by_month'] or prior_metrics['by_month']:
                 # Combine monthly data for visualization
-                all_months_current = current_summary['by_month']
-                all_months_prior = prior_summary['by_month']
+                all_months_current = current_metrics['by_month']
+                all_months_prior = prior_metrics['by_month']
 
                 if all_months_current:
                     monthly_df = pd.DataFrame([
