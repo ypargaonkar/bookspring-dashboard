@@ -2591,7 +2591,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                         font=dict(size=10, color=color, weight='bold'),
                         xanchor='left',
                         yanchor='middle',
-                        yshift=8  # Align with current FY bar (offset=0.18)
+                        yshift=-12  # Negative to align with current FY bar (offset=0.18 shifts down)
                     )
 
             st.plotly_chart(fig, use_container_width=True)
@@ -2683,7 +2683,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                             font=dict(size=10, color=color, weight='bold'),
                             xanchor='left',
                             yanchor='middle',
-                            yshift=8  # Align with current FY bar (offset=0.18)
+                            yshift=-12  # Negative to align with current FY bar (offset=0.18 shifts down)
                         )
 
                 st.plotly_chart(fig_cc, use_container_width=True)
