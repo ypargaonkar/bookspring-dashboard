@@ -2422,7 +2422,18 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
     </div>
     """, unsafe_allow_html=True)
 
-    # === Donor Contacts Year-over-Year Comparison (moved to top of Goal 4) ===
+    # === Donor Contacts Year-over-Year Comparison ===
+    st.markdown("""
+    <div style="margin: 1.5rem 0 1rem 0;">
+        <div style="font-size: 1.1rem; font-weight: 600; color: #1a365d;">
+            📧 Donor Contacts
+        </div>
+        <div style="font-size: 0.85rem; color: #718096;">
+            Year-over-year comparison of outreach activities from DonorPerfect
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     try:
         contact_data = get_contact_metrics_comparison()
         current_metrics = contact_data['current_fy']
