@@ -2551,32 +2551,77 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            # CC Campaign Status - Horizontal Bar Chart
-            if current_metrics['cc_by_status']:
-                # Sort by current FY value descending
-                cc_data = [(status, current_metrics['cc_by_status'].get(status, 0))
-                           for status in current_metrics['cc_by_status'].keys()]
-                cc_data.sort(key=lambda x: x[1], reverse=True)
+            # CC Campaign Status - Horizontal Bar Chart with YoY comparison
+            if current_metrics['cc_by_status'] or prior_metrics.get('cc_by_status'):
+                # Get all unique statuses from both periods
+                all_statuses = set(current_metrics.get('cc_by_status', {}).keys()) | set(prior_metrics.get('cc_by_status', {}).keys())
 
-                statuses = [d[0] for d in cc_data]
-                values = [d[1] for d in cc_data]
+                # Build comparison data sorted by current FY value descending
+                cc_compare = []
+                for status in all_statuses:
+                    curr_val = current_metrics.get('cc_by_status', {}).get(status, 0)
+                    prior_val = prior_metrics.get('cc_by_status', {}).get(status, 0)
+                    pct_chg = ((curr_val - prior_val) / prior_val * 100) if prior_val > 0 else (100 if curr_val > 0 else 0)
+                    cc_compare.append({
+                        'status': status,
+                        'current': curr_val,
+                        'prior': prior_val,
+                        'pct_change': pct_chg
+                    })
+                cc_compare.sort(key=lambda x: x['current'], reverse=True)
+
+                statuses = [d['status'] for d in cc_compare]
+                current_vals = [d['current'] for d in cc_compare]
+                prior_vals = [d['prior'] for d in cc_compare]
+                pct_changes = [d['pct_change'] for d in cc_compare]
+
+                # Create text labels with % change
+                current_texts = []
+                for val, pct in zip(current_vals, pct_changes):
+                    if pct >= 0:
+                        current_texts.append(f'{val:,.0f} <span style="color:#38a169">(+{pct:.0f}%)</span>')
+                    else:
+                        current_texts.append(f'{val:,.0f} <span style="color:#e53e3e">({pct:.0f}%)</span>')
 
                 fig_cc = go.Figure()
+
+                # Prior FY bars (lighter color, behind)
                 fig_cc.add_trace(go.Bar(
+                    name=prior_fy,
                     y=statuses,
-                    x=values,
+                    x=prior_vals,
                     orientation='h',
-                    marker_color='#667eea',
-                    text=[f'{v:,.0f}' for v in values],
-                    textposition='outside',
-                    textfont=dict(size=11)
+                    marker_color='#a0aec0',
+                    text=[f'{v:,.0f}' for v in prior_vals],
+                    textposition='inside',
+                    textfont=dict(size=9, color='white'),
+                    width=0.35,
+                    offset=-0.18
                 ))
 
-                fig_cc = style_plotly_chart(fig_cc, height=320)
+                # Current FY bars (primary color, in front)
+                fig_cc.add_trace(go.Bar(
+                    name=current_fy,
+                    y=statuses,
+                    x=current_vals,
+                    orientation='h',
+                    marker_color='#667eea',
+                    text=[f'{v:,.0f} ({pct:+.0f}%)' if pct != 0 else f'{v:,.0f}' for v, pct in zip(current_vals, pct_changes)],
+                    textposition='outside',
+                    textfont=dict(size=10),
+                    width=0.35,
+                    offset=0.18
+                ))
+
+                max_val = max(max(current_vals) if current_vals else 0, max(prior_vals) if prior_vals else 0)
+                fig_cc = style_plotly_chart(fig_cc, height=340)
                 fig_cc.update_layout(
                     title=dict(text='Constant Contact by Status', font=dict(size=14)),
-                    xaxis=dict(range=[0, max(values) * 1.3]),  # Headroom for labels
-                    yaxis=dict(autorange='reversed')  # Largest at top
+                    xaxis=dict(range=[0, max_val * 1.4]),  # More headroom for labels with % change
+                    yaxis=dict(autorange='reversed'),  # Largest at top
+                    barmode='group',
+                    bargap=0.25,
+                    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1, font=dict(size=10))
                 )
                 st.plotly_chart(fig_cc, use_container_width=True)
 
