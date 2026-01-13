@@ -1274,26 +1274,34 @@ def load_partners_data():
         return []
 
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_donorperfect_contacts(start_date: str, end_date: str) -> pd.DataFrame:
+@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
+def load_donorperfect_contacts(start_date: str, end_date: str, debug: bool = False) -> tuple:
     """Load contacts data from DonorPerfect API.
 
     Args:
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
+        debug: If True, return debug info along with data
 
     Returns:
-        DataFrame with contact records
+        Tuple of (DataFrame, debug_info dict) if debug=True, else just DataFrame
     """
+    debug_info = {}
     try:
         # Build the SQL query for DonorPerfect
         query = f"SELECT contact_date, activity_code, em_campaign_status, mailing_code FROM dpcontact WHERE contact_date BETWEEN '{start_date}' AND '{end_date}'"
+        debug_info['query'] = query
 
         # URL encode the action parameter
         url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass={DONORPERFECT_PASSWORD}&action={quote(query)}"
+        # Mask password in debug URL
+        debug_url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass=****&action={quote(query)}"
+        debug_info['url'] = debug_url
 
         response = requests.get(url, timeout=60)
         response.raise_for_status()
+        debug_info['status_code'] = response.status_code
+        debug_info['response_preview'] = response.text[:500] if response.text else "Empty response"
 
         # Parse XML response
         root = ET.fromstring(response.content)
@@ -1307,16 +1315,22 @@ def load_donorperfect_contacts(start_date: str, end_date: str) -> pd.DataFrame:
                 record[name] = value
             records.append(record)
 
+        debug_info['records_found'] = len(records)
+
         df = pd.DataFrame(records)
 
         # Convert contact_date to datetime
         if 'contact_date' in df.columns:
             df['contact_date'] = pd.to_datetime(df['contact_date'], errors='coerce')
 
+        if debug:
+            return df, debug_info
         return df
 
     except Exception as e:
-        st.error(f"Failed to load DonorPerfect contacts: {e}")
+        debug_info['error'] = str(e)
+        if debug:
+            return pd.DataFrame(), debug_info
         return pd.DataFrame()
 
 
@@ -1364,8 +1378,11 @@ def get_fiscal_year_info(reference_date: date = None) -> dict:
     }
 
 
-def get_contact_metrics_comparison() -> dict:
+def get_contact_metrics_comparison(debug: bool = False) -> dict:
     """Get contact metrics for current FY vs prior FY to date.
+
+    Args:
+        debug: If True, include debug info in return dict
 
     Returns:
         Dictionary with 'current_fy' and 'prior_fy' DataFrames plus labels
@@ -1381,13 +1398,24 @@ def get_contact_metrics_comparison() -> dict:
     prior_fy_start = fy_info['prior_fy_start'].strftime("%Y-%m-%d")
     prior_fy_end = today.replace(year=today.year - 1).strftime("%Y-%m-%d")
 
-    current_df = load_donorperfect_contacts(current_fy_start, current_fy_end)
-    prior_df = load_donorperfect_contacts(prior_fy_start, prior_fy_end)
+    debug_info = {}
+    if debug:
+        current_result = load_donorperfect_contacts(current_fy_start, current_fy_end, debug=True)
+        prior_result = load_donorperfect_contacts(prior_fy_start, prior_fy_end, debug=True)
+        current_df, current_debug = current_result
+        prior_df, prior_debug = prior_result
+        debug_info = {
+            'current_fy_debug': current_debug,
+            'prior_fy_debug': prior_debug
+        }
+    else:
+        current_df = load_donorperfect_contacts(current_fy_start, current_fy_end)
+        prior_df = load_donorperfect_contacts(prior_fy_start, prior_fy_end)
 
     current_fy_short = fy_info['current_fy_short']
     prior_fy_short = fy_info['prior_fy_short']
 
-    return {
+    result = {
         'current_fy': current_df,
         'prior_fy': prior_df,
         'current_fy_label': f"{current_fy_short} YTD ({current_fy_start} - {current_fy_end})",
@@ -1395,6 +1423,11 @@ def get_contact_metrics_comparison() -> dict:
         'current_fy_short': current_fy_short,
         'prior_fy_short': prior_fy_short
     }
+
+    if debug:
+        result['debug'] = debug_info
+
+    return result
 
 
 def summarize_contacts(df: pd.DataFrame) -> dict:
@@ -2482,7 +2515,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
     st.markdown("##### 📬 Donor Contacts - Year over Year Comparison")
 
     try:
-        contact_data = get_contact_metrics_comparison()
+        contact_data = get_contact_metrics_comparison(debug=True)
         current_summary = summarize_contacts(contact_data['current_fy'])
         prior_summary = summarize_contacts(contact_data['prior_fy'])
 
@@ -2491,6 +2524,30 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         prior_fy = contact_data['prior_fy_short']
         current_col = f"{current_fy} YTD"
         prior_col = f"{prior_fy} YTD"
+
+        # Debug info expander
+        if 'debug' in contact_data:
+            with st.expander("🔧 API Debug Info"):
+                debug = contact_data['debug']
+                if 'current_fy_debug' in debug:
+                    st.markdown(f"**{current_fy} Query:**")
+                    st.code(debug['current_fy_debug'].get('query', 'N/A'))
+                    st.markdown(f"**{current_fy} URL (password masked):**")
+                    st.code(debug['current_fy_debug'].get('url', 'N/A'))
+                    st.markdown(f"**{current_fy} Response Status:** {debug['current_fy_debug'].get('status_code', 'N/A')}")
+                    st.markdown(f"**{current_fy} Records Found:** {debug['current_fy_debug'].get('records_found', 'N/A')}")
+                    if 'error' in debug['current_fy_debug']:
+                        st.error(f"Error: {debug['current_fy_debug']['error']}")
+                    st.markdown(f"**{current_fy} Response Preview:**")
+                    st.code(debug['current_fy_debug'].get('response_preview', 'N/A'))
+
+                if 'prior_fy_debug' in debug:
+                    st.markdown("---")
+                    st.markdown(f"**{prior_fy} Query:**")
+                    st.code(debug['prior_fy_debug'].get('query', 'N/A'))
+                    st.markdown(f"**{prior_fy} Records Found:** {debug['prior_fy_debug'].get('records_found', 'N/A')}")
+                    if 'error' in debug['prior_fy_debug']:
+                        st.error(f"Error: {debug['prior_fy_debug']['error']}")
 
         # Type labels for display
         type_labels = {
