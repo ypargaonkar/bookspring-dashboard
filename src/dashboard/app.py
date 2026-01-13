@@ -2592,7 +2592,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                     xanchor='left',
                     yanchor='middle',
                     xshift=45,  # Shift right past the number text
-                    yshift=-15  # Align with current FY bar
+                    yshift=-18  # Align with current FY bar
                 )
 
             st.plotly_chart(fig, use_container_width=True)
@@ -2684,7 +2684,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                         xanchor='left',
                         yanchor='middle',
                         xshift=45,  # Shift right past the number text
-                        yshift=-15  # Align with current FY bar
+                        yshift=-18  # Align with current FY bar
                     )
 
                 st.plotly_chart(fig_cc, use_container_width=True)
