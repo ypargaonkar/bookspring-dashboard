@@ -2591,7 +2591,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                     font=dict(size=10, color=color),
                     xanchor='left',
                     yanchor='middle',
-                    xshift=45,  # Shift right past the number text
+                    xshift=30,  # Shift right past the number text
                     yshift=-18  # Align with current FY bar
                 )
 
@@ -2683,7 +2683,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                         font=dict(size=10, color=color),
                         xanchor='left',
                         yanchor='middle',
-                        xshift=45,  # Shift right past the number text
+                        xshift=30,  # Shift right past the number text
                         yshift=-18  # Align with current FY bar
                     )
 
