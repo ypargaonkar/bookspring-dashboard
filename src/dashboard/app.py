@@ -2464,6 +2464,19 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         total_change = total_current - total_prior
         total_pct = ((total_change) / total_prior * 100) if total_prior > 0 else 0
 
+        # Calculate % changes for each metric card
+        cc_current = current_metrics['by_type'].get('CC', 0)
+        cc_prior = prior_metrics['by_type'].get('CC', 0)
+        cc_pct = ((cc_current - cc_prior) / cc_prior * 100) if cc_prior > 0 else 0
+
+        lt_current = current_metrics['by_type'].get('LT', 0)
+        lt_prior = prior_metrics['by_type'].get('LT', 0)
+        lt_pct = ((lt_current - lt_prior) / lt_prior * 100) if lt_prior > 0 else 0
+
+        rcpt_current = current_metrics['by_type'].get('RCPTSNT', 0)
+        rcpt_prior = prior_metrics['by_type'].get('RCPTSNT', 0)
+        rcpt_pct = ((rcpt_current - rcpt_prior) / rcpt_prior * 100) if rcpt_prior > 0 else 0
+
         # Create metric cards row for contact totals
         st.markdown(f"""
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
@@ -2471,23 +2484,29 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📬 Total Contacts {current_fy}</div>
                 <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{total_current:,}</div>
                 <div style="font-size: 0.8rem; color: {'#38a169' if total_change >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
-                    {'+' if total_change >= 0 else ''}{total_change:,} ({'+' if total_pct >= 0 else ''}{total_pct:.1f}%) vs {prior_fy}
+                    {'+' if total_pct >= 0 else ''}{total_pct:.1f}% vs {prior_fy}
                 </div>
             </div>
             <div class="metric-card" style="text-align: center; padding: 1.25rem;">
                 <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📧 Constant Contact</div>
-                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{current_metrics['by_type'].get('CC', 0):,}</div>
-                <div style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;">Email campaigns</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{cc_current:,}</div>
+                <div style="font-size: 0.8rem; color: {'#38a169' if cc_pct >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
+                    {'+' if cc_pct >= 0 else ''}{cc_pct:.1f}% vs {prior_fy}
+                </div>
             </div>
             <div class="metric-card" style="text-align: center; padding: 1.25rem;">
                 <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">✉️ Letters</div>
-                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{current_metrics['by_type'].get('LT', 0):,}</div>
-                <div style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;">Direct mail</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{lt_current:,}</div>
+                <div style="font-size: 0.8rem; color: {'#38a169' if lt_pct >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
+                    {'+' if lt_pct >= 0 else ''}{lt_pct:.1f}% vs {prior_fy}
+                </div>
             </div>
             <div class="metric-card" style="text-align: center; padding: 1.25rem;">
                 <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">🧾 Receipts Sent</div>
-                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{current_metrics['by_type'].get('RCPTSNT', 0):,}</div>
-                <div style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;">Gift acknowledgments</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{rcpt_current:,}</div>
+                <div style="font-size: 0.8rem; color: {'#38a169' if rcpt_pct >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
+                    {'+' if rcpt_pct >= 0 else ''}{rcpt_pct:.1f}% vs {prior_fy}
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -2496,18 +2515,28 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         col1, col2 = st.columns(2)
 
         with col1:
-            # Create grouped bar chart for YoY comparison
+            # Create grouped bar chart for YoY comparison with % change labels
             comparison_df = pd.DataFrame(comparison_data)
             chart_df = comparison_df.copy()
+
+            # Create labels with value and % change
+            def make_label(row):
+                curr = row[current_col]
+                prev = row[prior_col]
+                pct = ((curr - prev) / prev * 100) if prev > 0 else 0
+                color = '#38a169' if pct >= 0 else '#e53e3e'
+                return f'{curr:,.0f}'
 
             fig = go.Figure()
             fig.add_trace(go.Bar(
                 name=current_col,
                 x=chart_df['Contact Type'],
                 y=chart_df[current_col],
-                marker_color='#43e97b',
-                text=chart_df[current_col].apply(lambda x: f'{x:,.0f}'),
-                textposition='outside'
+                marker_color='#667eea',
+                text=[f"{v:,.0f} <span style='color:{'#38a169' if p >= 0 else '#e53e3e'}'>({'+' if p >= 0 else ''}{p:.0f}%)</span>"
+                      for v, p in zip(chart_df[current_col], chart_df['% Change'])],
+                textposition='outside',
+                textfont=dict(size=10)
             ))
             fig.add_trace(go.Bar(
                 name=prior_col,
@@ -2515,21 +2544,16 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 y=chart_df[prior_col],
                 marker_color='#cbd5e0',
                 text=chart_df[prior_col].apply(lambda x: f'{x:,.0f}'),
-                textposition='outside'
+                textposition='outside',
+                textfont=dict(size=10)
             ))
 
+            fig = style_plotly_chart(fig, height=320)
             fig.update_layout(
                 barmode='group',
-                title=dict(text='Contact Volume by Type', font=dict(size=14)),
-                xaxis_title='',
-                yaxis_title='',
-                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-                margin=dict(l=20, r=20, t=50, b=20),
-                height=320,
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)'
+                title=dict(text='Contact Volume by Type (YoY)', font=dict(size=14)),
+                yaxis=dict(range=[0, chart_df[current_col].max() * 1.25])  # Add headroom for labels
             )
-            fig.update_yaxes(gridcolor='#edf2f7')
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
@@ -2547,11 +2571,13 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                     current_count = current_metrics['cc_by_status'].get(status, 0)
                     prior_count = prior_metrics['cc_by_status'].get(status, 0)
                     change = current_count - prior_count
+                    pct_chg = ((current_count - prior_count) / prior_count * 100) if prior_count > 0 else 0
                     cc_details.append({
                         'Status': status,
                         current_col: current_count,
                         prior_col: prior_count,
-                        'Change': change
+                        'Change': change,
+                        '% Chg': pct_chg
                     })
                 cc_df = pd.DataFrame(cc_details)
 
@@ -2566,12 +2592,13 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 styled_cc = cc_df.style.format({
                     current_col: '{:,.0f}',
                     prior_col: '{:,.0f}',
-                    'Change': '{:+,.0f}'
-                }).map(style_change_cc, subset=['Change'])
+                    'Change': '{:+,.0f}',
+                    '% Chg': '{:+.1f}%'
+                }).map(style_change_cc, subset=['Change', '% Chg'])
 
                 st.dataframe(styled_cc, hide_index=True, use_container_width=True, height=280)
 
-        # Monthly trend chart - full width
+        # Monthly trend chart - LINE CHART full width
         st.markdown("""
         <div style="font-size: 0.95rem; font-weight: 600; color: #1a365d; margin: 1.5rem 0 0.75rem 0;">
             📈 Monthly Contact Trend
@@ -2582,45 +2609,39 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             all_months_current = current_metrics['by_month']
             all_months_prior = prior_metrics['by_month']
 
+            fig_monthly = go.Figure()
+
+            # Current FY line
             if all_months_current:
-                monthly_df = pd.DataFrame([
-                    {'Month': k, 'Contacts': v, 'Year': current_fy}
-                    for k, v in all_months_current.items()
-                ])
-                if all_months_prior:
-                    prior_monthly = pd.DataFrame([
-                        {'Month': k, 'Contacts': v, 'Year': prior_fy}
-                        for k, v in all_months_prior.items()
-                    ])
-                    monthly_df = pd.concat([monthly_df, prior_monthly], ignore_index=True)
+                months_curr = sorted(all_months_current.keys())
+                values_curr = [all_months_current[m] for m in months_curr]
+                fig_monthly.add_trace(go.Scatter(
+                    name=current_fy,
+                    x=months_curr,
+                    y=values_curr,
+                    mode='lines+markers',
+                    line=dict(color='#667eea', width=3),
+                    marker=dict(size=8),
+                    hovertemplate='%{x}<br>%{y:,.0f} contacts<extra></extra>'
+                ))
 
-                monthly_df = monthly_df.sort_values('Month')
+            # Prior FY line
+            if all_months_prior:
+                months_prior = sorted(all_months_prior.keys())
+                values_prior = [all_months_prior[m] for m in months_prior]
+                fig_monthly.add_trace(go.Scatter(
+                    name=prior_fy,
+                    x=months_prior,
+                    y=values_prior,
+                    mode='lines+markers',
+                    line=dict(color='#cbd5e0', width=2, dash='dot'),
+                    marker=dict(size=6),
+                    hovertemplate='%{x}<br>%{y:,.0f} contacts<extra></extra>'
+                ))
 
-                fig_monthly = go.Figure()
-                for year in [current_fy, prior_fy]:
-                    year_data = monthly_df[monthly_df['Year'] == year]
-                    if not year_data.empty:
-                        fig_monthly.add_trace(go.Bar(
-                            name=year,
-                            x=year_data['Month'],
-                            y=year_data['Contacts'],
-                            marker_color='#43e97b' if year == current_fy else '#cbd5e0',
-                            text=year_data['Contacts'].apply(lambda x: f'{x:,.0f}'),
-                            textposition='outside'
-                        ))
-
-                fig_monthly.update_layout(
-                    barmode='group',
-                    xaxis_title='',
-                    yaxis_title='',
-                    legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
-                    margin=dict(l=20, r=20, t=30, b=20),
-                    height=250,
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)'
-                )
-                fig_monthly.update_yaxes(gridcolor='#edf2f7')
-                st.plotly_chart(fig_monthly, use_container_width=True)
+            fig_monthly = style_plotly_chart(fig_monthly, height=280)
+            fig_monthly.update_traces(fill='tozeroy', fillcolor='rgba(102, 126, 234, 0.1)', selector=dict(name=current_fy))
+            st.plotly_chart(fig_monthly, use_container_width=True)
 
     except Exception as e:
         st.warning(f"Unable to load donor contacts data: {e}")
