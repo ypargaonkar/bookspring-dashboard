@@ -1294,14 +1294,15 @@ def _execute_donorperfect_query(query: str) -> tuple:
         debug_info['response_preview'] = response.text[:1000] if response.text else "Empty response"
 
         # Parse XML response
+        # DonorPerfect returns: <result><record><field name='x' value='y'/></record></result>
         root = ET.fromstring(response.content)
 
         records = []
-        for row in root.findall('.//row'):
+        for rec in root.findall('.//record'):
             record = {}
-            for field in row.findall('field'):
+            for field in rec.findall('field'):
                 name = field.get('name')
-                value = field.text
+                value = field.get('value')  # Value is in 'value' attribute, not text
                 record[name] = value
             records.append(record)
 
