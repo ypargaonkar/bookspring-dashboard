@@ -10,6 +10,9 @@ import sys
 import os
 from pathlib import Path
 import json
+import requests
+import xml.etree.ElementTree as ET
+from urllib.parse import quote
 
 # Google Sheets imports
 import gspread
@@ -28,6 +31,11 @@ CONTENT_VIEWS_APP_ID = os.getenv("CONTENT_VIEWS_APP_ID", "i43f611d038d24840907ff
 
 # Google Sheets configuration
 FINANCIAL_SHEET_ID = os.getenv("FINANCIAL_SHEET_ID", "17jObocsIQJnazyvWToi_AtsrLJ1I9bnMpWw9BMiixA8")
+
+# DonorPerfect API configuration
+DONORPERFECT_LOGIN = os.getenv("DONORPERFECT_LOGIN", "Yash")
+DONORPERFECT_PASSWORD = os.getenv("DONORPERFECT_PASSWORD", "rumjec-gobpA5-rudbun")
+DONORPERFECT_BASE_URL = "https://www.donorperfect.net/prod/xmlrequest.asp"
 
 # Legacy fields that need to be renamed to match current schema
 LEGACY_FIELD_MAP = {
@@ -1266,6 +1274,189 @@ def load_partners_data():
         return []
 
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_donorperfect_contacts(start_date: str, end_date: str) -> pd.DataFrame:
+    """Load contacts data from DonorPerfect API.
+
+    Args:
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
+
+    Returns:
+        DataFrame with contact records
+    """
+    try:
+        # Build the SQL query for DonorPerfect
+        query = f"SELECT contact_date, activity_code, em_campaign_status, mailing_code FROM dpcontact WHERE contact_date BETWEEN '{start_date}' AND '{end_date}'"
+
+        # URL encode the action parameter
+        url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass={DONORPERFECT_PASSWORD}&action={quote(query)}"
+
+        response = requests.get(url, timeout=60)
+        response.raise_for_status()
+
+        # Parse XML response
+        root = ET.fromstring(response.content)
+
+        records = []
+        for row in root.findall('.//row'):
+            record = {}
+            for field in row.findall('field'):
+                name = field.get('name')
+                value = field.text
+                record[name] = value
+            records.append(record)
+
+        df = pd.DataFrame(records)
+
+        # Convert contact_date to datetime
+        if 'contact_date' in df.columns:
+            df['contact_date'] = pd.to_datetime(df['contact_date'], errors='coerce')
+
+        return df
+
+    except Exception as e:
+        st.error(f"Failed to load DonorPerfect contacts: {e}")
+        return pd.DataFrame()
+
+
+def get_fiscal_year_info(reference_date: date = None) -> dict:
+    """Calculate fiscal year dates dynamically.
+
+    BookSpring fiscal year runs July 1 - June 30.
+    FY naming convention: FY26 = July 1, 2025 - June 30, 2026
+
+    Args:
+        reference_date: Date to calculate FY for (defaults to today)
+
+    Returns:
+        Dictionary with fiscal year info including start dates and labels
+    """
+    if reference_date is None:
+        reference_date = date.today()
+
+    # Determine current fiscal year start
+    # If we're in Jan-Jun, FY started previous July
+    # If we're in Jul-Dec, FY started this July
+    if reference_date.month >= 7:
+        current_fy_start_year = reference_date.year
+    else:
+        current_fy_start_year = reference_date.year - 1
+
+    current_fy_start = date(current_fy_start_year, 7, 1)
+    prior_fy_start = date(current_fy_start_year - 1, 7, 1)
+
+    # FY number is the year the FY ends (e.g., FY26 ends June 30, 2026)
+    current_fy_number = current_fy_start_year + 1
+    prior_fy_number = current_fy_start_year
+
+    # Short labels (e.g., "FY26", "FY25")
+    current_fy_short = f"FY{current_fy_number % 100:02d}"
+    prior_fy_short = f"FY{prior_fy_number % 100:02d}"
+
+    return {
+        'current_fy_start': current_fy_start,
+        'prior_fy_start': prior_fy_start,
+        'current_fy_number': current_fy_number,
+        'prior_fy_number': prior_fy_number,
+        'current_fy_short': current_fy_short,
+        'prior_fy_short': prior_fy_short
+    }
+
+
+def get_contact_metrics_comparison() -> dict:
+    """Get contact metrics for current FY vs prior FY to date.
+
+    Returns:
+        Dictionary with 'current_fy' and 'prior_fy' DataFrames plus labels
+    """
+    today = date.today()
+    fy_info = get_fiscal_year_info(today)
+
+    # Current fiscal year: FY start to today
+    current_fy_start = fy_info['current_fy_start'].strftime("%Y-%m-%d")
+    current_fy_end = today.strftime("%Y-%m-%d")
+
+    # Prior fiscal year to same date: Prior FY start to same date last year
+    prior_fy_start = fy_info['prior_fy_start'].strftime("%Y-%m-%d")
+    prior_fy_end = today.replace(year=today.year - 1).strftime("%Y-%m-%d")
+
+    current_df = load_donorperfect_contacts(current_fy_start, current_fy_end)
+    prior_df = load_donorperfect_contacts(prior_fy_start, prior_fy_end)
+
+    current_fy_short = fy_info['current_fy_short']
+    prior_fy_short = fy_info['prior_fy_short']
+
+    return {
+        'current_fy': current_df,
+        'prior_fy': prior_df,
+        'current_fy_label': f"{current_fy_short} YTD ({current_fy_start} - {current_fy_end})",
+        'prior_fy_label': f"{prior_fy_short} YTD ({prior_fy_start} - {prior_fy_end})",
+        'current_fy_short': current_fy_short,
+        'prior_fy_short': prior_fy_short
+    }
+
+
+def summarize_contacts(df: pd.DataFrame) -> dict:
+    """Summarize contact data by activity type.
+
+    Args:
+        df: DataFrame with contact records
+
+    Returns:
+        Dictionary with summary metrics
+    """
+    if df.empty:
+        return {
+            'total': 0,
+            'by_type': {},
+            'cc_by_status': {},
+            'lt_by_mailing': {},
+            'by_month': {}
+        }
+
+    # Normalize activity_code - treat blank/None as 'LT' (Letter)
+    df = df.copy()
+    df['activity_code'] = df['activity_code'].fillna('LT')
+    df['activity_code'] = df['activity_code'].replace('', 'LT')
+
+    # Contact type labels
+    type_labels = {
+        'CC': 'Constant Contact',
+        'EO': 'Email Out',
+        'RCPTSNT': 'Receipt Sent',
+        'LT': 'Letter'
+    }
+
+    # Count by activity type
+    by_type = df['activity_code'].value_counts().to_dict()
+
+    # For CC contacts, group by em_campaign_status
+    cc_df = df[df['activity_code'] == 'CC']
+    cc_by_status = cc_df['em_campaign_status'].fillna('Unknown').value_counts().to_dict() if not cc_df.empty else {}
+
+    # For LT contacts, group by mailing_code
+    lt_df = df[df['activity_code'] == 'LT']
+    lt_by_mailing = lt_df['mailing_code'].fillna('Unknown').value_counts().to_dict() if not lt_df.empty else {}
+
+    # Monthly breakdown
+    by_month = {}
+    if 'contact_date' in df.columns and not df['contact_date'].isna().all():
+        df['month'] = df['contact_date'].dt.to_period('M')
+        by_month = df.groupby('month').size().to_dict()
+        # Convert Period keys to strings for JSON serialization
+        by_month = {str(k): v for k, v in by_month.items()}
+
+    return {
+        'total': len(df),
+        'by_type': by_type,
+        'type_labels': type_labels,
+        'cc_by_status': cc_by_status,
+        'lt_by_mailing': lt_by_mailing,
+        'by_month': by_month
+    }
+
+
 def normalize_legacy_record(record: dict) -> dict:
     """Normalize a legacy record, keeping original field names for DataProcessor."""
     normalized = {}
@@ -2285,6 +2476,207 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+    # === Donor Contacts Year-over-Year Comparison ===
+    st.markdown("---")
+    st.markdown("##### 📬 Donor Contacts - Year over Year Comparison")
+
+    try:
+        contact_data = get_contact_metrics_comparison()
+        current_summary = summarize_contacts(contact_data['current_fy'])
+        prior_summary = summarize_contacts(contact_data['prior_fy'])
+
+        # Dynamic FY labels
+        current_fy = contact_data['current_fy_short']
+        prior_fy = contact_data['prior_fy_short']
+        current_col = f"{current_fy} YTD"
+        prior_col = f"{prior_fy} YTD"
+
+        # Type labels for display
+        type_labels = {
+            'CC': 'Constant Contact',
+            'EO': 'Email Out',
+            'RCPTSNT': 'Receipt Sent',
+            'LT': 'Letter'
+        }
+
+        # Build comparison dataframe for main contact types
+        contact_types = ['CC', 'EO', 'RCPTSNT', 'LT']
+        comparison_data = []
+        for ct in contact_types:
+            current_count = current_summary['by_type'].get(ct, 0)
+            prior_count = prior_summary['by_type'].get(ct, 0)
+            change = current_count - prior_count
+            pct_change = ((current_count - prior_count) / prior_count * 100) if prior_count > 0 else (100 if current_count > 0 else 0)
+            comparison_data.append({
+                'Contact Type': type_labels.get(ct, ct),
+                current_col: current_count,
+                prior_col: prior_count,
+                'Change': change,
+                '% Change': pct_change
+            })
+
+        comparison_df = pd.DataFrame(comparison_data)
+
+        # Add totals row
+        totals_row = pd.DataFrame([{
+            'Contact Type': 'TOTAL',
+            current_col: current_summary['total'],
+            prior_col: prior_summary['total'],
+            'Change': current_summary['total'] - prior_summary['total'],
+            '% Change': ((current_summary['total'] - prior_summary['total']) / prior_summary['total'] * 100) if prior_summary['total'] > 0 else 0
+        }])
+        comparison_df = pd.concat([comparison_df, totals_row], ignore_index=True)
+
+        # Display main comparison table with visual bar chart
+        col1, col2 = st.columns([2, 3])
+
+        with col1:
+            st.markdown("**Contact Summary by Type**")
+
+            # Style the dataframe
+            def style_change(val):
+                if isinstance(val, (int, float)):
+                    if val > 0:
+                        return 'color: #38a169; font-weight: bold;'
+                    elif val < 0:
+                        return 'color: #e53e3e; font-weight: bold;'
+                return ''
+
+            styled_df = comparison_df.style.format({
+                current_col: '{:,.0f}',
+                prior_col: '{:,.0f}',
+                'Change': '{:+,.0f}',
+                '% Change': '{:+.1f}%'
+            }).map(style_change, subset=['Change', '% Change'])
+
+            st.dataframe(styled_df, hide_index=True, use_container_width=True)
+
+        with col2:
+            # Create grouped bar chart for comparison
+            chart_df = comparison_df[comparison_df['Contact Type'] != 'TOTAL'].copy()
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                name=current_col,
+                x=chart_df['Contact Type'],
+                y=chart_df[current_col],
+                marker_color='#43e97b',
+                text=chart_df[current_col],
+                textposition='outside'
+            ))
+            fig.add_trace(go.Bar(
+                name=prior_col,
+                x=chart_df['Contact Type'],
+                y=chart_df[prior_col],
+                marker_color='#a0aec0',
+                text=chart_df[prior_col],
+                textposition='outside'
+            ))
+
+            fig.update_layout(
+                barmode='group',
+                title='Contact Volume by Type',
+                xaxis_title='',
+                yaxis_title='Number of Contacts',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+                margin=dict(l=40, r=40, t=60, b=40),
+                height=350
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Detailed breakdowns in expandable sections
+        with st.expander("📧 Constant Contact Details (by Campaign Status)"):
+            if current_summary['cc_by_status'] or prior_summary['cc_by_status']:
+                all_statuses = set(current_summary['cc_by_status'].keys()) | set(prior_summary['cc_by_status'].keys())
+                cc_details = []
+                for status in sorted(all_statuses):
+                    current_count = current_summary['cc_by_status'].get(status, 0)
+                    prior_count = prior_summary['cc_by_status'].get(status, 0)
+                    cc_details.append({
+                        'Campaign Status': status,
+                        current_col: current_count,
+                        prior_col: prior_count,
+                        'Change': current_count - prior_count
+                    })
+                cc_df = pd.DataFrame(cc_details)
+                st.dataframe(cc_df.style.format({
+                    current_col: '{:,.0f}',
+                    prior_col: '{:,.0f}',
+                    'Change': '{:+,.0f}'
+                }), hide_index=True, use_container_width=True)
+            else:
+                st.info("No Constant Contact data available for this period.")
+
+        with st.expander("✉️ Letter Details (by Mailing Code)"):
+            if current_summary['lt_by_mailing'] or prior_summary['lt_by_mailing']:
+                all_mailings = set(current_summary['lt_by_mailing'].keys()) | set(prior_summary['lt_by_mailing'].keys())
+                lt_details = []
+                for mailing in sorted(all_mailings):
+                    current_count = current_summary['lt_by_mailing'].get(mailing, 0)
+                    prior_count = prior_summary['lt_by_mailing'].get(mailing, 0)
+                    lt_details.append({
+                        'Mailing Code': mailing,
+                        current_col: current_count,
+                        prior_col: prior_count,
+                        'Change': current_count - prior_count
+                    })
+                lt_df = pd.DataFrame(lt_details)
+                st.dataframe(lt_df.style.format({
+                    current_col: '{:,.0f}',
+                    prior_col: '{:,.0f}',
+                    'Change': '{:+,.0f}'
+                }), hide_index=True, use_container_width=True)
+            else:
+                st.info("No Letter data available for this period.")
+
+        # Monthly trend chart (only show if data is meaningful)
+        with st.expander("📈 Monthly Contact Trend"):
+            if current_summary['by_month'] or prior_summary['by_month']:
+                # Combine monthly data for visualization
+                all_months_current = current_summary['by_month']
+                all_months_prior = prior_summary['by_month']
+
+                if all_months_current:
+                    monthly_df = pd.DataFrame([
+                        {'Month': k, 'Contacts': v, 'Year': current_fy}
+                        for k, v in all_months_current.items()
+                    ])
+                    if all_months_prior:
+                        prior_monthly = pd.DataFrame([
+                            {'Month': k, 'Contacts': v, 'Year': prior_fy}
+                            for k, v in all_months_prior.items()
+                        ])
+                        monthly_df = pd.concat([monthly_df, prior_monthly], ignore_index=True)
+
+                    # Sort by month
+                    monthly_df = monthly_df.sort_values('Month')
+
+                    fig_monthly = px.bar(
+                        monthly_df,
+                        x='Month',
+                        y='Contacts',
+                        color='Year',
+                        barmode='group',
+                        title='Monthly Contact Volume',
+                        color_discrete_map={current_fy: '#43e97b', prior_fy: '#a0aec0'}
+                    )
+                    fig_monthly.update_layout(
+                        xaxis_title='',
+                        yaxis_title='Number of Contacts',
+                        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+                        margin=dict(l=40, r=40, t=60, b=40),
+                        height=300
+                    )
+                    st.plotly_chart(fig_monthly, use_container_width=True)
+                else:
+                    st.info("No monthly data available.")
+            else:
+                st.info("No monthly trend data available.")
+
+    except Exception as e:
+        st.warning(f"Unable to load donor contacts data: {e}")
+        st.info("Donor contacts metrics will appear here once the DonorPerfect API connection is configured.")
 
 
 def render_financial_metrics(financial_df: pd.DataFrame = None):
