@@ -2606,7 +2606,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                     x=current_vals,
                     orientation='h',
                     marker_color='#667eea',
-                    text=[f'{v:,.0f} ({pct:+.0f}%)' if pct != 0 else f'{v:,.0f}' for v, pct in zip(current_vals, pct_changes)],
+                    text=[f'{v:,.0f}' for v in current_vals],
                     textposition='outside',
                     textfont=dict(size=10),
                     width=0.35,
@@ -2617,12 +2617,29 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 fig_cc = style_plotly_chart(fig_cc, height=340)
                 fig_cc.update_layout(
                     title=dict(text='Constant Contact by Status', font=dict(size=14)),
-                    xaxis=dict(range=[0, max_val * 1.4]),  # More headroom for labels with % change
+                    xaxis=dict(range=[0, max_val * 1.5]),  # More headroom for labels with % change
                     yaxis=dict(autorange='reversed'),  # Largest at top
                     barmode='group',
                     bargap=0.25,
                     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1, font=dict(size=10))
                 )
+
+                # Add annotations for % change with color coding
+                for i, (val, pct) in enumerate(zip(current_vals, pct_changes)):
+                    if pct != 0:
+                        color = '#38a169' if pct > 0 else '#e53e3e'  # Green for positive, red for negative
+                        sign = '+' if pct > 0 else ''
+                        fig_cc.add_annotation(
+                            x=val + max_val * 0.12,  # Position after the number
+                            y=i,
+                            text=f'({sign}{pct:.0f}%)',
+                            showarrow=False,
+                            font=dict(size=10, color=color, weight='bold'),
+                            xanchor='left',
+                            yanchor='middle',
+                            yshift=6  # Slight shift to align with current FY bar
+                        )
+
                 st.plotly_chart(fig_cc, use_container_width=True)
 
         # Monthly trend chart - LINE CHART with month names on X-axis
