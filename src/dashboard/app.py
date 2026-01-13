@@ -2338,7 +2338,8 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
     expenses_variance = ytd_expenses - ytd_expenses_budget  # Positive means over budget (bad)
     expenses_variance_pct = (expenses_variance / ytd_expenses_budget * 100) if ytd_expenses_budget > 0 else 0
     months_cash_on_hand = total_cash / monthly_expenses_avg if monthly_expenses_avg > 0 else 0
-    admin_program_ratio = (admin_expenses / program_expenses * 100) if program_expenses > 0 else 0
+    total_expenses = admin_expenses + program_expenses
+    admin_pct_of_total = (admin_expenses / total_expenses * 100) if total_expenses > 0 else 0
     grants_pct_achieved = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
 
     # Row 1: YTD Actuals with Budget Variance
@@ -2428,11 +2429,11 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         st.metric("Inventory Value", f"${inventory_value:,.0f}")
 
     with col3:
-        # Admin ratio - lower is generally better for nonprofits
-        ratio_status = "🟢" if admin_program_ratio <= 20 else "🟡" if admin_program_ratio <= 30 else "🔴"
+        # Admin % of total - lower is generally better for nonprofits
+        ratio_status = "🟢" if admin_pct_of_total <= 20 else "🟡" if admin_pct_of_total <= 30 else "🔴"
         st.metric(
-            f"Admin to Program Expense Ratio {ratio_status}",
-            f"{admin_program_ratio:.1f}%"
+            f"Admin % of Total Expenses {ratio_status}",
+            f"{admin_pct_of_total:.1f}%"
         )
 
     # Show last updated date
@@ -2568,7 +2569,7 @@ def render_upcoming_events(events_data: list):
 
                 with col:
                     st.markdown(f"""
-                    <div style="display: flex; gap: 0.75rem; padding: 0.875rem; background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border: 1px solid #e5e7eb; border-radius: 12px; border-left: 4px solid #8b5cf6; height: 100%;">
+                    <div style="display: flex; gap: 0.75rem; padding: 0.875rem; background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border: 1px solid #e5e7eb; border-radius: 12px; border-left: 4px solid #8b5cf6; height: 100%; margin-bottom: 0.75rem;">
                         <div style="min-width: 55px; text-align: center;">
                             <div style="font-size: 0.7rem; color: #6b7280; text-transform: uppercase;">{event_day}</div>
                             <div style="font-size: 0.85rem; font-weight: 700; color: #1a202c;">{event_date}</div>
