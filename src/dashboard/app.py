@@ -2515,39 +2515,74 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         col1, col2 = st.columns(2)
 
         with col1:
-            # Create grouped bar chart for YoY comparison
+            # Create horizontal grouped bar chart for YoY comparison (matches CC Status chart)
             comparison_df = pd.DataFrame(comparison_data)
             chart_df = comparison_df.copy()
 
-            # Get max value for y-axis range
-            max_val = max(chart_df[current_col].max(), chart_df[prior_col].max())
+            contact_types = chart_df['Contact Type'].tolist()
+            current_vals = chart_df[current_col].tolist()
+            prior_vals = chart_df[prior_col].tolist()
+            pct_changes = chart_df['% Change'].tolist()
+
+            # Get max value for x-axis range
+            max_val = max(max(current_vals), max(prior_vals))
 
             fig = go.Figure()
-            fig.add_trace(go.Bar(
-                name=current_col,
-                x=chart_df['Contact Type'],
-                y=chart_df[current_col],
-                marker_color='#667eea',
-                text=chart_df[current_col].apply(lambda x: f'{x:,.0f}'),
-                textposition='outside',
-                textfont=dict(size=11)
-            ))
+
+            # Prior FY bars (lighter color)
             fig.add_trace(go.Bar(
                 name=prior_col,
-                x=chart_df['Contact Type'],
-                y=chart_df[prior_col],
-                marker_color='#cbd5e0',
-                text=chart_df[prior_col].apply(lambda x: f'{x:,.0f}'),
+                y=contact_types,
+                x=prior_vals,
+                orientation='h',
+                marker_color='#a0aec0',
+                text=[f'{v:,.0f}' for v in prior_vals],
+                textposition='inside',
+                textfont=dict(size=9, color='white'),
+                width=0.35,
+                offset=-0.18
+            ))
+
+            # Current FY bars (primary color)
+            fig.add_trace(go.Bar(
+                name=current_col,
+                y=contact_types,
+                x=current_vals,
+                orientation='h',
+                marker_color='#667eea',
+                text=[f'{v:,.0f}' for v in current_vals],
                 textposition='outside',
-                textfont=dict(size=11)
+                textfont=dict(size=10),
+                width=0.35,
+                offset=0.18
             ))
 
             fig = style_plotly_chart(fig, height=320)
             fig.update_layout(
                 barmode='group',
+                bargap=0.25,
                 title=dict(text='Contact Volume by Type', font=dict(size=14)),
-                yaxis=dict(range=[0, max_val * 1.4])  # 40% headroom for labels
+                xaxis=dict(range=[0, max_val * 1.5]),  # Headroom for labels with % change
+                yaxis=dict(autorange='reversed'),  # Largest at top
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1, font=dict(size=10))
             )
+
+            # Add annotations for % change with color coding
+            for i, (val, pct) in enumerate(zip(current_vals, pct_changes)):
+                if pct != 0:
+                    color = '#38a169' if pct > 0 else '#e53e3e'
+                    sign = '+' if pct > 0 else ''
+                    fig.add_annotation(
+                        x=val + max_val * 0.08,
+                        y=contact_types[i],
+                        text=f'({sign}{pct:.0f}%)',
+                        showarrow=False,
+                        font=dict(size=10, color=color, weight='bold'),
+                        xanchor='left',
+                        yanchor='middle',
+                        yshift=8  # Align with current FY bar (offset=0.18)
+                    )
+
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
@@ -2630,14 +2665,14 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                         color = '#38a169' if pct > 0 else '#e53e3e'  # Green for positive, red for negative
                         sign = '+' if pct > 0 else ''
                         fig_cc.add_annotation(
-                            x=val + max_val * 0.12,  # Position after the number
-                            y=i,
+                            x=val + max_val * 0.08,  # Position after the number
+                            y=statuses[i],  # Use actual status name, not index
                             text=f'({sign}{pct:.0f}%)',
                             showarrow=False,
                             font=dict(size=10, color=color, weight='bold'),
                             xanchor='left',
                             yanchor='middle',
-                            yshift=6  # Slight shift to align with current FY bar
+                            yshift=8  # Align with current FY bar (offset=0.18)
                         )
 
                 st.plotly_chart(fig_cc, use_container_width=True)
