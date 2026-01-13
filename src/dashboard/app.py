@@ -2548,8 +2548,8 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 orientation='h',
                 marker_color='#a0aec0',
                 text=[f'{v:,.0f}' for v in prior_vals],
-                textposition='inside',
-                textfont=dict(size=9, color='white'),
+                textposition='outside',
+                textfont=dict(size=9, color='#718096'),
                 width=0.35,
                 offset=-0.18
             ))
@@ -2639,8 +2639,8 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                     orientation='h',
                     marker_color='#a0aec0',
                     text=[f'{v:,.0f}' for v in prior_vals],
-                    textposition='inside',
-                    textfont=dict(size=9, color='white'),
+                    textposition='outside',
+                    textfont=dict(size=9, color='#718096'),
                     width=0.35,
                     offset=-0.18
                 ))
