@@ -2927,103 +2927,106 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
     </div>
     """, unsafe_allow_html=True)
 
-    # === Donor Comparison Metrics (Individuals / Organizations / Total) ===
-    # Get FY info for header
+    # Get FY info for header (used by multiple sections)
     today = date.today()
     fy_info = get_fiscal_year_info(today)
     current_fy_label = fy_info['current_fy_short']
     prior_fy_label = fy_info['prior_fy_short']
 
-    st.markdown(f"##### 💰 Donor Giving Comparison")
-    st.caption(f"{current_fy_label} YTD vs {prior_fy_label} YTD (same date last year) · Excludes monthly giving & gifts ≥${DONOR_GIFT_OUTLIER_THRESHOLD/1000:.0f}K")
+    # === Donor Comparison Metrics (Individuals / Organizations / Total) ===
+    # HIDDEN: Set to True to show this section again
+    SHOW_DONOR_GIVING_COMPARISON = False
+    if SHOW_DONOR_GIVING_COMPARISON:
+        st.markdown(f"##### 💰 Donor Giving Comparison")
+        st.caption(f"{current_fy_label} YTD vs {prior_fy_label} YTD (same date last year) · Excludes monthly giving & gifts ≥${DONOR_GIFT_OUTLIER_THRESHOLD/1000:.0f}K")
 
-    try:
-        donor_metrics = get_donor_comparison_metrics()
-        current_fy = donor_metrics['current_fy_short']
-        prior_fy = donor_metrics['prior_fy_short']
+        try:
+            donor_metrics = get_donor_comparison_metrics()
+            current_fy = donor_metrics['current_fy_short']
+            prior_fy = donor_metrics['prior_fy_short']
 
-        # Helper function to calculate % change
-        def pct_change(current, prior):
-            if prior == 0:
-                return 100.0 if current > 0 else 0.0
-            return ((current - prior) / prior) * 100
+            # Helper function to calculate % change
+            def pct_change(current, prior):
+                if prior == 0:
+                    return 100.0 if current > 0 else 0.0
+                return ((current - prior) / prior) * 100
 
-        # Helper function to format currency
-        def fmt_currency(val):
-            if val >= 1000000:
-                return f"${val/1000000:.2f}M"
-            elif val >= 1000:
-                return f"${val/1000:.1f}K"
-            else:
-                return f"${val:,.0f}"
+            # Helper function to format currency
+            def fmt_currency(val):
+                if val >= 1000000:
+                    return f"${val/1000000:.2f}M"
+                elif val >= 1000:
+                    return f"${val/1000:.1f}K"
+                else:
+                    return f"${val:,.0f}"
 
-        # Create tabs for Individuals, Organizations, and Total
-        tab1, tab2, tab3 = st.tabs(["👤 Individuals", "🏢 Organizations", "📊 Total"])
+            # Create tabs for Individuals, Organizations, and Total
+            tab1, tab2, tab3 = st.tabs(["👤 Individuals", "🏢 Organizations", "📊 Total"])
 
-        def render_donor_metrics_cards(current: dict, prior: dict, fy_current: str, fy_prior: str):
-            """Render donor metrics as styled cards matching dashboard design."""
-            # Calculate average gift value
-            avg_gift_current = current['total_revenue'] / current['gift_count'] if current['gift_count'] > 0 else 0
-            avg_gift_prior = prior['total_revenue'] / prior['gift_count'] if prior['gift_count'] > 0 else 0
+            def render_donor_metrics_cards(current: dict, prior: dict, fy_current: str, fy_prior: str):
+                """Render donor metrics as styled cards matching dashboard design."""
+                # Calculate average gift value
+                avg_gift_current = current['total_revenue'] / current['gift_count'] if current['gift_count'] > 0 else 0
+                avg_gift_prior = prior['total_revenue'] / prior['gift_count'] if prior['gift_count'] > 0 else 0
 
-            # Define metrics to display - Row 1: money metrics, Row 2: donor counts
-            row1_metrics = [
-                ("💵 Total Revenue", fmt_currency(current['total_revenue']), pct_change(current['total_revenue'], prior['total_revenue'])),
-                ("🎁 Largest Gift", fmt_currency(current['largest_gift']), pct_change(current['largest_gift'], prior['largest_gift'])),
-                ("📊 Avg Gift", fmt_currency(avg_gift_current), pct_change(avg_gift_current, avg_gift_prior)),
-                ("🧾 # Gifts", f"{current['gift_count']:,}", pct_change(current['gift_count'], prior['gift_count'])),
-            ]
-            row2_metrics = [
-                ("🆕 New Donors", f"{current['new_donors']:,}", pct_change(current['new_donors'], prior['new_donors'])),
-                ("🔄 Reactivated", f"{current['reactivated_donors']:,}", pct_change(current['reactivated_donors'], prior['reactivated_donors'])),
-                ("⬆️ Upgraded", f"{current['upgraded_donors']:,}", pct_change(current['upgraded_donors'], prior['upgraded_donors'])),
-                ("⬇️ Downgraded", f"{current['downgraded_donors']:,}", pct_change(current['downgraded_donors'], prior['downgraded_donors'])),
-            ]
+                # Define metrics to display - Row 1: money metrics, Row 2: donor counts
+                row1_metrics = [
+                    ("💵 Total Revenue", fmt_currency(current['total_revenue']), pct_change(current['total_revenue'], prior['total_revenue'])),
+                    ("🎁 Largest Gift", fmt_currency(current['largest_gift']), pct_change(current['largest_gift'], prior['largest_gift'])),
+                    ("📊 Avg Gift", fmt_currency(avg_gift_current), pct_change(avg_gift_current, avg_gift_prior)),
+                    ("🧾 # Gifts", f"{current['gift_count']:,}", pct_change(current['gift_count'], prior['gift_count'])),
+                ]
+                row2_metrics = [
+                    ("🆕 New Donors", f"{current['new_donors']:,}", pct_change(current['new_donors'], prior['new_donors'])),
+                    ("🔄 Reactivated", f"{current['reactivated_donors']:,}", pct_change(current['reactivated_donors'], prior['reactivated_donors'])),
+                    ("⬆️ Upgraded", f"{current['upgraded_donors']:,}", pct_change(current['upgraded_donors'], prior['upgraded_donors'])),
+                    ("⬇️ Downgraded", f"{current['downgraded_donors']:,}", pct_change(current['downgraded_donors'], prior['downgraded_donors'])),
+                ]
 
-            # Build metric cards HTML - Row 1: money metrics
-            cards_html = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;">'
-            for label, value, change in row1_metrics:
-                color = '#38a169' if change >= 0 else '#e53e3e'
-                sign = '+' if change >= 0 else ''
-                cards_html += f'''
-                <div class="metric-card" style="text-align: center; padding: 1rem;">
-                    <div style="font-size: 0.8rem; color: #718096; margin-bottom: 0.35rem;">{label}</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #1a365d;">{value}</div>
-                    <div style="font-size: 0.75rem; color: {color}; margin-top: 0.2rem;">{sign}{change:.1f}% vs {fy_prior}</div>
-                </div>'''
-            cards_html += '</div>'
+                # Build metric cards HTML - Row 1: money metrics
+                cards_html = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;">'
+                for label, value, change in row1_metrics:
+                    color = '#38a169' if change >= 0 else '#e53e3e'
+                    sign = '+' if change >= 0 else ''
+                    cards_html += f'''
+                    <div class="metric-card" style="text-align: center; padding: 1rem;">
+                        <div style="font-size: 0.8rem; color: #718096; margin-bottom: 0.35rem;">{label}</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #1a365d;">{value}</div>
+                        <div style="font-size: 0.75rem; color: {color}; margin-top: 0.2rem;">{sign}{change:.1f}% vs {fy_prior}</div>
+                    </div>'''
+                cards_html += '</div>'
 
-            # Row 2: donor counts
-            cards_html += '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">'
-            for label, value, change in row2_metrics:
-                color = '#38a169' if change >= 0 else '#e53e3e'
-                sign = '+' if change >= 0 else ''
-                cards_html += f'''
-                <div class="metric-card" style="text-align: center; padding: 1rem;">
-                    <div style="font-size: 0.8rem; color: #718096; margin-bottom: 0.35rem;">{label}</div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #1a365d;">{value}</div>
-                    <div style="font-size: 0.75rem; color: {color}; margin-top: 0.2rem;">{sign}{change:.1f}% vs {fy_prior}</div>
-                </div>'''
-            cards_html += '</div>'
+                # Row 2: donor counts
+                cards_html += '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">'
+                for label, value, change in row2_metrics:
+                    color = '#38a169' if change >= 0 else '#e53e3e'
+                    sign = '+' if change >= 0 else ''
+                    cards_html += f'''
+                    <div class="metric-card" style="text-align: center; padding: 1rem;">
+                        <div style="font-size: 0.8rem; color: #718096; margin-bottom: 0.35rem;">{label}</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #1a365d;">{value}</div>
+                        <div style="font-size: 0.75rem; color: {color}; margin-top: 0.2rem;">{sign}{change:.1f}% vs {fy_prior}</div>
+                    </div>'''
+                cards_html += '</div>'
 
-            st.markdown(cards_html, unsafe_allow_html=True)
+                st.markdown(cards_html, unsafe_allow_html=True)
 
-        with tab1:
-            ind = donor_metrics['individuals']
-            render_donor_metrics_cards(ind['current'], ind['prior'], current_fy, prior_fy)
+            with tab1:
+                ind = donor_metrics['individuals']
+                render_donor_metrics_cards(ind['current'], ind['prior'], current_fy, prior_fy)
 
-        with tab2:
-            org = donor_metrics['organizations']
-            render_donor_metrics_cards(org['current'], org['prior'], current_fy, prior_fy)
+            with tab2:
+                org = donor_metrics['organizations']
+                render_donor_metrics_cards(org['current'], org['prior'], current_fy, prior_fy)
 
-        with tab3:
-            total = donor_metrics['total']
-            render_donor_metrics_cards(total['current'], total['prior'], current_fy, prior_fy)
+            with tab3:
+                total = donor_metrics['total']
+                render_donor_metrics_cards(total['current'], total['prior'], current_fy, prior_fy)
 
-    except Exception as e:
-        st.warning(f"Unable to load donor comparison metrics: {e}")
+        except Exception as e:
+            st.warning(f"Unable to load donor comparison metrics: {e}")
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
 
     # === Donor Contacts Year-over-Year Comparison ===
     st.markdown("##### 📧 Donor Contacts")
