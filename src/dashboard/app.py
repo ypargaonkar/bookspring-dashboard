@@ -3980,52 +3980,8 @@ def main():
         st.warning("No data found for the selected date range.")
         return
 
-    # Zero out children counts for previously served rows
-    if "previously_served_this_fy" in processor.df.columns:
-        prev_served = processor.df["previously_served_this_fy"] == True
-        children_cols = [
-            "total_children", "children_035_months", "children_03_years",
-            "children_35_years", "children_34_years", "children_68_years",
-            "children_512_years", "children_912_years", "teens"
-        ]
-        for col in children_cols:
-            if col in processor.df.columns:
-                processor.df.loc[prev_served, col] = 0
-
-        # Recalculate average books per child metrics after zeroing
-        books_col = "_of_books_distributed"
-        if books_col in processor.df.columns:
-            # Recalculate total children from age columns
-            age_cols = [c for c in children_cols if c != "total_children" and c in processor.df.columns]
-            processor.df["_total_children_calc"] = processor.df[age_cols].fillna(0).sum(axis=1)
-
-            # Recalculate overall avg books per child
-            processor.df["avg_books_per_child"] = processor.df.apply(
-                lambda row: row[books_col] / row["_total_children_calc"]
-                if row["_total_children_calc"] > 0 else 0, axis=1
-            )
-
-            # Recalculate books per child by age group
-            age_group_sources = {
-                "books_per_child_0_2": ["children_035_months", "children_03_years"],
-                "books_per_child_3_5": ["children_35_years", "children_34_years"],
-                "books_per_child_6_8": ["children_68_years", "children_512_years"],
-                "books_per_child_9_12": ["children_912_years"],
-                "books_per_child_teens": ["teens"],
-            }
-            for metric_col, source_cols in age_group_sources.items():
-                available_sources = [c for c in source_cols if c in processor.df.columns]
-                if available_sources:
-                    age_children = processor.df[available_sources].fillna(0).sum(axis=1)
-                    processor.df[metric_col] = 0.0
-                    mask = (processor.df["_total_children_calc"] > 0) & (age_children > 0)
-                    processor.df.loc[mask, metric_col] = (
-                        processor.df.loc[mask, books_col] / processor.df.loc[mask, "_total_children_calc"]
-                    )
-
-            # Clean up temp column
-            if "_total_children_calc" in processor.df.columns:
-                processor.df.drop("_total_children_calc", axis=1, inplace=True)
+    # Note: Previously served children exclusion is handled by DataProcessor._exclude_previously_served_children()
+    # which zeros out both children counts AND books distributed for those rows
 
     # Calculate book bank children (Open Book Distribution program)
     book_bank_children = 0
