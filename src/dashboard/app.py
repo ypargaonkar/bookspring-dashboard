@@ -2962,20 +2962,23 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             avg_gift_current = current['total_revenue'] / current['gift_count'] if current['gift_count'] > 0 else 0
             avg_gift_prior = prior['total_revenue'] / prior['gift_count'] if prior['gift_count'] > 0 else 0
 
-            # Define metrics to display
-            metrics = [
+            # Define metrics to display - Row 1: money metrics, Row 2: donor counts
+            row1_metrics = [
                 ("💵 Total Revenue", fmt_currency(current['total_revenue']), pct_change(current['total_revenue'], prior['total_revenue'])),
                 ("🎁 Largest Gift", fmt_currency(current['largest_gift']), pct_change(current['largest_gift'], prior['largest_gift'])),
                 ("📊 Avg Gift", fmt_currency(avg_gift_current), pct_change(avg_gift_current, avg_gift_prior)),
+                ("🧾 # Gifts", f"{current['gift_count']:,}", pct_change(current['gift_count'], prior['gift_count'])),
+            ]
+            row2_metrics = [
                 ("🆕 New Donors", f"{current['new_donors']:,}", pct_change(current['new_donors'], prior['new_donors'])),
                 ("🔄 Reactivated", f"{current['reactivated_donors']:,}", pct_change(current['reactivated_donors'], prior['reactivated_donors'])),
                 ("⬆️ Upgraded", f"{current['upgraded_donors']:,}", pct_change(current['upgraded_donors'], prior['upgraded_donors'])),
                 ("⬇️ Downgraded", f"{current['downgraded_donors']:,}", pct_change(current['downgraded_donors'], prior['downgraded_donors'])),
             ]
 
-            # Build metric cards HTML - 4 cards on first row, 3 on second
+            # Build metric cards HTML - Row 1: money metrics
             cards_html = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;">'
-            for i, (label, value, change) in enumerate(metrics[:4]):
+            for label, value, change in row1_metrics:
                 color = '#38a169' if change >= 0 else '#e53e3e'
                 sign = '+' if change >= 0 else ''
                 cards_html += f'''
@@ -2986,9 +2989,9 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 </div>'''
             cards_html += '</div>'
 
-            # Second row - 3 cards centered
+            # Row 2: donor counts
             cards_html += '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">'
-            for i, (label, value, change) in enumerate(metrics[4:]):
+            for label, value, change in row2_metrics:
                 color = '#38a169' if change >= 0 else '#e53e3e'
                 sign = '+' if change >= 0 else ''
                 cards_html += f'''
@@ -2997,8 +3000,6 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                     <div style="font-size: 1.5rem; font-weight: 700; color: #1a365d;">{value}</div>
                     <div style="font-size: 0.75rem; color: {color}; margin-top: 0.2rem;">{sign}{change:.1f}% vs {fy_prior}</div>
                 </div>'''
-            # Empty placeholder for 4th column
-            cards_html += '<div></div>'
             cards_html += '</div>'
 
             st.markdown(cards_html, unsafe_allow_html=True)
