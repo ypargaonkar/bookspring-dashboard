@@ -2947,81 +2947,67 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             else:
                 return f"${val:,.0f}"
 
-        # Helper function to format change indicator
-        def change_indicator(pct, invert=False):
-            is_positive = pct >= 0 if not invert else pct <= 0
-            color = '#38a169' if is_positive else '#e53e3e'
-            sign = '+' if pct >= 0 else ''
-            return f'<span style="color: {color}; font-size: 0.75rem;">{sign}{pct:.1f}%</span>'
-
         # Create tabs for Individuals, Organizations, and Total
         tab1, tab2, tab3 = st.tabs(["👤 Individuals", "🏢 Organizations", "📊 Total"])
 
-        def render_donor_metrics_table(current: dict, prior: dict, fy_current: str, fy_prior: str):
-            """Render a metrics comparison table using DataFrame."""
-            # Build data for DataFrame
-            metrics_rows = [
-                {"Metric": "Largest Gift", f"{fy_current} YTD": fmt_currency(current['largest_gift']),
-                 f"{fy_prior} YTD": fmt_currency(prior['largest_gift']), "% Change": pct_change(current['largest_gift'], prior['largest_gift'])},
-                {"Metric": "Gift Transactions", f"{fy_current} YTD": f"{current['gift_count']:,}",
-                 f"{fy_prior} YTD": f"{prior['gift_count']:,}", "% Change": pct_change(current['gift_count'], prior['gift_count'])},
-                {"Metric": "New Donors", f"{fy_current} YTD": f"{current['new_donors']:,}",
-                 f"{fy_prior} YTD": f"{prior['new_donors']:,}", "% Change": pct_change(current['new_donors'], prior['new_donors'])},
-                {"Metric": "New Gifts Amount", f"{fy_current} YTD": fmt_currency(current['new_donor_amount']),
-                 f"{fy_prior} YTD": fmt_currency(prior['new_donor_amount']), "% Change": pct_change(current['new_donor_amount'], prior['new_donor_amount'])},
-                {"Metric": "Reactivated Donors", f"{fy_current} YTD": f"{current['reactivated_donors']:,}",
-                 f"{fy_prior} YTD": f"{prior['reactivated_donors']:,}", "% Change": pct_change(current['reactivated_donors'], prior['reactivated_donors'])},
-                {"Metric": "Reactivated Amount", f"{fy_current} YTD": fmt_currency(current['reactivated_amount']),
-                 f"{fy_prior} YTD": fmt_currency(prior['reactivated_amount']), "% Change": pct_change(current['reactivated_amount'], prior['reactivated_amount'])},
-                {"Metric": "Upgraded Donors", f"{fy_current} YTD": f"{current['upgraded_donors']:,}",
-                 f"{fy_prior} YTD": f"{prior['upgraded_donors']:,}", "% Change": pct_change(current['upgraded_donors'], prior['upgraded_donors'])},
-                {"Metric": "Upgrade Revenue", f"{fy_current} YTD": fmt_currency(current['upgrade_revenue']),
-                 f"{fy_prior} YTD": fmt_currency(prior['upgrade_revenue']), "% Change": pct_change(current['upgrade_revenue'], prior['upgrade_revenue'])},
-                {"Metric": "Same Donors", f"{fy_current} YTD": f"{current['same_donors']:,}",
-                 f"{fy_prior} YTD": f"{prior['same_donors']:,}", "% Change": pct_change(current['same_donors'], prior['same_donors'])},
-                {"Metric": "Same Revenue", f"{fy_current} YTD": fmt_currency(current['same_revenue']),
-                 f"{fy_prior} YTD": fmt_currency(prior['same_revenue']), "% Change": pct_change(current['same_revenue'], prior['same_revenue'])},
-                {"Metric": "Downgraded Donors", f"{fy_current} YTD": f"{current['downgraded_donors']:,}",
-                 f"{fy_prior} YTD": f"{prior['downgraded_donors']:,}", "% Change": pct_change(current['downgraded_donors'], prior['downgraded_donors'])},
-                {"Metric": "Downgrade Revenue", f"{fy_current} YTD": fmt_currency(current['downgrade_revenue']),
-                 f"{fy_prior} YTD": fmt_currency(prior['downgrade_revenue']), "% Change": pct_change(current['downgrade_revenue'], prior['downgrade_revenue'])},
-                {"Metric": "Total Revenue", f"{fy_current} YTD": fmt_currency(current['total_revenue']),
-                 f"{fy_prior} YTD": fmt_currency(prior['total_revenue']), "% Change": pct_change(current['total_revenue'], prior['total_revenue'])},
+        def render_donor_metrics_cards(current: dict, prior: dict, fy_current: str, fy_prior: str):
+            """Render donor metrics as styled cards matching dashboard design."""
+            # Calculate average gift value
+            avg_gift_current = current['total_revenue'] / current['gift_count'] if current['gift_count'] > 0 else 0
+            avg_gift_prior = prior['total_revenue'] / prior['gift_count'] if prior['gift_count'] > 0 else 0
+
+            # Define metrics to display
+            metrics = [
+                ("💵 Total Revenue", fmt_currency(current['total_revenue']), pct_change(current['total_revenue'], prior['total_revenue'])),
+                ("🎁 Largest Gift", fmt_currency(current['largest_gift']), pct_change(current['largest_gift'], prior['largest_gift'])),
+                ("📊 Avg Gift", fmt_currency(avg_gift_current), pct_change(avg_gift_current, avg_gift_prior)),
+                ("🆕 New Donors", f"{current['new_donors']:,}", pct_change(current['new_donors'], prior['new_donors'])),
+                ("🔄 Reactivated", f"{current['reactivated_donors']:,}", pct_change(current['reactivated_donors'], prior['reactivated_donors'])),
+                ("⬆️ Upgraded", f"{current['upgraded_donors']:,}", pct_change(current['upgraded_donors'], prior['upgraded_donors'])),
+                ("⬇️ Downgraded", f"{current['downgraded_donors']:,}", pct_change(current['downgraded_donors'], prior['downgraded_donors'])),
             ]
 
-            df = pd.DataFrame(metrics_rows)
+            # Build metric cards HTML - 4 cards on first row, 3 on second
+            cards_html = '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;">'
+            for i, (label, value, change) in enumerate(metrics[:4]):
+                color = '#38a169' if change >= 0 else '#e53e3e'
+                sign = '+' if change >= 0 else ''
+                cards_html += f'''
+                <div class="metric-card" style="text-align: center; padding: 1rem;">
+                    <div style="font-size: 0.8rem; color: #718096; margin-bottom: 0.35rem;">{label}</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1a365d;">{value}</div>
+                    <div style="font-size: 0.75rem; color: {color}; margin-top: 0.2rem;">{sign}{change:.1f}% vs {fy_prior}</div>
+                </div>'''
+            cards_html += '</div>'
 
-            # Format % Change column with color
-            def color_pct(val):
-                color = '#38a169' if val >= 0 else '#e53e3e'
-                return f'color: {color}'
+            # Second row - 3 cards centered
+            cards_html += '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">'
+            for i, (label, value, change) in enumerate(metrics[4:]):
+                color = '#38a169' if change >= 0 else '#e53e3e'
+                sign = '+' if change >= 0 else ''
+                cards_html += f'''
+                <div class="metric-card" style="text-align: center; padding: 1rem;">
+                    <div style="font-size: 0.8rem; color: #718096; margin-bottom: 0.35rem;">{label}</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1a365d;">{value}</div>
+                    <div style="font-size: 0.75rem; color: {color}; margin-top: 0.2rem;">{sign}{change:.1f}% vs {fy_prior}</div>
+                </div>'''
+            # Empty placeholder for 4th column
+            cards_html += '<div></div>'
+            cards_html += '</div>'
 
-            # Style the dataframe
-            styled_df = df.style.applymap(color_pct, subset=['% Change']).format({'% Change': '{:+.1f}%'})
-
-            st.dataframe(
-                styled_df,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Metric": st.column_config.TextColumn("Metric", width="medium"),
-                    f"{fy_current} YTD": st.column_config.TextColumn(f"{fy_current} YTD", width="small"),
-                    f"{fy_prior} YTD": st.column_config.TextColumn(f"{fy_prior} YTD", width="small"),
-                    "% Change": st.column_config.NumberColumn("% Change", format="%.1f%%", width="small"),
-                }
-            )
+            st.markdown(cards_html, unsafe_allow_html=True)
 
         with tab1:
             ind = donor_metrics['individuals']
-            render_donor_metrics_table(ind['current'], ind['prior'], current_fy, prior_fy)
+            render_donor_metrics_cards(ind['current'], ind['prior'], current_fy, prior_fy)
 
         with tab2:
             org = donor_metrics['organizations']
-            render_donor_metrics_table(org['current'], org['prior'], current_fy, prior_fy)
+            render_donor_metrics_cards(org['current'], org['prior'], current_fy, prior_fy)
 
         with tab3:
             total = donor_metrics['total']
-            render_donor_metrics_table(total['current'], total['prior'], current_fy, prior_fy)
+            render_donor_metrics_cards(total['current'], total['prior'], current_fy, prior_fy)
 
     except Exception as e:
         st.warning(f"Unable to load donor comparison metrics: {e}")
