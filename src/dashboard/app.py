@@ -2061,6 +2061,10 @@ def render_hero_header(processor: DataProcessor):
     children = int(stats.get("totals", {}).get("total_children", 0))
     parents = int(stats.get("totals", {}).get("parents_or_caregivers", 0))
 
+    # Get current fiscal year for display
+    fy_info = get_fiscal_year_info(date.today())
+    current_fy = fy_info['current_fy_short']
+
     # Use Streamlit native components for reliable rendering
     st.markdown("""
     <style>
@@ -2092,13 +2096,14 @@ def render_hero_header(processor: DataProcessor):
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
+    st.markdown(f"""
     <div class="hero-box">
         <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
             <span style="font-size: 2rem;">📚</span>
             <div style="text-align: left;">
                 <h1 class="hero-title">BookSpring Strategic Dashboard</h1>
                 <p class="hero-subtitle">Tracking Progress Toward 2025-2030 Strategic Goals</p>
+                <p class="hero-date">Currently tracking {current_fy} · See date range in sidebar</p>
             </div>
         </div>
     </div>
