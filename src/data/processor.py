@@ -208,19 +208,81 @@ class DataProcessor:
         if metrics is None:
             metrics = self._get_numeric_columns()
 
-        # Aggregation config - use mean for ratio metrics, sum for counts
-        agg_dict = {}
-        for col in metrics:
-            if col in df.columns:
-                if col in self.RATIO_METRICS:
-                    agg_dict[col] = "mean"
-                else:
-                    agg_dict[col] = "sum"
+        # Separate ratio metrics from count metrics
+        ratio_metrics_requested = [m for m in metrics if m in self.RATIO_METRICS and m in df.columns]
+        count_metrics = [m for m in metrics if m not in self.RATIO_METRICS and m in df.columns]
 
-        if not agg_dict:
-            return pd.DataFrame()
+        # For count metrics, use sum aggregation
+        if count_metrics:
+            agg_dict = {col: "sum" for col in count_metrics}
+            result = df.groupby("period", dropna=True).agg(agg_dict).reset_index()
+        else:
+            result = df.groupby("period", dropna=True).size().reset_index(name="_count")
+            result = result.drop("_count", axis=1)
 
-        result = df.groupby("period", dropna=True).agg(agg_dict).reset_index()
+        # For ratio metrics, calculate weighted averages (total books / total children)
+        # This properly handles previously served children (where children count is 0)
+        if ratio_metrics_requested:
+            books_col = "_of_books_distributed"
+
+            # Need to sum books and children per period for weighted calculation
+            if books_col in df.columns:
+                # Get all children columns that exist
+                all_children_cols = [c for c in self.CHILDREN_COUNT_COLUMNS if c in df.columns]
+
+                # Sum books per period
+                books_per_period = df.groupby("period", dropna=True)[books_col].sum()
+
+                # Sum total children per period (using age columns)
+                age_cols_for_total = []
+                for sources in [
+                    ["children_035_months", "children_03_years"],
+                    ["children_35_years", "children_34_years"],
+                    ["children_68_years", "children_512_years"],
+                    ["children_912_years"],
+                    ["teens"],
+                ]:
+                    available = [c for c in sources if c in df.columns]
+                    if available:
+                        age_cols_for_total.extend(available)
+
+                if age_cols_for_total:
+                    df["_temp_total_children"] = df[age_cols_for_total].fillna(0).sum(axis=1)
+                    children_per_period = df.groupby("period", dropna=True)["_temp_total_children"].sum()
+                    df.drop("_temp_total_children", axis=1, inplace=True)
+
+                    # Calculate weighted avg_books_per_child
+                    if "avg_books_per_child" in ratio_metrics_requested:
+                        result["avg_books_per_child"] = result["period"].map(
+                            lambda p: books_per_period.get(p, 0) / children_per_period.get(p, 1)
+                            if children_per_period.get(p, 0) > 0 else 0
+                        )
+
+                    # Calculate weighted books per child for each age group
+                    age_group_sources = {
+                        "books_per_child_0_2": ["children_035_months", "children_03_years"],
+                        "books_per_child_3_5": ["children_35_years", "children_34_years"],
+                        "books_per_child_6_8": ["children_68_years", "children_512_years"],
+                        "books_per_child_9_12": ["children_912_years"],
+                        "books_per_child_teens": ["teens"],
+                    }
+
+                    for metric_col, source_cols in age_group_sources.items():
+                        if metric_col in ratio_metrics_requested:
+                            available_sources = [c for c in source_cols if c in df.columns]
+                            if available_sources:
+                                # Sum children in this age group per period
+                                df["_temp_age_children"] = df[available_sources].fillna(0).sum(axis=1)
+                                age_children_per_period = df.groupby("period", dropna=True)["_temp_age_children"].sum()
+                                df.drop("_temp_age_children", axis=1, inplace=True)
+
+                                # Weighted average: books * (age_children/total_children) / age_children
+                                # = books / total_children (same as overall, when age group is present)
+                                result[metric_col] = result["period"].map(
+                                    lambda p, b=books_per_period, c=children_per_period:
+                                    b.get(p, 0) / c.get(p, 1) if c.get(p, 0) > 0 else 0
+                                )
+
         result = result.sort_values("period")
 
         # Round ratio metrics to 2 decimal places
