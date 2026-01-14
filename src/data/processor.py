@@ -220,24 +220,39 @@ class DataProcessor:
             result = df.groupby("period", dropna=True).size().reset_index(name="_count")
             result = result.drop("_count", axis=1)
 
-        # For ratio metrics, calculate weighted averages (total books / total children)
-        # This properly handles previously served children (where children count is 0)
+        # For ratio metrics, calculate averages per period (books / children for that period)
+        # Use sum of age columns for children count (same as per-row calculation)
         if ratio_metrics_requested:
             books_col = "_of_books_distributed"
-            children_col = "total_children"
 
-            # Need to sum books and children per period for weighted calculation
-            if books_col in df.columns and children_col in df.columns:
+            # Age group column mapping
+            age_group_sources = {
+                "books_per_child_0_2": ["children_035_months", "children_03_years"],
+                "books_per_child_3_5": ["children_35_years", "children_34_years"],
+                "books_per_child_6_8": ["children_68_years", "children_512_years"],
+                "books_per_child_9_12": ["children_912_years"],
+                "books_per_child_teens": ["teens"],
+            }
+
+            # Get all age columns that exist for calculating total children
+            all_age_cols = []
+            for sources in age_group_sources.values():
+                all_age_cols.extend([c for c in sources if c in df.columns])
+
+            if books_col in df.columns and all_age_cols:
+                # Calculate total children as sum of age columns (consistent with per-row calc)
+                df["_total_children_for_agg"] = df[all_age_cols].fillna(0).sum(axis=1)
+
                 # Aggregate books and children by period
                 period_sums = df.groupby("period", dropna=True).agg({
                     books_col: "sum",
-                    children_col: "sum"
+                    "_total_children_for_agg": "sum"
                 }).reset_index()
 
-                # Calculate weighted avg_books_per_child: total books / total children per period
+                # Calculate avg_books_per_child: books / children for each period
                 period_sums["avg_books_per_child"] = period_sums.apply(
-                    lambda row: row[books_col] / row[children_col]
-                    if row[children_col] > 0 else 0,
+                    lambda row: row[books_col] / row["_total_children_for_agg"]
+                    if row["_total_children_for_agg"] > 0 else 0,
                     axis=1
                 )
 
@@ -249,16 +264,8 @@ class DataProcessor:
                         how="left"
                     )
 
-                # For age group metrics, calculate weighted average only for activities
+                # For age group metrics, calculate average only for activities
                 # where that age group was present
-                age_group_sources = {
-                    "books_per_child_0_2": ["children_035_months", "children_03_years"],
-                    "books_per_child_3_5": ["children_35_years", "children_34_years"],
-                    "books_per_child_6_8": ["children_68_years", "children_512_years"],
-                    "books_per_child_9_12": ["children_912_years"],
-                    "books_per_child_teens": ["teens"],
-                }
-
                 for metric_col, source_cols in age_group_sources.items():
                     if metric_col in ratio_metrics_requested:
                         available_sources = [c for c in source_cols if c in df.columns]
@@ -268,15 +275,15 @@ class DataProcessor:
                             df_with_age = df[age_children > 0]
 
                             if not df_with_age.empty:
-                                # Calculate weighted average for this age group
+                                # Calculate average for this age group's activities
                                 age_period_sums = df_with_age.groupby("period", dropna=True).agg({
                                     books_col: "sum",
-                                    children_col: "sum"
+                                    "_total_children_for_agg": "sum"
                                 }).reset_index()
 
                                 age_period_sums[metric_col] = age_period_sums.apply(
-                                    lambda row: row[books_col] / row[children_col]
-                                    if row[children_col] > 0 else 0,
+                                    lambda row: row[books_col] / row["_total_children_for_agg"]
+                                    if row["_total_children_for_agg"] > 0 else 0,
                                     axis=1
                                 )
 
@@ -286,6 +293,9 @@ class DataProcessor:
                                     how="left"
                                 )
                                 result[metric_col] = result[metric_col].fillna(0)
+
+                # Clean up temp column
+                df.drop("_total_children_for_agg", axis=1, inplace=True)
 
         result = result.sort_values("period")
 

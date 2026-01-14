@@ -2393,9 +2393,13 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     </div>
     """, unsafe_allow_html=True)
 
-    # Calculate weighted average
+    # Calculate weighted average using sum of age columns (consistent with trendline)
     total_books = processor.df["_of_books_distributed"].sum() if "_of_books_distributed" in processor.df.columns else 0
-    total_children = processor.df["total_children"].sum() if "total_children" in processor.df.columns else 0
+    # Use sum of age columns for children count (same as per-row and trendline calculations)
+    age_cols = ["children_035_months", "children_03_years", "children_35_years", "children_34_years",
+                "children_68_years", "children_512_years", "children_912_years", "teens"]
+    available_age_cols = [c for c in age_cols if c in processor.df.columns]
+    total_children = processor.df[available_age_cols].fillna(0).sum().sum() if available_age_cols else 0
     avg_overall = total_books / total_children if total_children > 0 else 0
     target = 4.0
     progress = min(avg_overall / target * 100, 100)
