@@ -1482,30 +1482,36 @@ def get_contact_metrics_comparison() -> dict:
 # DONOR COMPARISON METRICS (from DonorPerfect)
 # =============================================================================
 
+# Outlier threshold - exclude gifts >= this amount from metrics to avoid skewing comparisons
+DONOR_GIFT_OUTLIER_THRESHOLD = 500000  # $500K
+
 # Base filter for Individual donors (non-organization, gift records, gift GL codes)
-INDIVIDUAL_DONOR_BASE_FILTER = """
+INDIVIDUAL_DONOR_BASE_FILTER = f"""
     d.org_rec = 'N'
     AND g.record_type = 'G'
     AND g.gl_code LIKE '51%'
     AND g.gl_code <> '5130_CAPITALGIFT'
     AND g.solicit_code <> 'SUSTAINING_MEMBER'
+    AND g.amount < {DONOR_GIFT_OUTLIER_THRESHOLD}
 """
 
 # Base filter for Organization donors
-ORGANIZATION_DONOR_BASE_FILTER = """
+ORGANIZATION_DONOR_BASE_FILTER = f"""
     d.org_rec = 'Y'
     AND g.record_type = 'G'
     AND g.gl_code LIKE '51%'
     AND g.gl_code <> '5130_CAPITALGIFT'
     AND g.solicit_code <> 'SUSTAINING_MEMBER'
+    AND g.amount < {DONOR_GIFT_OUTLIER_THRESHOLD}
 """
 
 # Base filter for ALL donors (Total = Individuals + Organizations)
-ALL_DONOR_BASE_FILTER = """
+ALL_DONOR_BASE_FILTER = f"""
     g.record_type = 'G'
     AND g.gl_code LIKE '51%'
     AND g.gl_code <> '5130_CAPITALGIFT'
     AND g.solicit_code <> 'SUSTAINING_MEMBER'
+    AND g.amount < {DONOR_GIFT_OUTLIER_THRESHOLD}
 """
 
 
@@ -1883,14 +1889,16 @@ def get_donor_comparison_metrics() -> dict:
     Returns:
         Dictionary with metrics for all three donor types plus labels
     """
-    # TEMPORARY: Using hardcoded report dates for verification
-    # TODO: Revert to fiscal year calculation after verification
-    # Report Period II: 1/9/2025 to 1/8/2026
-    # Report Period I: 1/9/2024 to 1/8/2025
-    current_fy_start = "2025-01-09"
-    current_fy_end = "2026-01-08"
-    prior_fy_start = "2024-01-09"
-    prior_fy_end = "2025-01-08"
+    today = date.today()
+    fy_info = get_fiscal_year_info(today)
+
+    # Current fiscal year: FY start to today
+    current_fy_start = fy_info['current_fy_start'].strftime("%Y-%m-%d")
+    current_fy_end = today.strftime("%Y-%m-%d")
+
+    # Prior fiscal year to same date
+    prior_fy_start = fy_info['prior_fy_start'].strftime("%Y-%m-%d")
+    prior_fy_end = today.replace(year=today.year - 1).strftime("%Y-%m-%d")
 
     # Load metrics for each donor type
     individuals = load_donor_metrics_by_type(
@@ -1928,8 +1936,8 @@ def get_donor_comparison_metrics() -> dict:
         'individuals': individuals,
         'organizations': organizations,
         'total': {'current': total_current, 'prior': total_prior},
-        'current_fy_short': 'Period II',  # TEMPORARY: Report period labels
-        'prior_fy_short': 'Period I',  # TEMPORARY: Report period labels
+        'current_fy_short': fy_info['current_fy_short'],
+        'prior_fy_short': fy_info['prior_fy_short']
         'current_dates': f"{current_fy_start} to {current_fy_end}",
         'prior_dates': f"{prior_fy_start} to {prior_fy_end}",
     }
@@ -2916,13 +2924,19 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
     """, unsafe_allow_html=True)
 
     # === Donor Comparison Metrics (Individuals / Organizations / Total) ===
-    st.markdown("""
+    # Get FY info for header
+    today = date.today()
+    fy_info = get_fiscal_year_info(today)
+    current_fy_label = fy_info['current_fy_short']
+    prior_fy_label = fy_info['prior_fy_short']
+
+    st.markdown(f"""
     <div style="margin: 1.5rem 0 1rem 0;">
         <div style="font-size: 1.1rem; font-weight: 600; color: #1a365d;">
             💰 Donor Giving Comparison
         </div>
         <div style="font-size: 0.85rem; color: #718096;">
-            Year-over-year comparison of donor giving metrics from DonorPerfect (excludes monthly giving)
+            {current_fy_label} YTD vs {prior_fy_label} YTD (same date last year) · Excludes monthly giving & gifts ≥${DONOR_GIFT_OUTLIER_THRESHOLD/1000:.0f}K
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3015,13 +3029,13 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
 
     # === Donor Contacts Year-over-Year Comparison ===
-    st.markdown("""
+    st.markdown(f"""
     <div style="margin: 1.5rem 0 1rem 0;">
         <div style="font-size: 1.1rem; font-weight: 600; color: #1a365d;">
             📧 Donor Contacts
         </div>
         <div style="font-size: 0.85rem; color: #718096;">
-            Year-over-year comparison of outreach activities from DonorPerfect
+            {current_fy_label} YTD vs {prior_fy_label} YTD (same date last year) · Outreach activities from DonorPerfect
         </div>
     </div>
     """, unsafe_allow_html=True)
