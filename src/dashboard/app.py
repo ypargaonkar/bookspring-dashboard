@@ -2445,7 +2445,6 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Trend charts
-    st.markdown("<p style='font-size: 0.85rem; color: #718096; text-decoration: underline;'>Both trends show only first-time visits by children each period</p>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
 
     with col1:
@@ -2507,6 +2506,8 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                     yaxis=dict(range=[0, y_max], dtick=0.5, gridcolor='#e5e7eb')
                 )
                 st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("<p style='font-size: 0.85rem; color: #718096; text-decoration: underline; text-align: center;'>Both trends show only first-time visits by children each period</p>", unsafe_allow_html=True)
 
 
 def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0, inperson_events: int = 0, activity_records: list = None, partners_data: list = None):
