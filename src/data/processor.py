@@ -14,7 +14,7 @@ class DataProcessor:
     # BookSpring fiscal year starts July 1
     FISCAL_YEAR_START_MONTH = 7
 
-    # Children count columns that should be zeroed for previously served children
+    # People count columns that should be zeroed for previously served (to avoid double counting)
     CHILDREN_COUNT_COLUMNS = [
         "total_children",
         "children_035_months",
@@ -25,6 +25,7 @@ class DataProcessor:
         "children_512_years",
         "children_912_years",
         "teens",
+        "parents_or_caregivers",
     ]
 
     def __init__(self, records: list):
