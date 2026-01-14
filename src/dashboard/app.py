@@ -3018,7 +3018,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
     except Exception as e:
         st.warning(f"Unable to load donor comparison metrics: {e}")
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
 
     # === Donor Contacts Year-over-Year Comparison ===
     st.markdown("##### 📧 Donor Contacts")
