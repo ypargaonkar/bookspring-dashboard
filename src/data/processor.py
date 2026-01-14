@@ -62,10 +62,11 @@ class DataProcessor:
         return df
 
     def _exclude_previously_served_children(self):
-        """Zero out children counts for rows where children were previously served this FY.
+        """Zero out children AND books for rows where children were previously served this FY.
 
         This ensures that previously served children are not double-counted in metrics
         like total children served, average books per child, and age group breakdowns.
+        Books are also zeroed because they were given to children already counted earlier.
         """
         if self.df.empty:
             return
@@ -86,6 +87,11 @@ class DataProcessor:
                 # .where keeps values where condition is True, replaces with 0 where False
                 # We want to keep values where NOT previously_served, so use ~prev_served
                 self.df[col] = self.df[col].where(~prev_served, 0)
+
+        # Also zero out books distributed for previously served rows
+        # These books went to children already counted, so shouldn't inflate per-child metrics
+        if "_of_books_distributed" in self.df.columns:
+            self.df["_of_books_distributed"] = self.df["_of_books_distributed"].where(~prev_served, 0)
 
     def _add_calculated_metrics(self):
         """Add calculated metrics like books per child by age group."""
