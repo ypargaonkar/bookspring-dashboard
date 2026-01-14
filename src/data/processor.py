@@ -249,24 +249,43 @@ class DataProcessor:
                         how="left"
                     )
 
-                # For age group metrics, use the same books/total_children calculation
-                # (assumes even distribution of books across all children present)
-                age_group_metrics = [
-                    "books_per_child_0_2", "books_per_child_3_5",
-                    "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"
-                ]
-                for metric_col in age_group_metrics:
+                # For age group metrics, calculate weighted average only for activities
+                # where that age group was present
+                age_group_sources = {
+                    "books_per_child_0_2": ["children_035_months", "children_03_years"],
+                    "books_per_child_3_5": ["children_35_years", "children_34_years"],
+                    "books_per_child_6_8": ["children_68_years", "children_512_years"],
+                    "books_per_child_9_12": ["children_912_years"],
+                    "books_per_child_teens": ["teens"],
+                }
+
+                for metric_col, source_cols in age_group_sources.items():
                     if metric_col in ratio_metrics_requested:
-                        if "avg_books_per_child" in result.columns:
-                            result[metric_col] = result["avg_books_per_child"]
-                        else:
-                            result = result.merge(
-                                period_sums[["period", "avg_books_per_child"]].rename(
-                                    columns={"avg_books_per_child": metric_col}
-                                ),
-                                on="period",
-                                how="left"
-                            )
+                        available_sources = [c for c in source_cols if c in df.columns]
+                        if available_sources:
+                            # Filter to rows where this age group has children
+                            age_children = df[available_sources].fillna(0).sum(axis=1)
+                            df_with_age = df[age_children > 0]
+
+                            if not df_with_age.empty:
+                                # Calculate weighted average for this age group
+                                age_period_sums = df_with_age.groupby("period", dropna=True).agg({
+                                    books_col: "sum",
+                                    children_col: "sum"
+                                }).reset_index()
+
+                                age_period_sums[metric_col] = age_period_sums.apply(
+                                    lambda row: row[books_col] / row[children_col]
+                                    if row[children_col] > 0 else 0,
+                                    axis=1
+                                )
+
+                                result = result.merge(
+                                    age_period_sums[["period", metric_col]],
+                                    on="period",
+                                    how="left"
+                                )
+                                result[metric_col] = result[metric_col].fillna(0)
 
         result = result.sort_values("period")
 
