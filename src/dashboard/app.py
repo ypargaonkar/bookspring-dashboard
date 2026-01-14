@@ -2445,7 +2445,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Trend charts
-    st.caption("Trends show only first-time visits each period to avoid double-counting children")
+    st.markdown("<p style='font-size: 0.85rem; color: #718096; text-decoration: underline;'>Both trends show only first-time visits by children each period</p>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
 
     with col1:
