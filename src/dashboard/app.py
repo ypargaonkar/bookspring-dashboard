@@ -2474,7 +2474,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.markdown("##### By Age Group <span style='font-weight: normal; font-size: 0.75rem; color: #718096;'>(click legend to toggle lines)</span>", unsafe_allow_html=True)
+        st.markdown("##### By Age Group <span style='font-weight: normal; font-size: 0.7rem; color: #718096;'>(click legend to toggle)</span>", unsafe_allow_html=True)
         age_metrics = ["books_per_child_0_2", "books_per_child_3_5",
                        "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
         available_age = [m for m in age_metrics if m in processor.df.columns]
@@ -2482,7 +2482,15 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
         if available_age:
             trend_df = processor.aggregate_by_time(time_unit, available_age)
             if not trend_df.empty:
-                rename_map = {c: get_friendly_name(c) for c in trend_df.columns if c != "period"}
+                # Shorten legend names for space
+                short_names = {
+                    "books_per_child_0_2": "0-2 yrs",
+                    "books_per_child_3_5": "3-5 yrs",
+                    "books_per_child_6_8": "6-8 yrs",
+                    "books_per_child_9_12": "9-12 yrs",
+                    "books_per_child_teens": "Teens",
+                }
+                rename_map = {c: short_names.get(c, c) for c in trend_df.columns if c != "period"}
                 trend_df = trend_df.rename(columns=rename_map)
 
                 # Better color palette for age groups
@@ -2490,20 +2498,28 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 fig = px.line(
                     trend_df,
                     x="period",
-                    y=[get_friendly_name(m) for m in available_age],
+                    y=[short_names.get(m, m) for m in available_age],
                     markers=True,
                     color_discrete_sequence=age_colors
                 )
                 fig.add_hline(y=4.0, line_dash="dash", line_color="#22c55e",
                              annotation_text="Target", annotation_font_color="#22c55e")
                 fig = style_plotly_chart(fig, height=280)
-                # Granular Y-axis with 0.5 increments
-                numeric_cols = [get_friendly_name(m) for m in available_age]
+                # Use same Y-axis scale as overall trend (0 to 5)
+                numeric_cols = [short_names.get(m, m) for m in available_age]
                 y_max = max(5, trend_df[numeric_cols].max().max() + 0.5)
                 fig.update_layout(
                     yaxis_title="Books/Child",
                     xaxis_title="",
-                    yaxis=dict(range=[0, y_max], dtick=0.5, gridcolor='#e5e7eb')
+                    yaxis=dict(range=[0, y_max], dtick=0.5, gridcolor='#e5e7eb'),
+                    legend=dict(
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="left",
+                        x=0,
+                        font=dict(size=10)
+                    )
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
