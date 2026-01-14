@@ -3897,6 +3897,13 @@ def main():
             st.toast("Refreshing events data...", icon="📅")
             st.rerun()
 
+        if st.button("🔄 Refresh Data from DonorPerfect", use_container_width=True, help="Re-run SQL queries and refresh donor metrics"):
+            load_donorperfect_contact_metrics.clear()
+            load_individual_donor_metrics.clear()
+            load_donor_metrics_by_type.clear()
+            st.toast("Refreshing donor data from DonorPerfect...", icon="💝")
+            st.rerun()
+
     # Load data
     with st.spinner("Loading data..."):
         activity_records = load_activity_data()
