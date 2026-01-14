@@ -2417,6 +2417,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
         # Show red when below target (normal = green up/red down, off = no color)
         if delta_val >= 0:
             st.metric("Avg Books/Child (in date range)", f"{avg_overall:.2f}", delta=f"{delta_val:+.2f} vs target")
+            st.caption("Total books distributed ÷ unique children served")
         else:
             # Custom HTML for red indicator when below target
             st.markdown(f"""
@@ -2424,6 +2425,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Avg Books/Child (in date range)</p>
                 <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{avg_overall:.2f}</p>
                 <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):.2f} below target</p>
+                <p style="color: #718096; font-size: 0.7rem; margin: 0.5rem 0 0 0;">Total books distributed ÷ unique children served</p>
             </div>
             """, unsafe_allow_html=True)
     with col2:
@@ -2447,6 +2449,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
 
     with col1:
         st.markdown("##### Overall Trend")
+        st.caption("Books ÷ children per period (excludes repeat visits)")
         if "avg_books_per_child" in processor.df.columns:
             trend_df = processor.aggregate_by_time(time_unit, ["avg_books_per_child"])
             if not trend_df.empty:
