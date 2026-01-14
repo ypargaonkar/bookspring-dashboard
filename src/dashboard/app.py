@@ -2915,7 +2915,16 @@ def render_goal3_advance_innovation(books_data: list):
     with col1:
         st.markdown("##### Production Pipeline")
         if "status" in df.columns:
-            status_counts = df["status"].value_counts().reset_index()
+            # Normalize status values by sorting comma-separated parts
+            # So "A, B, C" and "A, C, B" are treated as the same status
+            def normalize_status(status):
+                if pd.isna(status):
+                    return status
+                parts = [p.strip() for p in str(status).split(",")]
+                return ", ".join(sorted(parts))
+
+            normalized_status = df["status"].apply(normalize_status)
+            status_counts = normalized_status.value_counts().reset_index()
             status_counts.columns = ["Status", "Count"]
 
             fig = px.bar(
