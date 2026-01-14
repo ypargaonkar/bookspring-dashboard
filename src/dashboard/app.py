@@ -1937,7 +1937,7 @@ def get_donor_comparison_metrics() -> dict:
         'organizations': organizations,
         'total': {'current': total_current, 'prior': total_prior},
         'current_fy_short': fy_info['current_fy_short'],
-        'prior_fy_short': fy_info['prior_fy_short']
+        'prior_fy_short': fy_info['prior_fy_short'],
         'current_dates': f"{current_fy_start} to {current_fy_end}",
         'prior_dates': f"{prior_fy_start} to {prior_fy_end}",
     }
