@@ -2930,16 +2930,8 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
     current_fy_label = fy_info['current_fy_short']
     prior_fy_label = fy_info['prior_fy_short']
 
-    st.markdown(f"""
-    <div style="margin: 1.5rem 0 1rem 0;">
-        <div style="font-size: 1.1rem; font-weight: 600; color: #1a365d;">
-            💰 Donor Giving Comparison
-        </div>
-        <div style="font-size: 0.85rem; color: #718096;">
-            {current_fy_label} YTD vs {prior_fy_label} YTD (same date last year) · Excludes monthly giving & gifts ≥${DONOR_GIFT_OUTLIER_THRESHOLD/1000:.0f}K
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"##### 💰 Donor Giving Comparison")
+    st.caption(f"{current_fy_label} YTD vs {prior_fy_label} YTD (same date last year) · Excludes monthly giving & gifts ≥${DONOR_GIFT_OUTLIER_THRESHOLD/1000:.0f}K")
 
     try:
         donor_metrics = get_donor_comparison_metrics()
@@ -3026,19 +3018,11 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
     except Exception as e:
         st.warning(f"Unable to load donor comparison metrics: {e}")
 
-    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # === Donor Contacts Year-over-Year Comparison ===
-    st.markdown(f"""
-    <div style="margin: 1.5rem 0 1rem 0;">
-        <div style="font-size: 1.1rem; font-weight: 600; color: #1a365d;">
-            📧 Donor Contacts
-        </div>
-        <div style="font-size: 0.85rem; color: #718096;">
-            {current_fy_label} YTD vs {prior_fy_label} YTD (same date last year) · Outreach activities from DonorPerfect
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("##### 📧 Donor Contacts")
+    st.caption(f"{current_fy_label} YTD vs {prior_fy_label} YTD (same date last year) · Outreach activities from DonorPerfect")
 
     try:
         contact_data = get_contact_metrics_comparison()
