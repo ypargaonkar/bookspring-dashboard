@@ -3042,11 +3042,26 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             'CC': 'Constant Contact',
             'EO': 'Email Out',
             'RCPTSNT': 'Receipt Sent',
-            'LT': 'Letter'
+            'LT': 'Letter',
+            'GFU': 'Grant Follow Up',
+            'EM': 'Email',
+            'PH': 'Phone',
+            'MT': 'Meeting',
+            'EV': 'Event',
+            'TY': 'Thank You',
+            'NL': 'Newsletter',
+            'SO': 'Social Media',
+            'WB': 'Website',
+            'OT': 'Other',
         }
 
-        # Build comparison data for main contact types
-        contact_types = ['CC', 'EO', 'RCPTSNT', 'LT']
+        # Get all unique contact types from both periods
+        all_types = set(current_metrics['by_type'].keys()) | set(prior_metrics['by_type'].keys())
+        # Sort: known types first in preferred order, then unknown types alphabetically
+        preferred_order = ['CC', 'EO', 'RCPTSNT', 'LT', 'GFU', 'EM', 'PH', 'MT', 'EV', 'TY', 'NL', 'SO', 'WB', 'OT']
+        contact_types = [t for t in preferred_order if t in all_types]
+        contact_types += sorted([t for t in all_types if t not in preferred_order])
+
         comparison_data = []
         for ct in contact_types:
             current_count = current_metrics['by_type'].get(ct, 0)
