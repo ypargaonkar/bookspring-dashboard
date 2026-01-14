@@ -2918,7 +2918,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         <div class="section-icon goal4">🌱</div>
         <div class="section-title-group">
             <h2 class="section-title">Goal 4: Optimize Sustainability</h2>
-            <p class="section-subtitle">Target: Diversified funding to $3M annually | 600K books distributed by 2030</p>
+            <p class="section-subtitle">Target: Diversified funding to $3M annually</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
