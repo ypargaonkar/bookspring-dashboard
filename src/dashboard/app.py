@@ -2466,7 +2466,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.markdown("##### By Age Group")
+        st.markdown("##### By Age Group <span style='font-weight: normal; font-size: 0.75rem; color: #718096;'>(click legend to toggle lines)</span>", unsafe_allow_html=True)
         age_metrics = ["books_per_child_0_2", "books_per_child_3_5",
                        "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
         available_age = [m for m in age_metrics if m in processor.df.columns]
