@@ -2089,9 +2089,19 @@ def render_hero_header(processor: DataProcessor):
         margin: 0.25rem 0 0 0;
     }
     .hero-date {
-        color: #94a3b8;
+        color: #1e40af;
         font-size: 0.85rem;
+        font-weight: 600;
         margin: 0.75rem 0 0 0;
+        background: linear-gradient(90deg, #fef3c7 0%, #fde68a 50%, #fef3c7 100%);
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        display: inline-block;
+        animation: pulse-highlight 2s ease-in-out infinite;
+    }
+    @keyframes pulse-highlight {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
     }
     </style>
     """, unsafe_allow_html=True)
