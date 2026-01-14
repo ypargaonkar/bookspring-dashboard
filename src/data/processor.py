@@ -66,7 +66,9 @@ class DataProcessor:
 
         This ensures that previously served children are not double-counted in metrics
         like total children served, average books per child, and age group breakdowns.
-        Books are also zeroed because they were given to children already counted earlier.
+        Books are also zeroed for trendline calculations (per-period ratios).
+
+        Original books are preserved in _books_distributed_all for total display metrics.
         """
         if self.df.empty:
             return
@@ -88,9 +90,10 @@ class DataProcessor:
                 # We want to keep values where NOT previously_served, so use ~prev_served
                 self.df[col] = self.df[col].where(~prev_served, 0)
 
-        # Also zero out books distributed for previously served rows
-        # These books went to children already counted, so shouldn't inflate per-child metrics
+        # Store original books for display metrics (total books distributed)
+        # Then zero out books for previously served rows (for trendline calculations)
         if "_of_books_distributed" in self.df.columns:
+            self.df["_books_distributed_all"] = self.df["_of_books_distributed"].copy()
             self.df["_of_books_distributed"] = self.df["_of_books_distributed"].where(~prev_served, 0)
 
     def _add_calculated_metrics(self):

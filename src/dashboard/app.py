@@ -2057,7 +2057,8 @@ def combine_activity_data(current_records: list, legacy_records: list, cutoff_da
 def render_hero_header(processor: DataProcessor):
     """Render the hero header with key stats."""
     stats = processor.get_summary_stats()
-    books = int(stats.get("totals", {}).get("_of_books_distributed", 0))
+    # Use _books_distributed_all for total (includes books to previously served children)
+    books = int(stats.get("totals", {}).get("_books_distributed_all", 0) or stats.get("totals", {}).get("_of_books_distributed", 0))
     children = int(stats.get("totals", {}).get("total_children", 0))
     parents = int(stats.get("totals", {}).get("parents_or_caregivers", 0))
 
@@ -2134,7 +2135,8 @@ def render_hero_header(processor: DataProcessor):
 def render_print_snapshot(processor: DataProcessor, views_data: list, books_data: list, start_date: date, end_date: date):
     """Render the one-page print snapshot of all four goals."""
     stats = processor.get_summary_stats()
-    books = int(stats.get("totals", {}).get("_of_books_distributed", 0))
+    # Use _books_distributed_all for total (includes books to previously served children)
+    books = int(stats.get("totals", {}).get("_books_distributed_all", 0) or stats.get("totals", {}).get("_of_books_distributed", 0))
     children = int(stats.get("totals", {}).get("total_children", 0))
     avg_books = books / children if children > 0 else 0
     parents = int(stats.get("totals", {}).get("parents_or_caregivers", 0))
@@ -2393,9 +2395,13 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     </div>
     """, unsafe_allow_html=True)
 
-    # Calculate weighted average using sum of age columns (consistent with trendline)
-    total_books = processor.df["_of_books_distributed"].sum() if "_of_books_distributed" in processor.df.columns else 0
-    # Use sum of age columns for children count (same as per-row and trendline calculations)
+    # Calculate avg books/child: ALL books / unique children
+    # Use _books_distributed_all for total books (includes books to previously served children)
+    if "_books_distributed_all" in processor.df.columns:
+        total_books = processor.df["_books_distributed_all"].sum()
+    else:
+        total_books = processor.df["_of_books_distributed"].sum() if "_of_books_distributed" in processor.df.columns else 0
+    # Use sum of age columns for children count (excludes previously served)
     age_cols = ["children_035_months", "children_03_years", "children_35_years", "children_34_years",
                 "children_68_years", "children_512_years", "children_912_years", "teens"]
     available_age_cols = [c for c in age_cols if c in processor.df.columns]
