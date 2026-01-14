@@ -1889,16 +1889,17 @@ def get_donor_comparison_metrics() -> dict:
     Returns:
         Dictionary with metrics for all three donor types plus labels
     """
-    today = date.today()
-    fy_info = get_fiscal_year_info(today)
+    # Custom date ranges for report comparison
+    # Current period: Jan 15, 2025 to Jan 14, 2026
+    # Prior period: Jan 15, 2024 to Jan 14, 2025
+    current_fy_start = "2025-01-15"
+    current_fy_end = "2026-01-14"
+    prior_fy_start = "2024-01-15"
+    prior_fy_end = "2025-01-14"
 
-    # Current fiscal year: FY start to today
-    current_fy_start = fy_info['current_fy_start'].strftime("%Y-%m-%d")
-    current_fy_end = today.strftime("%Y-%m-%d")
-
-    # Prior fiscal year to same date
-    prior_fy_start = fy_info['prior_fy_start'].strftime("%Y-%m-%d")
-    prior_fy_end = today.replace(year=today.year - 1).strftime("%Y-%m-%d")
+    # Labels for display
+    current_label = "Jan 2025-Jan 2026"
+    prior_label = "Jan 2024-Jan 2025"
 
     # Load metrics for each donor type
     individuals = load_donor_metrics_by_type(
@@ -1936,8 +1937,8 @@ def get_donor_comparison_metrics() -> dict:
         'individuals': individuals,
         'organizations': organizations,
         'total': {'current': total_current, 'prior': total_prior},
-        'current_fy_short': fy_info['current_fy_short'],
-        'prior_fy_short': fy_info['prior_fy_short'],
+        'current_fy_short': current_label,
+        'prior_fy_short': prior_label,
         'current_dates': f"{current_fy_start} to {current_fy_end}",
         'prior_dates': f"{prior_fy_start} to {prior_fy_end}",
     }
