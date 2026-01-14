@@ -2640,11 +2640,11 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     with col1:
         delta_val = enrollment_count - home_target
         if delta_val >= 0:
-            st.metric("B3 current active enrollments", f"{enrollment_count:,}", delta=f"+{delta_val:,} vs target")
+            st.metric("B3 In-home delivery current active enrollments", f"{enrollment_count:,}", delta=f"+{delta_val:,} vs target")
         else:
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
-                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">B3 current active enrollments</p>
+                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">B3 In-home delivery current active enrollments</p>
                 <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{enrollment_count:,}</p>
                 <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
             </div>
