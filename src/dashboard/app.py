@@ -1478,6 +1478,501 @@ def get_contact_metrics_comparison() -> dict:
     }
 
 
+# =============================================================================
+# DONOR COMPARISON METRICS (from DonorPerfect)
+# =============================================================================
+
+# Base filter for Individual donors (non-organization, gift records, gift GL codes)
+INDIVIDUAL_DONOR_BASE_FILTER = """
+    d.org_rec = 'N'
+    AND g.record_type = 'G'
+    AND g.gl_code LIKE '51%'
+    AND g.gl_code <> '5130_CAPITALGIFT'
+    AND g.solicit_code <> 'SUSTAINING_MEMBER'
+"""
+
+# Base filter for Organization donors
+ORGANIZATION_DONOR_BASE_FILTER = """
+    d.org_rec = 'Y'
+    AND g.record_type = 'G'
+    AND g.gl_code LIKE '51%'
+    AND g.gl_code <> '5130_CAPITALGIFT'
+    AND g.solicit_code <> 'SUSTAINING_MEMBER'
+"""
+
+# Base filter for ALL donors (Total = Individuals + Organizations)
+ALL_DONOR_BASE_FILTER = """
+    g.record_type = 'G'
+    AND g.gl_code LIKE '51%'
+    AND g.gl_code <> '5130_CAPITALGIFT'
+    AND g.solicit_code <> 'SUSTAINING_MEMBER'
+"""
+
+
+@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
+def load_individual_donor_metrics(
+    current_start: str,
+    current_end: str,
+    prior_start: str,
+    prior_end: str
+) -> dict:
+    """Load Individual donor metrics from DonorPerfect.
+
+    Args:
+        current_start: Start date of current period (YYYY-MM-DD)
+        current_end: End date of current period (YYYY-MM-DD)
+        prior_start: Start date of prior period (YYYY-MM-DD)
+        prior_end: End date of prior period (YYYY-MM-DD)
+
+    Returns:
+        Dictionary with all Individual donor metrics for both periods
+    """
+    debug_info = {'queries': []}
+
+    def execute_query(query: str, name: str) -> list:
+        """Execute a single query and track debug info."""
+        try:
+            url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass={DONORPERFECT_PASSWORD}&action={quote(query)}"
+            response = requests.get(url, timeout=120)
+            response.raise_for_status()
+
+            root = ET.fromstring(response.content)
+            records = []
+            for rec in root.findall('.//record'):
+                record = {}
+                for field in rec.findall('field'):
+                    record[field.get('name')] = field.get('value')
+                records.append(record)
+
+            debug_info['queries'].append({'name': name, 'records': len(records)})
+            return records
+        except Exception as e:
+            debug_info['queries'].append({'name': name, 'error': str(e)})
+            return []
+
+    # Helper to safely get float/int from result
+    def safe_float(val):
+        try:
+            return float(val) if val else 0.0
+        except:
+            return 0.0
+
+    def safe_int(val):
+        try:
+            return int(val) if val else 0
+        except:
+            return 0
+
+    # -------------------------------------------------------------------------
+    # CURRENT PERIOD METRICS
+    # -------------------------------------------------------------------------
+
+    # Query 1: Total Revenue, Gift Count, Largest Gift - Current Period
+    q1_current = f"""
+        SELECT SUM(g.amount) as total_revenue, COUNT(*) as gift_count, MAX(g.amount) as largest_gift
+        FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+        WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}'
+        AND {INDIVIDUAL_DONOR_BASE_FILTER}
+    """
+    r1_current = execute_query(q1_current, 'current_totals')
+    current_totals = r1_current[0] if r1_current else {}
+
+    # Query 2: New Donors - Current Period
+    q2_current = f"""
+        SELECT COUNT(DISTINCT g.donor_id) as new_donors, SUM(g.amount) as new_donor_amount
+        FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+        WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}'
+        AND {INDIVIDUAL_DONOR_BASE_FILTER}
+        AND NOT EXISTS (SELECT 1 FROM dpgift g2 WHERE g2.donor_id = g.donor_id AND g2.gift_date < '{current_start}')
+    """
+    r2_current = execute_query(q2_current, 'current_new_donors')
+    current_new = r2_current[0] if r2_current else {}
+
+    # Query 3: Reactivated Donors - Current Period
+    q3_current = f"""
+        SELECT COUNT(DISTINCT g.donor_id) as reactivated_donors, SUM(g.amount) as reactivated_amount
+        FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+        WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}'
+        AND {INDIVIDUAL_DONOR_BASE_FILTER}
+        AND NOT EXISTS (SELECT 1 FROM dpgift g2 WHERE g2.donor_id = g.donor_id AND g2.gift_date BETWEEN '{prior_start}' AND '{prior_end}')
+        AND EXISTS (SELECT 1 FROM dpgift g3 WHERE g3.donor_id = g.donor_id AND g3.gift_date < '{prior_start}')
+    """
+    r3_current = execute_query(q3_current, 'current_reactivated')
+    current_reactivated = r3_current[0] if r3_current else {}
+
+    # Query 4: Upgraded Donors - Current Period
+    q4_current = f"""
+        SELECT COUNT(DISTINCT curr.donor_id) as upgraded_donors, SUM(curr.total) as upgrade_revenue
+        FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) curr
+        INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) prev
+        ON curr.donor_id = prev.donor_id WHERE curr.total > prev.total
+    """
+    r4_current = execute_query(q4_current, 'current_upgraded')
+    current_upgraded = r4_current[0] if r4_current else {}
+
+    # Query 5: Same Donors - Current Period
+    q5_current = f"""
+        SELECT COUNT(DISTINCT curr.donor_id) as same_donors, SUM(curr.total) as same_revenue
+        FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) curr
+        INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) prev
+        ON curr.donor_id = prev.donor_id WHERE curr.total = prev.total
+    """
+    r5_current = execute_query(q5_current, 'current_same')
+    current_same = r5_current[0] if r5_current else {}
+
+    # Query 6: Downgraded Donors - Current Period
+    q6_current = f"""
+        SELECT COUNT(DISTINCT curr.donor_id) as downgraded_donors, SUM(curr.total) as downgrade_revenue
+        FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) curr
+        INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) prev
+        ON curr.donor_id = prev.donor_id WHERE curr.total < prev.total
+    """
+    r6_current = execute_query(q6_current, 'current_downgraded')
+    current_downgraded = r6_current[0] if r6_current else {}
+
+    # -------------------------------------------------------------------------
+    # PRIOR PERIOD METRICS (need prior-prior period for comparison)
+    # -------------------------------------------------------------------------
+
+    # Calculate prior-prior period (one year before prior period)
+    from datetime import datetime
+    prior_start_dt = datetime.strptime(prior_start, '%Y-%m-%d')
+    prior_end_dt = datetime.strptime(prior_end, '%Y-%m-%d')
+    prior_prior_start = (prior_start_dt - relativedelta(years=1)).strftime('%Y-%m-%d')
+    prior_prior_end = (prior_end_dt - relativedelta(years=1)).strftime('%Y-%m-%d')
+
+    # Query 1: Total Revenue, Gift Count, Largest Gift - Prior Period
+    q1_prior = f"""
+        SELECT SUM(g.amount) as total_revenue, COUNT(*) as gift_count, MAX(g.amount) as largest_gift
+        FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+        WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}'
+        AND {INDIVIDUAL_DONOR_BASE_FILTER}
+    """
+    r1_prior = execute_query(q1_prior, 'prior_totals')
+    prior_totals = r1_prior[0] if r1_prior else {}
+
+    # Query 2: New Donors - Prior Period
+    q2_prior = f"""
+        SELECT COUNT(DISTINCT g.donor_id) as new_donors, SUM(g.amount) as new_donor_amount
+        FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+        WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}'
+        AND {INDIVIDUAL_DONOR_BASE_FILTER}
+        AND NOT EXISTS (SELECT 1 FROM dpgift g2 WHERE g2.donor_id = g.donor_id AND g2.gift_date < '{prior_start}')
+    """
+    r2_prior = execute_query(q2_prior, 'prior_new_donors')
+    prior_new = r2_prior[0] if r2_prior else {}
+
+    # Query 3: Reactivated Donors - Prior Period
+    q3_prior = f"""
+        SELECT COUNT(DISTINCT g.donor_id) as reactivated_donors, SUM(g.amount) as reactivated_amount
+        FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+        WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}'
+        AND {INDIVIDUAL_DONOR_BASE_FILTER}
+        AND NOT EXISTS (SELECT 1 FROM dpgift g2 WHERE g2.donor_id = g.donor_id AND g2.gift_date BETWEEN '{prior_prior_start}' AND '{prior_prior_end}')
+        AND EXISTS (SELECT 1 FROM dpgift g3 WHERE g3.donor_id = g.donor_id AND g3.gift_date < '{prior_prior_start}')
+    """
+    r3_prior = execute_query(q3_prior, 'prior_reactivated')
+    prior_reactivated = r3_prior[0] if r3_prior else {}
+
+    # Query 4: Upgraded Donors - Prior Period
+    q4_prior = f"""
+        SELECT COUNT(DISTINCT curr.donor_id) as upgraded_donors, SUM(curr.total) as upgrade_revenue
+        FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) curr
+        INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{prior_prior_start}' AND '{prior_prior_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) prev
+        ON curr.donor_id = prev.donor_id WHERE curr.total > prev.total
+    """
+    r4_prior = execute_query(q4_prior, 'prior_upgraded')
+    prior_upgraded = r4_prior[0] if r4_prior else {}
+
+    # Query 5: Same Donors - Prior Period
+    q5_prior = f"""
+        SELECT COUNT(DISTINCT curr.donor_id) as same_donors, SUM(curr.total) as same_revenue
+        FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) curr
+        INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{prior_prior_start}' AND '{prior_prior_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) prev
+        ON curr.donor_id = prev.donor_id WHERE curr.total = prev.total
+    """
+    r5_prior = execute_query(q5_prior, 'prior_same')
+    prior_same = r5_prior[0] if r5_prior else {}
+
+    # Query 6: Downgraded Donors - Prior Period
+    q6_prior = f"""
+        SELECT COUNT(DISTINCT curr.donor_id) as downgraded_donors, SUM(curr.total) as downgrade_revenue
+        FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) curr
+        INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id
+              WHERE g.gift_date BETWEEN '{prior_prior_start}' AND '{prior_prior_end}' AND {INDIVIDUAL_DONOR_BASE_FILTER} GROUP BY g.donor_id) prev
+        ON curr.donor_id = prev.donor_id WHERE curr.total < prev.total
+    """
+    r6_prior = execute_query(q6_prior, 'prior_downgraded')
+    prior_downgraded = r6_prior[0] if r6_prior else {}
+
+    return {
+        'current': {
+            'total_revenue': safe_float(current_totals.get('total_revenue')),
+            'gift_count': safe_int(current_totals.get('gift_count')),
+            'largest_gift': safe_float(current_totals.get('largest_gift')),
+            'new_donors': safe_int(current_new.get('new_donors')),
+            'new_donor_amount': safe_float(current_new.get('new_donor_amount')),
+            'reactivated_donors': safe_int(current_reactivated.get('reactivated_donors')),
+            'reactivated_amount': safe_float(current_reactivated.get('reactivated_amount')),
+            'upgraded_donors': safe_int(current_upgraded.get('upgraded_donors')),
+            'upgrade_revenue': safe_float(current_upgraded.get('upgrade_revenue')),
+            'same_donors': safe_int(current_same.get('same_donors')),
+            'same_revenue': safe_float(current_same.get('same_revenue')),
+            'downgraded_donors': safe_int(current_downgraded.get('downgraded_donors')),
+            'downgrade_revenue': safe_float(current_downgraded.get('downgrade_revenue')),
+        },
+        'prior': {
+            'total_revenue': safe_float(prior_totals.get('total_revenue')),
+            'gift_count': safe_int(prior_totals.get('gift_count')),
+            'largest_gift': safe_float(prior_totals.get('largest_gift')),
+            'new_donors': safe_int(prior_new.get('new_donors')),
+            'new_donor_amount': safe_float(prior_new.get('new_donor_amount')),
+            'reactivated_donors': safe_int(prior_reactivated.get('reactivated_donors')),
+            'reactivated_amount': safe_float(prior_reactivated.get('reactivated_amount')),
+            'upgraded_donors': safe_int(prior_upgraded.get('upgraded_donors')),
+            'upgrade_revenue': safe_float(prior_upgraded.get('upgrade_revenue')),
+            'same_donors': safe_int(prior_same.get('same_donors')),
+            'same_revenue': safe_float(prior_same.get('same_revenue')),
+            'downgraded_donors': safe_int(prior_downgraded.get('downgraded_donors')),
+            'downgrade_revenue': safe_float(prior_downgraded.get('downgrade_revenue')),
+        },
+        'debug': debug_info
+    }
+
+
+@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
+def load_donor_metrics_by_type(
+    current_start: str,
+    current_end: str,
+    prior_start: str,
+    prior_end: str,
+    base_filter: str,
+    type_name: str
+) -> dict:
+    """Load donor metrics from DonorPerfect for a specific donor type.
+
+    Args:
+        current_start: Start date of current period (YYYY-MM-DD)
+        current_end: End date of current period (YYYY-MM-DD)
+        prior_start: Start date of prior period (YYYY-MM-DD)
+        prior_end: End date of prior period (YYYY-MM-DD)
+        base_filter: SQL filter for donor type (e.g., INDIVIDUAL_DONOR_BASE_FILTER)
+        type_name: Name of donor type for debug logging
+
+    Returns:
+        Dictionary with metrics for both periods
+    """
+    debug_info = {'queries': [], 'type': type_name}
+
+    def execute_query(query: str, name: str) -> list:
+        try:
+            url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass={DONORPERFECT_PASSWORD}&action={quote(query)}"
+            response = requests.get(url, timeout=120)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            records = []
+            for rec in root.findall('.//record'):
+                record = {}
+                for field in rec.findall('field'):
+                    record[field.get('name')] = field.get('value')
+                records.append(record)
+            debug_info['queries'].append({'name': name, 'records': len(records)})
+            return records
+        except Exception as e:
+            debug_info['queries'].append({'name': name, 'error': str(e)})
+            return []
+
+    def safe_float(val):
+        try:
+            return float(val) if val else 0.0
+        except:
+            return 0.0
+
+    def safe_int(val):
+        try:
+            return int(val) if val else 0
+        except:
+            return 0
+
+    # Calculate prior-prior period
+    from datetime import datetime
+    prior_start_dt = datetime.strptime(prior_start, '%Y-%m-%d')
+    prior_end_dt = datetime.strptime(prior_end, '%Y-%m-%d')
+    prior_prior_start = (prior_start_dt - relativedelta(years=1)).strftime('%Y-%m-%d')
+    prior_prior_end = (prior_end_dt - relativedelta(years=1)).strftime('%Y-%m-%d')
+
+    # CURRENT PERIOD QUERIES
+    r1_curr = execute_query(f"SELECT SUM(g.amount) as total_revenue, COUNT(*) as gift_count, MAX(g.amount) as largest_gift FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}' AND {base_filter}", f'{type_name}_curr_totals')
+    r2_curr = execute_query(f"SELECT COUNT(DISTINCT g.donor_id) as new_donors, SUM(g.amount) as new_donor_amount FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}' AND {base_filter} AND NOT EXISTS (SELECT 1 FROM dpgift g2 WHERE g2.donor_id = g.donor_id AND g2.gift_date < '{current_start}')", f'{type_name}_curr_new')
+    r3_curr = execute_query(f"SELECT COUNT(DISTINCT g.donor_id) as reactivated_donors, SUM(g.amount) as reactivated_amount FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}' AND {base_filter} AND NOT EXISTS (SELECT 1 FROM dpgift g2 WHERE g2.donor_id = g.donor_id AND g2.gift_date BETWEEN '{prior_start}' AND '{prior_end}') AND EXISTS (SELECT 1 FROM dpgift g3 WHERE g3.donor_id = g.donor_id AND g3.gift_date < '{prior_start}')", f'{type_name}_curr_react')
+    r4_curr = execute_query(f"SELECT COUNT(DISTINCT curr.donor_id) as upgraded_donors, SUM(curr.total) as upgrade_revenue FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}' AND {base_filter} GROUP BY g.donor_id) curr INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {base_filter} GROUP BY g.donor_id) prev ON curr.donor_id = prev.donor_id WHERE curr.total > prev.total", f'{type_name}_curr_up')
+    r5_curr = execute_query(f"SELECT COUNT(DISTINCT curr.donor_id) as same_donors, SUM(curr.total) as same_revenue FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}' AND {base_filter} GROUP BY g.donor_id) curr INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {base_filter} GROUP BY g.donor_id) prev ON curr.donor_id = prev.donor_id WHERE curr.total = prev.total", f'{type_name}_curr_same')
+    r6_curr = execute_query(f"SELECT COUNT(DISTINCT curr.donor_id) as downgraded_donors, SUM(curr.total) as downgrade_revenue FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{current_start}' AND '{current_end}' AND {base_filter} GROUP BY g.donor_id) curr INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {base_filter} GROUP BY g.donor_id) prev ON curr.donor_id = prev.donor_id WHERE curr.total < prev.total", f'{type_name}_curr_down')
+
+    # PRIOR PERIOD QUERIES
+    r1_prior = execute_query(f"SELECT SUM(g.amount) as total_revenue, COUNT(*) as gift_count, MAX(g.amount) as largest_gift FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {base_filter}", f'{type_name}_prior_totals')
+    r2_prior = execute_query(f"SELECT COUNT(DISTINCT g.donor_id) as new_donors, SUM(g.amount) as new_donor_amount FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {base_filter} AND NOT EXISTS (SELECT 1 FROM dpgift g2 WHERE g2.donor_id = g.donor_id AND g2.gift_date < '{prior_start}')", f'{type_name}_prior_new')
+    r3_prior = execute_query(f"SELECT COUNT(DISTINCT g.donor_id) as reactivated_donors, SUM(g.amount) as reactivated_amount FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {base_filter} AND NOT EXISTS (SELECT 1 FROM dpgift g2 WHERE g2.donor_id = g.donor_id AND g2.gift_date BETWEEN '{prior_prior_start}' AND '{prior_prior_end}') AND EXISTS (SELECT 1 FROM dpgift g3 WHERE g3.donor_id = g.donor_id AND g3.gift_date < '{prior_prior_start}')", f'{type_name}_prior_react')
+    r4_prior = execute_query(f"SELECT COUNT(DISTINCT curr.donor_id) as upgraded_donors, SUM(curr.total) as upgrade_revenue FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {base_filter} GROUP BY g.donor_id) curr INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_prior_start}' AND '{prior_prior_end}' AND {base_filter} GROUP BY g.donor_id) prev ON curr.donor_id = prev.donor_id WHERE curr.total > prev.total", f'{type_name}_prior_up')
+    r5_prior = execute_query(f"SELECT COUNT(DISTINCT curr.donor_id) as same_donors, SUM(curr.total) as same_revenue FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {base_filter} GROUP BY g.donor_id) curr INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_prior_start}' AND '{prior_prior_end}' AND {base_filter} GROUP BY g.donor_id) prev ON curr.donor_id = prev.donor_id WHERE curr.total = prev.total", f'{type_name}_prior_same')
+    r6_prior = execute_query(f"SELECT COUNT(DISTINCT curr.donor_id) as downgraded_donors, SUM(curr.total) as downgrade_revenue FROM (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND {base_filter} GROUP BY g.donor_id) curr INNER JOIN (SELECT g.donor_id, SUM(g.amount) as total FROM dpgift g INNER JOIN dp d ON g.donor_id = d.donor_id WHERE g.gift_date BETWEEN '{prior_prior_start}' AND '{prior_prior_end}' AND {base_filter} GROUP BY g.donor_id) prev ON curr.donor_id = prev.donor_id WHERE curr.total < prev.total", f'{type_name}_prior_down')
+
+    curr_totals = r1_curr[0] if r1_curr else {}
+    curr_new = r2_curr[0] if r2_curr else {}
+    curr_react = r3_curr[0] if r3_curr else {}
+    curr_up = r4_curr[0] if r4_curr else {}
+    curr_same = r5_curr[0] if r5_curr else {}
+    curr_down = r6_curr[0] if r6_curr else {}
+
+    prior_totals = r1_prior[0] if r1_prior else {}
+    prior_new = r2_prior[0] if r2_prior else {}
+    prior_react = r3_prior[0] if r3_prior else {}
+    prior_up = r4_prior[0] if r4_prior else {}
+    prior_same = r5_prior[0] if r5_prior else {}
+    prior_down = r6_prior[0] if r6_prior else {}
+
+    return {
+        'current': {
+            'total_revenue': safe_float(curr_totals.get('total_revenue')),
+            'gift_count': safe_int(curr_totals.get('gift_count')),
+            'largest_gift': safe_float(curr_totals.get('largest_gift')),
+            'new_donors': safe_int(curr_new.get('new_donors')),
+            'new_donor_amount': safe_float(curr_new.get('new_donor_amount')),
+            'reactivated_donors': safe_int(curr_react.get('reactivated_donors')),
+            'reactivated_amount': safe_float(curr_react.get('reactivated_amount')),
+            'upgraded_donors': safe_int(curr_up.get('upgraded_donors')),
+            'upgrade_revenue': safe_float(curr_up.get('upgrade_revenue')),
+            'same_donors': safe_int(curr_same.get('same_donors')),
+            'same_revenue': safe_float(curr_same.get('same_revenue')),
+            'downgraded_donors': safe_int(curr_down.get('downgraded_donors')),
+            'downgrade_revenue': safe_float(curr_down.get('downgrade_revenue')),
+        },
+        'prior': {
+            'total_revenue': safe_float(prior_totals.get('total_revenue')),
+            'gift_count': safe_int(prior_totals.get('gift_count')),
+            'largest_gift': safe_float(prior_totals.get('largest_gift')),
+            'new_donors': safe_int(prior_new.get('new_donors')),
+            'new_donor_amount': safe_float(prior_new.get('new_donor_amount')),
+            'reactivated_donors': safe_int(prior_react.get('reactivated_donors')),
+            'reactivated_amount': safe_float(prior_react.get('reactivated_amount')),
+            'upgraded_donors': safe_int(prior_up.get('upgraded_donors')),
+            'upgrade_revenue': safe_float(prior_up.get('upgrade_revenue')),
+            'same_donors': safe_int(prior_same.get('same_donors')),
+            'same_revenue': safe_float(prior_same.get('same_revenue')),
+            'downgraded_donors': safe_int(prior_down.get('downgraded_donors')),
+            'downgrade_revenue': safe_float(prior_down.get('downgrade_revenue')),
+        },
+        'debug': debug_info
+    }
+
+
+def get_donor_comparison_metrics() -> dict:
+    """Get donor comparison metrics for Individuals, Organizations, and Total.
+
+    Returns:
+        Dictionary with metrics for all three donor types plus labels
+    """
+    today = date.today()
+    fy_info = get_fiscal_year_info(today)
+
+    # Current fiscal year: FY start to today
+    current_fy_start = fy_info['current_fy_start'].strftime("%Y-%m-%d")
+    current_fy_end = today.strftime("%Y-%m-%d")
+
+    # Prior fiscal year to same date
+    prior_fy_start = fy_info['prior_fy_start'].strftime("%Y-%m-%d")
+    prior_fy_end = today.replace(year=today.year - 1).strftime("%Y-%m-%d")
+
+    # Load metrics for each donor type
+    individuals = load_donor_metrics_by_type(
+        current_fy_start, current_fy_end, prior_fy_start, prior_fy_end,
+        INDIVIDUAL_DONOR_BASE_FILTER, 'individual'
+    )
+
+    organizations = load_donor_metrics_by_type(
+        current_fy_start, current_fy_end, prior_fy_start, prior_fy_end,
+        ORGANIZATION_DONOR_BASE_FILTER, 'organization'
+    )
+
+    # Total is sum of individuals + organizations (calculated, not queried separately)
+    def sum_metrics(ind: dict, org: dict) -> dict:
+        return {
+            'total_revenue': ind['total_revenue'] + org['total_revenue'],
+            'gift_count': ind['gift_count'] + org['gift_count'],
+            'largest_gift': max(ind['largest_gift'], org['largest_gift']),
+            'new_donors': ind['new_donors'] + org['new_donors'],
+            'new_donor_amount': ind['new_donor_amount'] + org['new_donor_amount'],
+            'reactivated_donors': ind['reactivated_donors'] + org['reactivated_donors'],
+            'reactivated_amount': ind['reactivated_amount'] + org['reactivated_amount'],
+            'upgraded_donors': ind['upgraded_donors'] + org['upgraded_donors'],
+            'upgrade_revenue': ind['upgrade_revenue'] + org['upgrade_revenue'],
+            'same_donors': ind['same_donors'] + org['same_donors'],
+            'same_revenue': ind['same_revenue'] + org['same_revenue'],
+            'downgraded_donors': ind['downgraded_donors'] + org['downgraded_donors'],
+            'downgrade_revenue': ind['downgrade_revenue'] + org['downgrade_revenue'],
+        }
+
+    total_current = sum_metrics(individuals['current'], organizations['current'])
+    total_prior = sum_metrics(individuals['prior'], organizations['prior'])
+
+    return {
+        'individuals': individuals,
+        'organizations': organizations,
+        'total': {'current': total_current, 'prior': total_prior},
+        'current_fy_short': fy_info['current_fy_short'],
+        'prior_fy_short': fy_info['prior_fy_short'],
+        'current_dates': f"{current_fy_start} to {current_fy_end}",
+        'prior_dates': f"{prior_fy_start} to {prior_fy_end}",
+    }
+
+
+def get_individual_metrics_comparison() -> dict:
+    """Get Individual donor metrics for current FY vs prior FY to date.
+
+    DEPRECATED: Use get_donor_comparison_metrics() instead for all donor types.
+
+    Returns:
+        Dictionary with current and prior FY metrics plus labels
+    """
+    today = date.today()
+    fy_info = get_fiscal_year_info(today)
+
+    # Current fiscal year: FY start to today
+    current_fy_start = fy_info['current_fy_start'].strftime("%Y-%m-%d")
+    current_fy_end = today.strftime("%Y-%m-%d")
+
+    # Prior fiscal year to same date: Prior FY start to same date last year
+    prior_fy_start = fy_info['prior_fy_start'].strftime("%Y-%m-%d")
+    prior_fy_end = today.replace(year=today.year - 1).strftime("%Y-%m-%d")
+
+    # Load metrics
+    metrics = load_individual_donor_metrics(
+        current_fy_start, current_fy_end,
+        prior_fy_start, prior_fy_end
+    )
+
+    return {
+        'current': metrics['current'],
+        'prior': metrics['prior'],
+        'current_fy_short': fy_info['current_fy_short'],
+        'prior_fy_short': fy_info['prior_fy_short'],
+        'current_dates': f"{current_fy_start} to {current_fy_end}",
+        'prior_dates': f"{prior_fy_start} to {prior_fy_end}",
+        'debug': metrics.get('debug', {})
+    }
+
+
 def normalize_legacy_record(record: dict) -> dict:
     """Normalize a legacy record, keeping original field names for DataProcessor."""
     normalized = {}
@@ -2421,6 +2916,126 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # === Donor Comparison Metrics (Individuals / Organizations / Total) ===
+    st.markdown("""
+    <div style="margin: 1.5rem 0 1rem 0;">
+        <div style="font-size: 1.1rem; font-weight: 600; color: #1a365d;">
+            💰 Donor Giving Comparison
+        </div>
+        <div style="font-size: 0.85rem; color: #718096;">
+            Year-over-year comparison of donor giving metrics from DonorPerfect (excludes monthly giving)
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    try:
+        donor_metrics = get_donor_comparison_metrics()
+        current_fy = donor_metrics['current_fy_short']
+        prior_fy = donor_metrics['prior_fy_short']
+
+        # Helper function to calculate % change
+        def pct_change(current, prior):
+            if prior == 0:
+                return 100.0 if current > 0 else 0.0
+            return ((current - prior) / prior) * 100
+
+        # Helper function to format currency
+        def fmt_currency(val):
+            if val >= 1000000:
+                return f"${val/1000000:.2f}M"
+            elif val >= 1000:
+                return f"${val/1000:.1f}K"
+            else:
+                return f"${val:,.0f}"
+
+        # Helper function to format change indicator
+        def change_indicator(pct, invert=False):
+            is_positive = pct >= 0 if not invert else pct <= 0
+            color = '#38a169' if is_positive else '#e53e3e'
+            sign = '+' if pct >= 0 else ''
+            return f'<span style="color: {color}; font-size: 0.75rem;">{sign}{pct:.1f}%</span>'
+
+        # Create tabs for Individuals, Organizations, and Total
+        tab1, tab2, tab3 = st.tabs(["👤 Individuals", "🏢 Organizations", "📊 Total"])
+
+        def render_donor_metrics_table(current: dict, prior: dict, fy_current: str, fy_prior: str):
+            """Render a metrics comparison table."""
+            metrics_data = [
+                ("Largest Gift", fmt_currency(current['largest_gift']), fmt_currency(prior['largest_gift']),
+                 pct_change(current['largest_gift'], prior['largest_gift'])),
+                ("Gift Transactions", f"{current['gift_count']:,}", f"{prior['gift_count']:,}",
+                 pct_change(current['gift_count'], prior['gift_count'])),
+                ("New Donors", f"{current['new_donors']:,}", f"{prior['new_donors']:,}",
+                 pct_change(current['new_donors'], prior['new_donors'])),
+                ("New Gifts Amount", fmt_currency(current['new_donor_amount']), fmt_currency(prior['new_donor_amount']),
+                 pct_change(current['new_donor_amount'], prior['new_donor_amount'])),
+                ("Reactivated Donors", f"{current['reactivated_donors']:,}", f"{prior['reactivated_donors']:,}",
+                 pct_change(current['reactivated_donors'], prior['reactivated_donors'])),
+                ("Reactivated Amount", fmt_currency(current['reactivated_amount']), fmt_currency(prior['reactivated_amount']),
+                 pct_change(current['reactivated_amount'], prior['reactivated_amount'])),
+                ("Upgraded Donors", f"{current['upgraded_donors']:,}", f"{prior['upgraded_donors']:,}",
+                 pct_change(current['upgraded_donors'], prior['upgraded_donors'])),
+                ("Upgrade Revenue", fmt_currency(current['upgrade_revenue']), fmt_currency(prior['upgrade_revenue']),
+                 pct_change(current['upgrade_revenue'], prior['upgrade_revenue'])),
+                ("Same Donors", f"{current['same_donors']:,}", f"{prior['same_donors']:,}",
+                 pct_change(current['same_donors'], prior['same_donors'])),
+                ("Same Revenue", fmt_currency(current['same_revenue']), fmt_currency(prior['same_revenue']),
+                 pct_change(current['same_revenue'], prior['same_revenue'])),
+                ("Downgraded Donors", f"{current['downgraded_donors']:,}", f"{prior['downgraded_donors']:,}",
+                 pct_change(current['downgraded_donors'], prior['downgraded_donors'])),
+                ("Downgrade Revenue", fmt_currency(current['downgrade_revenue']), fmt_currency(prior['downgrade_revenue']),
+                 pct_change(current['downgrade_revenue'], prior['downgrade_revenue'])),
+                ("Total Revenue", fmt_currency(current['total_revenue']), fmt_currency(prior['total_revenue']),
+                 pct_change(current['total_revenue'], prior['total_revenue'])),
+            ]
+
+            # Build HTML table
+            table_html = f"""
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background-color: #f7fafc; border-bottom: 2px solid #e2e8f0;">
+                        <th style="text-align: left; padding: 0.75rem; color: #4a5568;">Metric</th>
+                        <th style="text-align: right; padding: 0.75rem; color: #4a5568;">{fy_current} YTD</th>
+                        <th style="text-align: right; padding: 0.75rem; color: #4a5568;">{fy_prior} YTD</th>
+                        <th style="text-align: right; padding: 0.75rem; color: #4a5568;">% Change</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
+
+            for i, (metric, curr_val, prior_val, pct) in enumerate(metrics_data):
+                bg_color = '#ffffff' if i % 2 == 0 else '#f7fafc'
+                font_weight = '600' if metric == 'Total Revenue' else '400'
+                border_top = 'border-top: 2px solid #e2e8f0;' if metric == 'Total Revenue' else ''
+                table_html += f"""
+                    <tr style="background-color: {bg_color}; {border_top}">
+                        <td style="padding: 0.5rem 0.75rem; color: #2d3748; font-weight: {font_weight};">{metric}</td>
+                        <td style="padding: 0.5rem 0.75rem; text-align: right; color: #1a365d; font-weight: {font_weight};">{curr_val}</td>
+                        <td style="padding: 0.5rem 0.75rem; text-align: right; color: #718096;">{prior_val}</td>
+                        <td style="padding: 0.5rem 0.75rem; text-align: right;">{change_indicator(pct)}</td>
+                    </tr>
+                """
+
+            table_html += "</tbody></table>"
+            return table_html
+
+        with tab1:
+            ind = donor_metrics['individuals']
+            st.markdown(render_donor_metrics_table(ind['current'], ind['prior'], current_fy, prior_fy), unsafe_allow_html=True)
+
+        with tab2:
+            org = donor_metrics['organizations']
+            st.markdown(render_donor_metrics_table(org['current'], org['prior'], current_fy, prior_fy), unsafe_allow_html=True)
+
+        with tab3:
+            total = donor_metrics['total']
+            st.markdown(render_donor_metrics_table(total['current'], total['prior'], current_fy, prior_fy), unsafe_allow_html=True)
+
+    except Exception as e:
+        st.warning(f"Unable to load donor comparison metrics: {e}")
+
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
 
     # === Donor Contacts Year-over-Year Comparison ===
     st.markdown("""
