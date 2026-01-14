@@ -2503,7 +2503,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         <div class="section-icon goal2">💡</div>
         <div class="section-title-group">
             <h2 class="section-title">Goal 2: Inspire Engagement</h2>
-            <p class="section-subtitle">Tracking current fiscal year goals towards 2030</p>
+            <p class="section-subtitle">Target: 25K home delivery | 55K book bank model | 1.5M digital views annually</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
