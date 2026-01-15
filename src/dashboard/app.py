@@ -33,8 +33,7 @@ CONTENT_VIEWS_APP_ID = os.getenv("CONTENT_VIEWS_APP_ID", "i43f611d038d24840907ff
 FINANCIAL_SHEET_ID = os.getenv("FINANCIAL_SHEET_ID", "17jObocsIQJnazyvWToi_AtsrLJ1I9bnMpWw9BMiixA8")
 
 # DonorPerfect API configuration
-DONORPERFECT_LOGIN = os.getenv("DONORPERFECT_LOGIN", "Yash")
-DONORPERFECT_PASSWORD = os.getenv("DONORPERFECT_PASSWORD", "rumjec-gobpA5-rudbun")
+DONORPERFECT_API_KEY = os.getenv("DONORPERFECT_API_KEY", "0rmTeFqHOlaFmZM%2fOlUhnixnvaJaEazzlUh%2bAvxFuukjhgKf6K3ISsVEnom4rg%2bV0kuHNUIVceApdPdPviy0OjeEpKLbkUL3QZaXKvH0Veo%3d")
 DONORPERFECT_BASE_URL = "https://www.donorperfect.net/prod/xmlrequest.asp"
 
 # Legacy fields that need to be renamed to match current schema
@@ -1285,8 +1284,8 @@ def _execute_donorperfect_query(query: str) -> tuple:
     """
     debug_info = {'query': query}
     try:
-        url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass={DONORPERFECT_PASSWORD}&action={quote(query)}"
-        debug_info['url'] = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass=****&action={quote(query)}"
+        url = f"{DONORPERFECT_BASE_URL}?apikey={DONORPERFECT_API_KEY}&action={quote(query)}"
+        debug_info['url'] = f"{DONORPERFECT_BASE_URL}?apikey=****&action={quote(query)}"
 
         response = requests.get(url, timeout=60)
         response.raise_for_status()
@@ -1538,7 +1537,7 @@ def load_individual_donor_metrics(
     def execute_query(query: str, name: str) -> list:
         """Execute a single query and track debug info."""
         try:
-            url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass={DONORPERFECT_PASSWORD}&action={quote(query)}"
+            url = f"{DONORPERFECT_BASE_URL}?apikey={DONORPERFECT_API_KEY}&action={quote(query)}"
             response = requests.get(url, timeout=120)
             response.raise_for_status()
 
@@ -1783,7 +1782,7 @@ def load_donor_metrics_by_type(
 
     def execute_query(query: str, name: str) -> list:
         try:
-            url = f"{DONORPERFECT_BASE_URL}?login={DONORPERFECT_LOGIN}&pass={DONORPERFECT_PASSWORD}&action={quote(query)}"
+            url = f"{DONORPERFECT_BASE_URL}?apikey={DONORPERFECT_API_KEY}&action={quote(query)}"
             response = requests.get(url, timeout=120)
             response.raise_for_status()
             root = ET.fromstring(response.content)
