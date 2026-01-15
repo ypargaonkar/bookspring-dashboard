@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from collections import Counter
 from dateutil.relativedelta import relativedelta
 import sys
@@ -1183,7 +1183,7 @@ def load_content_views():
         return []
 
 
-@st.cache_data(ttl=86400)  # Cache for 24 hours
+@st.cache_data(ttl=259200)  # Cache for 72 hours (legacy data changes infrequently)
 def load_legacy_data():
     """Load legacy activity data from Fusioo API (pre-July 2025)."""
     try:
@@ -1210,7 +1210,24 @@ def load_active_enrollment_count():
         return 0
 
 
-@st.cache_data(ttl=86400)  # Cache for 24 hours
+def _get_ttl_until_noon_refresh():
+    """Calculate seconds until next 12:05pm for financial data refresh.
+
+    Returns TTL in seconds that will cause cache to expire at 12:05pm daily,
+    aligning with the Google Sheets update schedule (updates at noon).
+    """
+    now = datetime.now()
+    target_time = now.replace(hour=12, minute=5, second=0, microsecond=0)
+
+    # If it's already past 12:05pm today, target tomorrow's 12:05pm
+    if now >= target_time:
+        target_time += timedelta(days=1)
+
+    ttl_seconds = (target_time - now).total_seconds()
+    return int(ttl_seconds)
+
+
+@st.cache_data(ttl=_get_ttl_until_noon_refresh())  # Cache until 12:05pm daily
 def load_financial_data():
     """Load financial data from Google Sheets."""
     try:
@@ -1248,7 +1265,7 @@ def load_financial_data():
         return None
 
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+@st.cache_data(ttl=86400)  # Cache for 24 hours
 def load_events_data():
     """Load events data from Fusioo."""
     try:
@@ -1260,7 +1277,7 @@ def load_events_data():
         return []
 
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
+@st.cache_data(ttl=86400)  # Cache for 24 hours
 def load_partners_data():
     """Load partners data from Fusioo for partner name lookups (minimal fields for privacy)."""
     try:
@@ -1313,7 +1330,7 @@ def _execute_donorperfect_query(query: str) -> tuple:
         return [], debug_info
 
 
-@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
+@st.cache_data(ttl=86400, show_spinner=False)  # Cache for 24 hours
 def load_donorperfect_contact_metrics(start_date: str, end_date: str) -> dict:
     """Load aggregated contact metrics from DonorPerfect using GROUP BY queries.
 
@@ -1484,6 +1501,33 @@ def get_contact_metrics_comparison() -> dict:
 # Outlier threshold - exclude gifts >= this amount from metrics to avoid skewing comparisons
 DONOR_GIFT_OUTLIER_THRESHOLD = 500000  # $500K
 
+# GL_CODE categorization (from DonorPerfect)
+GL_CODE_GIFTS = {
+    '5100_GIFTS_UNRES': 'Gifts - Unrestricted',
+    '5111_GIFTS_RES': 'Gifts - Restricted',
+    '5130_CAPITALGIFT': 'Capital Gift',
+}
+
+GL_CODE_GRANTS = {
+    '5120_GRANTS_RES': 'Grants - Restricted',
+    '5121_GRANTS_UNRES': 'Grants - Unrestricted',
+}
+
+GL_CODE_OTHER = {
+    '4110_FEES_PROGRAM': 'Program Fees',
+    '4120_CONTRACTS': 'Contracts - Revenue',
+    '4210_SPONSORSHIPS': 'Sponsorships',
+    '4310_EVENT_REVENUE': 'Event Revenue',
+    '5210_INK_BOOKS': 'In-Kind Books',
+    '5220_IN_KIND_PROD': 'In-Kind Products',
+    '5230_IK_SVC': 'In-Kind Services',
+    '5310_INVESTMENT': 'Investment Income',
+    'OTHERINCOME': 'Other Income',
+}
+
+# Combined lookup for all GL codes
+GL_CODE_LABELS = {**GL_CODE_GIFTS, **GL_CODE_GRANTS, **GL_CODE_OTHER}
+
 # Base filter for Individual donors (non-organization, gift records, gift GL codes)
 INDIVIDUAL_DONOR_BASE_FILTER = f"""
     d.org_rec = 'N'
@@ -1514,7 +1558,7 @@ ALL_DONOR_BASE_FILTER = f"""
 """
 
 
-@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
+@st.cache_data(ttl=86400, show_spinner=False)  # Cache for 24 hours
 def load_individual_donor_metrics(
     current_start: str,
     current_end: str,
@@ -1756,7 +1800,7 @@ def load_individual_donor_metrics(
     }
 
 
-@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
+@st.cache_data(ttl=86400, show_spinner=False)  # Cache for 24 hours
 def load_donor_metrics_by_type(
     current_start: str,
     current_end: str,
