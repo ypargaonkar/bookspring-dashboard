@@ -3177,15 +3177,15 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 plot_bgcolor='rgba(0,0,0,0)',
                 annotations=[
                     dict(
-                        text=f"<b>{pct:.0f}%</b>",
+                        text=f"<b>{received_str}</b>",
                         x=0.5, y=0.55,
-                        font=dict(size=28, color='#1a365d', family='system-ui'),
+                        font=dict(size=22, color='#1a365d', family='system-ui'),
                         showarrow=False
                     ),
                     dict(
-                        text=f"{received_str}",
-                        x=0.5, y=0.4,
-                        font=dict(size=14, color='#64748b', family='system-ui'),
+                        text=f"{pct:.0f}% of goal",
+                        x=0.5, y=0.38,
+                        font=dict(size=12, color='#64748b', family='system-ui'),
                         showarrow=False
                     )
                 ]
