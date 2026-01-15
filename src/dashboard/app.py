@@ -3096,28 +3096,59 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         current_col = f"{current_fy} YTD"
         prior_col = f"{prior_fy} YTD"
 
-        # Type labels for display
+        # Type labels for display (from DonorPerfect activity codes)
         type_labels = {
-            'CC': 'Constant Contact',
+            'ANNUALREPORT': 'Annual Report',
+            'APPLICATION': 'Application',
+            'APPDUE': 'Application Due Date',
+            'BIRTHDAYCARD': 'Birthday Card',
+            'CAPITALCAMPAIGNCULTIVATION': 'Capital Campaign Cultivation',
+            'CC': 'Constant Contact Campaign',
+            'CONTRACT': 'Contract',
+            'EI': 'Email In',
             'EO': 'Email Out',
-            'RCPTSNT': 'Receipt Sent',
+            'EVENT': 'Event',
+            'EV_IN': 'Event Invite',
+            'FBS': 'FBS Appeal',
+            'FIREP': 'Final Report',
+            'FOLLOWUP': 'Follow Up with Donor',
+            'GENERALINFO': 'General Info',
+            'GE': 'Group E-Mail',
+            'GFU': 'Grant Follow-Up',
+            'GLOI': 'Grant LOI',
+            'GP': 'Grant Proposal',
+            'GR': 'Grant Report Due',
+            'GRANTAWARD': 'Grant Award',
+            'GRANTDECLINED': 'Grant Declined',
             'LT': 'Letter',
-            'GFU': 'Grant Follow Up',
-            'EM': 'Email',
-            'PH': 'Phone',
-            'MT': 'Meeting',
-            'EV': 'Event',
-            'TY': 'Thank You',
-            'NL': 'Newsletter',
-            'SO': 'Social Media',
-            'WB': 'Website',
-            'OT': 'Other',
+            'LUNCHEONINVITE': 'Luncheon Invitation',
+            'MA': 'Mailing',
+            'MAJORGIFTSCULTIVATION': 'Major Gifts Cultivation',
+            'ME': 'Meeting',
+            'PLEDGE': 'Pledge Follow Up',
+            'PROSPECTRESEARCH': 'Prospect Research',
+            'RCPTSNT': 'Receipt Sent',
+            'SP': 'Sponsorship Proposal',
+            'SPONSORSHIPAGREEMENT': 'Sponsorship Agreement',
+            'TE': 'Telephone Call',
+            'TYNOTE': 'Thank You Note',
+            'VI': 'Visit',
+            'YEA_MAIL': 'Year End Appeal Mailer',
+            'ZOOMCALL': 'Zoom Call',
         }
 
         # Get all unique contact types from both periods
         all_types = set(current_metrics['by_type'].keys()) | set(prior_metrics['by_type'].keys())
         # Sort: known types first in preferred order, then unknown types alphabetically
-        preferred_order = ['CC', 'EO', 'RCPTSNT', 'LT', 'GFU', 'EM', 'PH', 'MT', 'EV', 'TY', 'NL', 'SO', 'WB', 'OT']
+        preferred_order = [
+            'CC', 'EO', 'EI', 'GE', 'MA', 'LT', 'RCPTSNT', 'TYNOTE',
+            'TE', 'ME', 'ZOOMCALL', 'VI', 'EVENT', 'EV_IN', 'LUNCHEONINVITE',
+            'GFU', 'GP', 'GLOI', 'GRANTAWARD', 'GRANTDECLINED', 'GR', 'FIREP',
+            'APPLICATION', 'APPDUE', 'CONTRACT', 'PLEDGE', 'FOLLOWUP',
+            'FBS', 'YEA_MAIL', 'BIRTHDAYCARD', 'ANNUALREPORT',
+            'SP', 'SPONSORSHIPAGREEMENT', 'CAPITALCAMPAIGNCULTIVATION', 'MAJORGIFTSCULTIVATION',
+            'PROSPECTRESEARCH', 'GENERALINFO'
+        ]
         contact_types = [t for t in preferred_order if t in all_types]
         contact_types += sorted([t for t in all_types if t not in preferred_order])
 
