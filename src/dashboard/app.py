@@ -3127,7 +3127,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
 
     # === Grants & Gifts Received ===
     st.markdown("##### 💰 Grants & Gifts Received")
-    st.caption(f"{current_fy_label} YTD · Data from Google Sheets (updated daily at noon)")
+    st.caption(f"{current_fy_label} YTD")
 
     if financial_df is not None and not financial_df.empty:
         latest = financial_df.iloc[-1]
@@ -3139,29 +3139,78 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         grants_pct = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
         gifts_pct = (gifts_received / gifts_goal * 100) if gifts_goal > 0 else 0
 
+        def create_progress_ring(received, goal, pct, title, color_fill, color_remaining):
+            """Create a donut chart showing progress toward goal."""
+            # Cap display percentage at 100 for the ring, but show actual in text
+            display_pct = min(pct, 100)
+            remaining_pct = max(100 - display_pct, 0)
+
+            fig = go.Figure(data=[go.Pie(
+                values=[display_pct, remaining_pct],
+                hole=0.7,
+                marker=dict(colors=[color_fill, color_remaining]),
+                textinfo='none',
+                hoverinfo='skip',
+                sort=False
+            )])
+
+            # Format dollar amounts
+            if received >= 1000000:
+                received_str = f"${received/1000000:.2f}M"
+            elif received >= 1000:
+                received_str = f"${received/1000:.0f}K"
+            else:
+                received_str = f"${received:,.0f}"
+
+            if goal >= 1000000:
+                goal_str = f"${goal/1000000:.1f}M"
+            elif goal >= 1000:
+                goal_str = f"${goal/1000:.0f}K"
+            else:
+                goal_str = f"${goal:,.0f}"
+
+            fig.update_layout(
+                showlegend=False,
+                margin=dict(t=30, b=30, l=10, r=10),
+                height=200,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                annotations=[
+                    dict(
+                        text=f"<b>{pct:.0f}%</b>",
+                        x=0.5, y=0.55,
+                        font=dict(size=28, color='#1a365d', family='system-ui'),
+                        showarrow=False
+                    ),
+                    dict(
+                        text=f"{received_str}",
+                        x=0.5, y=0.4,
+                        font=dict(size=14, color='#64748b', family='system-ui'),
+                        showarrow=False
+                    )
+                ]
+            )
+            return fig, goal_str
+
         col1, col2 = st.columns(2)
 
         with col1:
-            grants_status = "🟢" if grants_pct >= 100 else "🟡" if grants_pct >= 75 else "🔴" if grants_pct >= 50 else "⚪"
-            st.metric(
-                f"Grants Received {grants_status}",
-                f"${grants_received:,.0f}",
-                delta=f"{grants_pct:.0f}% of ${grants_goal:,.0f} goal",
-                delta_color="off"
+            fig, goal_str = create_progress_ring(
+                grants_received, grants_goal, grants_pct,
+                "Grants", "#38a169", "#e2e8f0"
             )
+            st.plotly_chart(fig, use_container_width=True, key="grants_ring")
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.9rem;'><strong>Grants</strong> · Goal: {goal_str}</p>", unsafe_allow_html=True)
 
         with col2:
-            gifts_status = "🟢" if gifts_pct >= 100 else "🟡" if gifts_pct >= 75 else "🔴" if gifts_pct >= 50 else "⚪"
-            st.metric(
-                f"Gifts Received {gifts_status}",
-                f"${gifts_received:,.0f}",
-                delta=f"{gifts_pct:.0f}% of ${gifts_goal:,.0f} goal",
-                delta_color="off"
+            fig, goal_str = create_progress_ring(
+                gifts_received, gifts_goal, gifts_pct,
+                "Gifts", "#805ad5", "#e2e8f0"
             )
+            st.plotly_chart(fig, use_container_width=True, key="gifts_ring")
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.9rem;'><strong>Gifts</strong> · Goal: {goal_str}</p>", unsafe_allow_html=True)
     else:
         st.info("Financial data not available")
-
-    st.markdown("<br>", unsafe_allow_html=True)
 
     # === Donor Contacts Year-over-Year Comparison ===
     st.markdown("##### 📧 Donor Contacts")
