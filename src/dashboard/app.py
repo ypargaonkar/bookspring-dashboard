@@ -3213,33 +3213,23 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             gift_count_prior = new_donors_prior = reactivated_prior = avg_gift_prior = 0
             has_donor_data = False
 
-        # Get grants metrics from DonorPerfect (using grant GL codes)
+        # Get grants count from DonorPerfect (using grant GL codes)
         try:
             fy_info = get_fiscal_year_info(today)
             curr_start = fy_info['current_fy_start']
             curr_end = today.isoformat()
-            prior_start = fy_info['prior_fy_start']
-            prior_end = (today - relativedelta(years=1)).isoformat()
 
-            # Query grants for current period
-            grant_query_curr = f"SELECT COUNT(*) as grant_count, SUM(amount) as total FROM dpgift WHERE gift_date BETWEEN '{curr_start}' AND '{curr_end}' AND gl_code IN ('5120_GRANTS_RES', '5121_GRANTS_UNRES')"
-            grant_results_curr, _ = _execute_donorperfect_query(grant_query_curr)
-            grant_curr = grant_results_curr[0] if grant_results_curr else {}
+            # Query grants count for current period
+            grant_query = f"SELECT COUNT(*) as grant_count FROM dpgift WHERE gift_date BETWEEN '{curr_start}' AND '{curr_end}' AND gl_code IN ('5120_GRANTS_RES', '5121_GRANTS_UNRES')"
+            grant_results, _ = _execute_donorperfect_query(grant_query)
+            grant_data = grant_results[0] if grant_results else {}
 
-            # Query grants for prior period
-            grant_query_prior = f"SELECT COUNT(*) as grant_count, SUM(amount) as total FROM dpgift WHERE gift_date BETWEEN '{prior_start}' AND '{prior_end}' AND gl_code IN ('5120_GRANTS_RES', '5121_GRANTS_UNRES')"
-            grant_results_prior, _ = _execute_donorperfect_query(grant_query_prior)
-            grant_prior = grant_results_prior[0] if grant_results_prior else {}
-
-            grant_count = int(grant_curr.get('grant_count', 0) or 0)
-            grant_count_prior = int(grant_prior.get('grant_count', 0) or 0)
-            grant_total = float(grant_curr.get('total', 0) or 0)
-            grant_total_prior = float(grant_prior.get('total', 0) or 0)
-            avg_grant = grant_total / grant_count if grant_count > 0 else 0
-            avg_grant_prior = grant_total_prior / grant_count_prior if grant_count_prior > 0 else 0
+            grant_count = int(grant_data.get('grant_count', 0) or 0)
+            # Use grants_received from Google Sheet divided by count from DonorPerfect
+            avg_grant = grants_received / grant_count if grant_count > 0 else 0
             has_grant_data = True
         except Exception:
-            grant_count = grant_count_prior = avg_grant = avg_grant_prior = 0
+            grant_count = avg_grant = 0
             has_grant_data = False
 
         def pct_change(curr_val, prior_val):
@@ -3261,23 +3251,15 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         with col2:
             if has_grant_data:
                 avg_grant_str = f"${avg_grant/1000:.1f}K" if avg_grant >= 1000 else f"${avg_grant:,.0f}"
-                grant_cnt_chg = pct_change(grant_count, grant_count_prior)
-                avg_grant_chg = pct_change(avg_grant, avg_grant_prior)
                 st.markdown(f"""
                     <div style='display: grid; grid-template-columns: 1fr; gap: 0.5rem; padding-top: 1.5rem;'>
                         <div class="metric-card" style="text-align: center; padding: 0.75rem;">
                             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">📋 # Grants</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{grant_count:,}</div>
-                            <div style="font-size: 0.7rem; color: {'#38a169' if grant_cnt_chg >= 0 else '#e53e3e'};">
-                                {'+' if grant_cnt_chg >= 0 else ''}{grant_cnt_chg:.0f}% vs {prior_fy_label}
-                            </div>
                         </div>
                         <div class="metric-card" style="text-align: center; padding: 0.75rem;">
                             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">📊 Avg Grant</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{avg_grant_str}</div>
-                            <div style="font-size: 0.7rem; color: {'#38a169' if avg_grant_chg >= 0 else '#e53e3e'};">
-                                {'+' if avg_grant_chg >= 0 else ''}{avg_grant_chg:.0f}% vs {prior_fy_label}
-                            </div>
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
