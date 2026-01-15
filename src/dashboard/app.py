@@ -3139,66 +3139,78 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         grants_pct = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
         gifts_pct = (gifts_received / gifts_goal * 100) if gifts_goal > 0 else 0
 
-        def format_currency(val):
-            """Format currency for display."""
-            if val >= 1000000:
-                return f"${val/1000000:.2f}M"
-            elif val >= 1000:
-                return f"${val/1000:.0f}K"
-            return f"${val:,.0f}"
+        def create_progress_ring(received, goal, pct, title, color_fill, color_remaining):
+            """Create a donut chart showing progress toward goal."""
+            # Cap display percentage at 100 for the ring, but show actual in text
+            display_pct = min(pct, 100)
+            remaining_pct = max(100 - display_pct, 0)
 
-        def create_gauge(received, goal, pct, title, color):
-            """Create a semi-circular gauge chart."""
-            fig = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=min(pct, 100),
-                number={'suffix': '%', 'font': {'size': 36, 'color': '#1a365d'}},
-                gauge={
-                    'axis': {'range': [0, 100], 'tickwidth': 0, 'tickcolor': "white", 'visible': False},
-                    'bar': {'color': color, 'thickness': 0.85},
-                    'bgcolor': '#e2e8f0',
-                    'borderwidth': 0,
-                    'shape': 'angular',
-                    'threshold': {
-                        'line': {'color': '#1a365d', 'width': 3},
-                        'thickness': 0.85,
-                        'value': min(pct, 100)
-                    }
-                },
-                domain={'x': [0, 1], 'y': [0, 1]}
-            ))
+            fig = go.Figure(data=[go.Pie(
+                values=[display_pct, remaining_pct],
+                hole=0.7,
+                marker=dict(colors=[color_fill, color_remaining]),
+                textinfo='none',
+                hoverinfo='skip',
+                sort=False
+            )])
+
+            # Format dollar amounts
+            if received >= 1000000:
+                received_str = f"${received/1000000:.2f}M"
+            elif received >= 1000:
+                received_str = f"${received/1000:.0f}K"
+            else:
+                received_str = f"${received:,.0f}"
+
+            if goal >= 1000000:
+                goal_str = f"${goal/1000000:.1f}M"
+            elif goal >= 1000:
+                goal_str = f"${goal/1000:.0f}K"
+            else:
+                goal_str = f"${goal:,.0f}"
 
             fig.update_layout(
-                height=160,
-                margin=dict(t=40, b=0, l=30, r=30),
+                showlegend=False,
+                margin=dict(t=30, b=30, l=10, r=10),
+                height=200,
                 paper_bgcolor='rgba(0,0,0,0)',
-                font={'family': 'system-ui'}
+                plot_bgcolor='rgba(0,0,0,0)',
+                annotations=[
+                    dict(
+                        text=f"<b>{received_str}</b>",
+                        x=0.5, y=0.55,
+                        font=dict(size=22, color='#1a365d', family='system-ui'),
+                        showarrow=False
+                    ),
+                    dict(
+                        text=f"{pct:.0f}% of goal",
+                        x=0.5, y=0.38,
+                        font=dict(size=12, color='#64748b', family='system-ui'),
+                        showarrow=False
+                    )
+                ]
             )
-            return fig
+            return fig, goal_str
 
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("<p style='text-align: center; font-weight: 700; color: #1a365d; font-size: 1.1rem; margin-bottom: 0;'>Grants</p>", unsafe_allow_html=True)
-            fig = create_gauge(grants_received, grants_goal, grants_pct, "Grants", "#38a169")
-            st.plotly_chart(fig, use_container_width=True, key="grants_gauge")
-            st.markdown(f"""
-                <div style='text-align: center; margin-top: -15px;'>
-                    <span style='font-size: 1.4rem; font-weight: 700; color: #1a365d;'>{format_currency(grants_received)}</span>
-                    <span style='color: #64748b; font-size: 0.85rem;'> of {format_currency(grants_goal)}</span>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 1rem; margin-bottom: -10px;'>Grants</p>", unsafe_allow_html=True)
+            fig, goal_str = create_progress_ring(
+                grants_received, grants_goal, grants_pct,
+                "Grants", "#38a169", "#e2e8f0"
+            )
+            st.plotly_chart(fig, use_container_width=True, key="grants_ring")
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
 
         with col2:
-            st.markdown("<p style='text-align: center; font-weight: 700; color: #1a365d; font-size: 1.1rem; margin-bottom: 0;'>Gifts</p>", unsafe_allow_html=True)
-            fig = create_gauge(gifts_received, gifts_goal, gifts_pct, "Gifts", "#805ad5")
-            st.plotly_chart(fig, use_container_width=True, key="gifts_gauge")
-            st.markdown(f"""
-                <div style='text-align: center; margin-top: -15px;'>
-                    <span style='font-size: 1.4rem; font-weight: 700; color: #1a365d;'>{format_currency(gifts_received)}</span>
-                    <span style='color: #64748b; font-size: 0.85rem;'> of {format_currency(gifts_goal)}</span>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 1rem; margin-bottom: -10px;'>Gifts</p>", unsafe_allow_html=True)
+            fig, goal_str = create_progress_ring(
+                gifts_received, gifts_goal, gifts_pct,
+                "Gifts", "#805ad5", "#e2e8f0"
+            )
+            st.plotly_chart(fig, use_container_width=True, key="gifts_ring")
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
     else:
         st.info("Financial data not available")
 
