@@ -3195,20 +3195,22 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         col1, col2 = st.columns(2)
 
         with col1:
+            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 1rem; margin-bottom: -10px;'>Grants</p>", unsafe_allow_html=True)
             fig, goal_str = create_progress_ring(
                 grants_received, grants_goal, grants_pct,
                 "Grants", "#38a169", "#e2e8f0"
             )
             st.plotly_chart(fig, use_container_width=True, key="grants_ring")
-            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.9rem;'><strong>Grants</strong> · Goal: {goal_str}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
 
         with col2:
+            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 1rem; margin-bottom: -10px;'>Gifts</p>", unsafe_allow_html=True)
             fig, goal_str = create_progress_ring(
                 gifts_received, gifts_goal, gifts_pct,
                 "Gifts", "#805ad5", "#e2e8f0"
             )
             st.plotly_chart(fig, use_container_width=True, key="gifts_ring")
-            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.9rem;'><strong>Gifts</strong> · Goal: {goal_str}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
     else:
         st.info("Financial data not available")
 
