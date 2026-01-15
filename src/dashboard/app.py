@@ -3257,28 +3257,28 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">🎁 Gifts</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{gift_count:,}</div>
                             <div style="font-size: 0.7rem; color: {'#38a169' if gift_chg >= 0 else '#e53e3e'};">
-                                {'+' if gift_chg >= 0 else ''}{gift_chg:.0f}%
+                                {'+' if gift_chg >= 0 else ''}{gift_chg:.0f}% vs {prior_fy_label}
                             </div>
                         </div>
                         <div class="metric-card" style="text-align: center; padding: 0.75rem;">
                             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">🆕 New</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{new_donors:,}</div>
                             <div style="font-size: 0.7rem; color: {'#38a169' if new_chg >= 0 else '#e53e3e'};">
-                                {'+' if new_chg >= 0 else ''}{new_chg:.0f}%
+                                {'+' if new_chg >= 0 else ''}{new_chg:.0f}% vs {prior_fy_label}
                             </div>
                         </div>
                         <div class="metric-card" style="text-align: center; padding: 0.75rem;">
                             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">🔄 Returning</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{reactivated:,}</div>
                             <div style="font-size: 0.7rem; color: {'#38a169' if ret_chg >= 0 else '#e53e3e'};">
-                                {'+' if ret_chg >= 0 else ''}{ret_chg:.0f}%
+                                {'+' if ret_chg >= 0 else ''}{ret_chg:.0f}% vs {prior_fy_label}
                             </div>
                         </div>
                         <div class="metric-card" style="text-align: center; padding: 0.75rem;">
                             <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">📊 Avg Gift</div>
                             <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{avg_gift_str}</div>
                             <div style="font-size: 0.7rem; color: {'#38a169' if avg_chg >= 0 else '#e53e3e'};">
-                                {'+' if avg_chg >= 0 else ''}{avg_chg:.0f}%
+                                {'+' if avg_chg >= 0 else ''}{avg_chg:.0f}% vs {prior_fy_label}
                             </div>
                         </div>
                     </div>
