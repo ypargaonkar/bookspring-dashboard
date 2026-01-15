@@ -3125,6 +3125,44 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
 
         st.markdown("<br><br>", unsafe_allow_html=True)
 
+    # === Grants & Gifts Received ===
+    st.markdown("##### 💰 Grants & Gifts Received")
+    st.caption(f"{current_fy_label} YTD · Data from Google Sheets (updated daily at noon)")
+
+    if financial_df is not None and not financial_df.empty:
+        latest = financial_df.iloc[-1]
+        grants_received = float(latest.get('grants_received', 0) or 0)
+        grants_goal = float(latest.get('grants_goal', 0) or 0)
+        gifts_received = float(latest.get('gifts_received', 0) or 0)
+        gifts_goal = float(latest.get('gifts_goal', 0) or 0)
+
+        grants_pct = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
+        gifts_pct = (gifts_received / gifts_goal * 100) if gifts_goal > 0 else 0
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            grants_status = "🟢" if grants_pct >= 100 else "🟡" if grants_pct >= 75 else "🔴" if grants_pct >= 50 else "⚪"
+            st.metric(
+                f"Grants Received {grants_status}",
+                f"${grants_received:,.0f}",
+                delta=f"{grants_pct:.0f}% of ${grants_goal:,.0f} goal",
+                delta_color="off"
+            )
+
+        with col2:
+            gifts_status = "🟢" if gifts_pct >= 100 else "🟡" if gifts_pct >= 75 else "🔴" if gifts_pct >= 50 else "⚪"
+            st.metric(
+                f"Gifts Received {gifts_status}",
+                f"${gifts_received:,.0f}",
+                delta=f"{gifts_pct:.0f}% of ${gifts_goal:,.0f} goal",
+                delta_color="off"
+            )
+    else:
+        st.info("Financial data not available")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # === Donor Contacts Year-over-Year Comparison ===
     st.markdown("##### 📧 Donor Contacts")
     st.caption(f"{current_fy_label} YTD vs {prior_fy_label} YTD (same date last year) · Outreach activities from DonorPerfect")
