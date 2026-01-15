@@ -3192,19 +3192,39 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             )
             return fig, goal_str
 
-        # Get donor metrics for gifts stats
+        # Get donor metrics for gifts stats (current and prior for % change)
         try:
             donor_metrics = get_donor_comparison_metrics()
-            total = donor_metrics['total']['current']
-            gift_count = total.get('gift_count', 0)
-            new_donors = total.get('new_donors', 0)
-            reactivated = total.get('reactivated_donors', 0)
-            total_revenue = total.get('total_revenue', 0)
+            curr = donor_metrics['total']['current']
+            prior = donor_metrics['total']['prior']
+            gift_count = curr.get('gift_count', 0)
+            gift_count_prior = prior.get('gift_count', 0)
+            new_donors = curr.get('new_donors', 0)
+            new_donors_prior = prior.get('new_donors', 0)
+            reactivated = curr.get('reactivated_donors', 0)
+            reactivated_prior = prior.get('reactivated_donors', 0)
+            total_revenue = curr.get('total_revenue', 0)
+            total_revenue_prior = prior.get('total_revenue', 0)
             avg_gift = total_revenue / gift_count if gift_count > 0 else 0
+            avg_gift_prior = total_revenue_prior / gift_count_prior if gift_count_prior > 0 else 0
+            has_donor_data = True
         except Exception:
             gift_count = new_donors = reactivated = avg_gift = 0
+            gift_count_prior = new_donors_prior = reactivated_prior = avg_gift_prior = 0
+            has_donor_data = False
 
-        col1, col2 = st.columns(2)
+        def pct_change(curr_val, prior_val):
+            if prior_val == 0:
+                return 100.0 if curr_val > 0 else 0.0
+            return ((curr_val - prior_val) / prior_val) * 100
+
+        def change_badge(curr_val, prior_val, fmt_val):
+            chg = pct_change(curr_val, prior_val)
+            color = '#38a169' if chg >= 0 else '#e53e3e'
+            sign = '+' if chg >= 0 else ''
+            return f"<span style='color: {color}; font-size: 0.7rem;'>{sign}{chg:.0f}%</span>"
+
+        col1, col2, col3 = st.columns([1, 1, 1])
 
         with col1:
             st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 1rem; margin-bottom: -10px;'>Grants</p>", unsafe_allow_html=True)
@@ -3223,16 +3243,34 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             )
             st.plotly_chart(fig, use_container_width=True, key="gifts_ring")
             st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
-            # Compact donor stats below gifts ring
-            avg_gift_str = f"${avg_gift/1000:.1f}K" if avg_gift >= 1000 else f"${avg_gift:,.0f}"
-            st.markdown(f"""
-                <div style='display: flex; justify-content: center; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap;'>
-                    <span style='font-size: 0.75rem; color: #64748b;'><strong style='color: #1a365d;'>{gift_count:,}</strong> gifts</span>
-                    <span style='font-size: 0.75rem; color: #64748b;'><strong style='color: #1a365d;'>{new_donors:,}</strong> new</span>
-                    <span style='font-size: 0.75rem; color: #64748b;'><strong style='color: #1a365d;'>{reactivated:,}</strong> returning</span>
-                    <span style='font-size: 0.75rem; color: #64748b;'><strong style='color: #1a365d;'>{avg_gift_str}</strong> avg</span>
-                </div>
-            """, unsafe_allow_html=True)
+
+        with col3:
+            if has_donor_data:
+                avg_gift_str = f"${avg_gift/1000:.1f}K" if avg_gift >= 1000 else f"${avg_gift:,.0f}"
+                st.markdown(f"""
+                    <div style='padding-top: 2rem;'>
+                        <div style='margin-bottom: 0.6rem;'>
+                            <span style='font-size: 0.8rem; color: #64748b;'># Gifts</span><br>
+                            <span style='font-size: 1.1rem; font-weight: 700; color: #1a365d;'>{gift_count:,}</span>
+                            {change_badge(gift_count, gift_count_prior, gift_count)}
+                        </div>
+                        <div style='margin-bottom: 0.6rem;'>
+                            <span style='font-size: 0.8rem; color: #64748b;'>New Donors</span><br>
+                            <span style='font-size: 1.1rem; font-weight: 700; color: #1a365d;'>{new_donors:,}</span>
+                            {change_badge(new_donors, new_donors_prior, new_donors)}
+                        </div>
+                        <div style='margin-bottom: 0.6rem;'>
+                            <span style='font-size: 0.8rem; color: #64748b;'>Returning</span><br>
+                            <span style='font-size: 1.1rem; font-weight: 700; color: #1a365d;'>{reactivated:,}</span>
+                            {change_badge(reactivated, reactivated_prior, reactivated)}
+                        </div>
+                        <div>
+                            <span style='font-size: 0.8rem; color: #64748b;'>Avg Gift</span><br>
+                            <span style='font-size: 1.1rem; font-weight: 700; color: #1a365d;'>{avg_gift_str}</span>
+                            {change_badge(avg_gift, avg_gift_prior, avg_gift)}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
     else:
         st.info("Financial data not available")
 
