@@ -3192,6 +3192,18 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             )
             return fig, goal_str
 
+        # Get donor metrics for gifts stats
+        try:
+            donor_metrics = get_donor_comparison_metrics()
+            total = donor_metrics['total']['current']
+            gift_count = total.get('gift_count', 0)
+            new_donors = total.get('new_donors', 0)
+            reactivated = total.get('reactivated_donors', 0)
+            total_revenue = total.get('total_revenue', 0)
+            avg_gift = total_revenue / gift_count if gift_count > 0 else 0
+        except Exception:
+            gift_count = new_donors = reactivated = avg_gift = 0
+
         col1, col2 = st.columns(2)
 
         with col1:
@@ -3211,6 +3223,16 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             )
             st.plotly_chart(fig, use_container_width=True, key="gifts_ring")
             st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
+            # Compact donor stats below gifts ring
+            avg_gift_str = f"${avg_gift/1000:.1f}K" if avg_gift >= 1000 else f"${avg_gift:,.0f}"
+            st.markdown(f"""
+                <div style='display: flex; justify-content: center; gap: 1rem; margin-top: 0.5rem; flex-wrap: wrap;'>
+                    <span style='font-size: 0.75rem; color: #64748b;'><strong style='color: #1a365d;'>{gift_count:,}</strong> gifts</span>
+                    <span style='font-size: 0.75rem; color: #64748b;'><strong style='color: #1a365d;'>{new_donors:,}</strong> new</span>
+                    <span style='font-size: 0.75rem; color: #64748b;'><strong style='color: #1a365d;'>{reactivated:,}</strong> returning</span>
+                    <span style='font-size: 0.75rem; color: #64748b;'><strong style='color: #1a365d;'>{avg_gift_str}</strong> avg</span>
+                </div>
+            """, unsafe_allow_html=True)
     else:
         st.info("Financial data not available")
 
