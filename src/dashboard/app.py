@@ -3152,7 +3152,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             fig = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=min(pct, 100),
-                number={'suffix': '%', 'font': {'size': 36, 'color': '#1a365d'}},
+                number={'suffix': '%', 'font': {'size': 24, 'color': '#64748b'}},
                 gauge={
                     'axis': {'range': [0, 100], 'tickwidth': 0, 'tickcolor': "white", 'visible': False},
                     'bar': {'color': color, 'thickness': 0.85},
@@ -3183,9 +3183,9 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             fig = create_gauge(grants_received, grants_goal, grants_pct, "Grants", "#38a169")
             st.plotly_chart(fig, use_container_width=True, key="grants_gauge")
             st.markdown(f"""
-                <div style='text-align: center; margin-top: -15px;'>
-                    <span style='font-size: 1.4rem; font-weight: 700; color: #1a365d;'>{format_currency(grants_received)}</span>
-                    <span style='color: #64748b; font-size: 0.85rem;'> of {format_currency(grants_goal)}</span>
+                <div style='text-align: center; margin-top: -10px;'>
+                    <span style='font-size: 1.75rem; font-weight: 700; color: #1a365d;'>{format_currency(grants_received)}</span>
+                    <span style='color: #64748b; font-size: 0.9rem;'> of {format_currency(grants_goal)}</span>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -3194,9 +3194,9 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             fig = create_gauge(gifts_received, gifts_goal, gifts_pct, "Gifts", "#805ad5")
             st.plotly_chart(fig, use_container_width=True, key="gifts_gauge")
             st.markdown(f"""
-                <div style='text-align: center; margin-top: -15px;'>
-                    <span style='font-size: 1.4rem; font-weight: 700; color: #1a365d;'>{format_currency(gifts_received)}</span>
-                    <span style='color: #64748b; font-size: 0.85rem;'> of {format_currency(gifts_goal)}</span>
+                <div style='text-align: center; margin-top: -10px;'>
+                    <span style='font-size: 1.75rem; font-weight: 700; color: #1a365d;'>{format_currency(gifts_received)}</span>
+                    <span style='color: #64748b; font-size: 0.9rem;'> of {format_currency(gifts_goal)}</span>
                 </div>
             """, unsafe_allow_html=True)
     else:
