@@ -3247,27 +3247,39 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         with col3:
             if has_donor_data:
                 avg_gift_str = f"${avg_gift/1000:.1f}K" if avg_gift >= 1000 else f"${avg_gift:,.0f}"
+                gift_chg = pct_change(gift_count, gift_count_prior)
+                new_chg = pct_change(new_donors, new_donors_prior)
+                ret_chg = pct_change(reactivated, reactivated_prior)
+                avg_chg = pct_change(avg_gift, avg_gift_prior)
                 st.markdown(f"""
-                    <div style='padding-top: 2rem;'>
-                        <div style='margin-bottom: 0.6rem;'>
-                            <span style='font-size: 0.8rem; color: #64748b;'># Gifts</span><br>
-                            <span style='font-size: 1.1rem; font-weight: 700; color: #1a365d;'>{gift_count:,}</span>
-                            {change_badge(gift_count, gift_count_prior, gift_count)}
+                    <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding-top: 0.5rem;'>
+                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
+                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">🎁 Gifts</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{gift_count:,}</div>
+                            <div style="font-size: 0.7rem; color: {'#38a169' if gift_chg >= 0 else '#e53e3e'};">
+                                {'+' if gift_chg >= 0 else ''}{gift_chg:.0f}%
+                            </div>
                         </div>
-                        <div style='margin-bottom: 0.6rem;'>
-                            <span style='font-size: 0.8rem; color: #64748b;'>New Donors</span><br>
-                            <span style='font-size: 1.1rem; font-weight: 700; color: #1a365d;'>{new_donors:,}</span>
-                            {change_badge(new_donors, new_donors_prior, new_donors)}
+                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
+                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">🆕 New</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{new_donors:,}</div>
+                            <div style="font-size: 0.7rem; color: {'#38a169' if new_chg >= 0 else '#e53e3e'};">
+                                {'+' if new_chg >= 0 else ''}{new_chg:.0f}%
+                            </div>
                         </div>
-                        <div style='margin-bottom: 0.6rem;'>
-                            <span style='font-size: 0.8rem; color: #64748b;'>Returning</span><br>
-                            <span style='font-size: 1.1rem; font-weight: 700; color: #1a365d;'>{reactivated:,}</span>
-                            {change_badge(reactivated, reactivated_prior, reactivated)}
+                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
+                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">🔄 Returning</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{reactivated:,}</div>
+                            <div style="font-size: 0.7rem; color: {'#38a169' if ret_chg >= 0 else '#e53e3e'};">
+                                {'+' if ret_chg >= 0 else ''}{ret_chg:.0f}%
+                            </div>
                         </div>
-                        <div>
-                            <span style='font-size: 0.8rem; color: #64748b;'>Avg Gift</span><br>
-                            <span style='font-size: 1.1rem; font-weight: 700; color: #1a365d;'>{avg_gift_str}</span>
-                            {change_badge(avg_gift, avg_gift_prior, avg_gift)}
+                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
+                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">📊 Avg Gift</div>
+                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{avg_gift_str}</div>
+                            <div style="font-size: 0.7rem; color: {'#38a169' if avg_chg >= 0 else '#e53e3e'};">
+                                {'+' if avg_chg >= 0 else ''}{avg_chg:.0f}%
+                            </div>
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
