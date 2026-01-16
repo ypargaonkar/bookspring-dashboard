@@ -4497,13 +4497,13 @@ def main():
         inperson_events = int(event_mask.sum())
 
     # Hero header
-    render_hero_header(processor, activity_records, partners_data, start_date, end_date)
+    render_hero_header(processor, combined_records, partners_data, start_date, end_date)
 
     # Dashboard sections
     render_goal1_strengthen_impact(processor, time_unit)
     st.markdown("---")
 
-    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count, book_bank_children, inperson_events, activity_records, partners_data, b3_low_income_pct)
+    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count, book_bank_children, inperson_events, combined_records, partners_data, b3_low_income_pct)
     st.markdown("---")
 
     render_goal3_advance_innovation(original_books)
