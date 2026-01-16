@@ -1215,28 +1215,24 @@ def load_active_enrollment_count():
 def load_b3_low_income_stats():
     """Load B3 enrollment stats including % low income eligible.
 
+    Uses server-side count/filter API for efficiency.
     Returns tuple of (active_count, low_income_pct).
     """
     try:
         client = FusiooClient()
-        # Fetch active_enrollment and low_income_eligible fields
-        records = client.get_all_records(B3_CHILD_FAMILY_APP_ID, fields=["active_enrollment", "low_income_eligible"])
 
-        active_count = 0
-        low_income_count = 0
+        # Count all active enrollments
+        active_filters = {"active_enrollment": {"equal": True}}
+        result = client._request("POST", f"records/apps/{B3_CHILD_FAMILY_APP_ID}/count/filter", json=active_filters)
+        active_count = result.get("data", {}).get("count", 0)
 
-        for record in records:
-            active = record.get('active_enrollment', False)
-            # Handle various formats for boolean
-            if isinstance(active, str):
-                active = active.lower() in ('true', 'yes', '1')
-            if active:
-                active_count += 1
-                low_income = record.get('low_income_eligible', '')
-                if isinstance(low_income, list):
-                    low_income = low_income[0] if low_income else ''
-                if str(low_income).lower() in ('yes', 'true', '1'):
-                    low_income_count += 1
+        # Count active enrollments that are also low income eligible
+        low_income_filters = {
+            "active_enrollment": {"equal": True},
+            "low_income_eligible": {"equal": "Yes"}
+        }
+        result = client._request("POST", f"records/apps/{B3_CHILD_FAMILY_APP_ID}/count/filter", json=low_income_filters)
+        low_income_count = result.get("data", {}).get("count", 0)
 
         low_income_pct = (low_income_count / active_count * 100) if active_count > 0 else 0.0
         return active_count, low_income_pct
