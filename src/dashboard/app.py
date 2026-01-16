@@ -2831,7 +2831,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>2030 Target: {target_str} families</p>", unsafe_allow_html=True)
 
     with col2:
-        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>Book Bank Model</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.85rem; margin-bottom: -10px;'>Book Bank Model (Open Book Distribution)</p>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.75rem; margin-bottom: -10px;'>Children Served (in date range)</p>", unsafe_allow_html=True)
         fig, target_str = create_count_ring(book_bank_children, book_bank_target, book_bank_pct, '#805ad5')
         st.plotly_chart(fig, use_container_width=True, key="book_bank_ring")
