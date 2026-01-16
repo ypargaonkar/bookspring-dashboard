@@ -2552,7 +2552,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
             ]
         )
         st.plotly_chart(fig, use_container_width=True, key="goal1_ring")
-        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>2030 Target: 4.0 books/child</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.9rem; font-weight: 700;'>2030 Target: 4.0 books/child</p>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #718096; font-size: 0.7rem; margin-top: 0.25rem;'>Includes all books given to each unique child this year</p>", unsafe_allow_html=True)
 
     with col2:
@@ -2880,21 +2880,21 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.7rem; margin-bottom: -10px;'>Active Enrollments</p>", unsafe_allow_html=True)
         fig, target_str = create_count_ring(enrollment_count, home_target, home_pct, '#3182ce')
         st.plotly_chart(fig, use_container_width=True, key="home_delivery_ring")
-        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.75rem;'>2030 Target: {target_str} families</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>2030 Target: {target_str} families</p>", unsafe_allow_html=True)
 
     with col2:
         st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.85rem; margin-bottom: -10px;'>Book Bank Model</p>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.7rem; margin-bottom: -10px;'>Open Book Distribution</p>", unsafe_allow_html=True)
         fig, target_str = create_count_ring(book_bank_children, book_bank_target, book_bank_pct, '#805ad5')
         st.plotly_chart(fig, use_container_width=True, key="book_bank_ring")
-        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.75rem;'>2030 Target: {target_str} children</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>2030 Target: {target_str} children</p>", unsafe_allow_html=True)
 
     with col3:
         st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.85rem; margin-bottom: -10px;'>Digital Engagement</p>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.7rem; margin-bottom: -10px;'>Total Views</p>", unsafe_allow_html=True)
         fig, target_str = create_count_ring(int(total_views), target_views, digital_pct, '#ed8936', is_large_number=True)
         st.plotly_chart(fig, use_container_width=True, key="digital_engagement_ring")
-        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.75rem;'>2030 Target: {target_str} views/year</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>2030 Target: {target_str} views/year</p>", unsafe_allow_html=True)
 
     with col4:
         # Format view counts
@@ -3330,7 +3330,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 "Grants", "#38a169", "#e2e8f0"
             )
             st.plotly_chart(fig, use_container_width=True, key="grants_ring")
-            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
 
         with col2:
             if has_grant_data:
@@ -3355,7 +3355,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 "Gifts", "#805ad5", "#e2e8f0"
             )
             st.plotly_chart(fig, use_container_width=True, key="gifts_ring")
-            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
 
         with col4:
             if has_donor_data:
@@ -3433,7 +3433,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             )
             st.plotly_chart(fig, use_container_width=True, key="donated_books_ring")
             goal_str = f"{donated_books_goal:,.0f}" if donated_books_goal < 1000 else f"{donated_books_goal/1000:.0f}K"
-            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>Goal: {goal_str} books</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>Goal: {goal_str} books</p>", unsafe_allow_html=True)
 
     else:
         st.info("Financial data not available")
