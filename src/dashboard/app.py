@@ -1229,7 +1229,7 @@ def load_b3_low_income_stats():
         # Count active enrollments that are also low income eligible
         low_income_filters = {
             "active_enrollment": {"equal": True},
-            "low_income_eligible": {"equal": "Yes"}
+            "low_income_eligible": {"equal": True}
         }
         result = client._request("POST", f"records/apps/{B3_CHILD_FAMILY_APP_ID}/count/filter", json=low_income_filters)
         low_income_count = result.get("data", {}).get("count", 0)
