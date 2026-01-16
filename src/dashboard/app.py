@@ -2190,13 +2190,59 @@ def combine_activity_data(current_records: list, legacy_records: list, cutoff_da
     return combined
 
 
-def render_hero_header(processor: DataProcessor, low_income_pct: float = 0.0):
+def render_hero_header(processor: DataProcessor, activity_records: list = None, partners_data: list = None, start_date: date = None, end_date: date = None):
     """Render the hero header with key stats."""
     stats = processor.get_summary_stats()
     # Use _books_distributed_all for total (includes books to previously served children)
     books = int(stats.get("totals", {}).get("_books_distributed_all", 0) or stats.get("totals", {}).get("_of_books_distributed", 0))
     children = int(stats.get("totals", {}).get("total_children", 0))
     parents = int(stats.get("totals", {}).get("parents_or_caregivers", 0))
+
+    # Calculate average % low income children served from partners in date range
+    low_income_pct = 0.0
+    if activity_records and partners_data and start_date and end_date:
+        # Build partner ID to percentage_lowincome mapping
+        partner_low_income = {}
+        for partner in partners_data:
+            pid = partner.get('id', '')
+            pct = partner.get('percentage_lowincome', None)
+            if pid and pct is not None:
+                try:
+                    if isinstance(pct, list):
+                        pct = pct[0] if pct else None
+                    if pct is not None:
+                        partner_low_income[pid] = float(pct)
+                except (ValueError, TypeError):
+                    pass
+
+        # Filter activity records by date range and collect low income percentages
+        low_income_values = []
+        for record in activity_records:
+            # Check date range
+            record_date = record.get('date_of_activity') or record.get('date')
+            if record_date:
+                if isinstance(record_date, str):
+                    try:
+                        record_dt = pd.to_datetime(record_date)
+                        if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
+                            continue
+                    except:
+                        continue
+                else:
+                    continue
+            else:
+                continue
+
+            # Get partner ID and look up low income percentage
+            partner_id = record.get('partners_testing', '')
+            if isinstance(partner_id, list):
+                partner_id = partner_id[0] if partner_id else ''
+            if partner_id and partner_id in partner_low_income:
+                low_income_values.append(partner_low_income[partner_id])
+
+        # Calculate average
+        if low_income_values:
+            low_income_pct = sum(low_income_values) / len(low_income_values)
 
     # Get current fiscal year for display
     fy_info = get_fiscal_year_info(date.today())
@@ -4445,7 +4491,7 @@ def main():
         inperson_events = int(event_mask.sum())
 
     # Hero header
-    render_hero_header(processor, b3_low_income_pct)
+    render_hero_header(processor, activity_records, partners_data, start_date, end_date)
 
     # Dashboard sections
     render_goal1_strengthen_impact(processor, time_unit)
