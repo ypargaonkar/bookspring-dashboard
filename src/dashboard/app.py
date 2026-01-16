@@ -2731,7 +2731,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     # Build in-person event partners HTML
     inperson_partners_html = ""
     if inperson_event_partners:
-        partner_items = [f"<span style='background: #fce7f3; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; color: #9d174d; white-space: nowrap;'>{name}</span>" for name in sorted(inperson_event_partners)]
+        partner_items = [f"<span style='background: #fce7f3; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.65rem; color: #9d174d; white-space: nowrap;'>{name}</span>" for name in sorted(inperson_event_partners)]
         inperson_partners_html = " ".join(partner_items)
 
     # In-Person Events box
@@ -2744,7 +2744,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
             <p style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin: 0;">BookSpring In-Person Events</p>
             <p style="font-size: 0.85rem; color: #6b7280; margin: 0.25rem 0 0 0;">(in date range)</p>
             <p style="font-size: 0.75rem; color: #9ca3af; margin: 0.5rem 0 0 0; font-style: italic;">Includes: Literacy Materials Distribution, Family Literacy Activity</p>
-            <div style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.4rem;">{inperson_partners_html if inperson_partners_html else ''}</div>
+            <div style="margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem;">{inperson_partners_html if inperson_partners_html else ''}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -2755,7 +2755,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         partner_items = []
         for pid, count in recurring_partners:
             name = partner_names.get(pid, pid[:12] + '...')
-            partner_items.append(f"<span style='background: #d1fae5; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.85rem; color: #065f46; white-space: nowrap;'>{name} <strong>({count})</strong></span>")
+            partner_items.append(f"<span style='background: #d1fae5; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.7rem; color: #065f46; white-space: nowrap;'>{name} <strong>({count})</strong></span>")
         all_partners_html = " ".join(partner_items)
 
     st.markdown(f"""
@@ -2766,7 +2766,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         <div style="flex: 1; min-width: 0;">
             <p style="font-size: 1.15rem; font-weight: 700; color: #1a202c; margin: 0;">Recurring Partners</p>
             <p style="font-size: 0.85rem; color: #6b7280; margin: 0.25rem 0 0 0;">(2+ activities in date range)</p>
-            <div style="margin-top: 0.85rem; display: flex; flex-wrap: wrap; gap: 0.5rem; line-height: 1.8;">{all_partners_html if all_partners_html else '<span style="font-size: 0.85rem; color: #9ca3af;">No recurring partners in date range</span>'}</div>
+            <div style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.35rem; line-height: 1.6;">{all_partners_html if all_partners_html else '<span style="font-size: 0.75rem; color: #9ca3af;">No recurring partners in date range</span>'}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
