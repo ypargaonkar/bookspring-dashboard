@@ -2763,8 +2763,45 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     </div>
     """, unsafe_allow_html=True)
 
-    # Home Delivery & Book Bank Section - Side by side rings
-    st.markdown("##### 🏠 Program Reach")
+    # Process digital views data first
+    digital_views = 0
+    newsletter_views = 0
+    total_views = 0
+    target_views = 1_500_000
+
+    if views_data:
+        df = pd.DataFrame(views_data)
+
+        # Convert list columns
+        for col in df.columns:
+            if df[col].apply(lambda x: isinstance(x, list)).any():
+                df[col] = df[col].apply(
+                    lambda x: x[0] if isinstance(x, list) and len(x) == 1
+                    else ", ".join(str(i) for i in x) if isinstance(x, list)
+                    else x
+                )
+
+        # Parse and filter by date
+        if "date" in df.columns:
+            df["_parsed_date"] = df["date"].apply(
+                lambda x: x.split("|")[0] if isinstance(x, str) and "|" in x else x
+            )
+            df["_parsed_date"] = pd.to_datetime(df["_parsed_date"], errors='coerce')
+            mask = (df["_parsed_date"] >= pd.Timestamp(start_date)) & (df["_parsed_date"] <= pd.Timestamp(end_date))
+            df = df[mask].copy()
+
+        # Calculate views
+        if "total_digital_views" in df.columns:
+            df["total_digital_views"] = pd.to_numeric(df["total_digital_views"], errors='coerce').fillna(0)
+            digital_views = df["total_digital_views"].sum()
+        if "total_newsletter_views" in df.columns:
+            df["total_newsletter_views"] = pd.to_numeric(df["total_newsletter_views"], errors='coerce').fillna(0)
+            newsletter_views = df["total_newsletter_views"].sum()
+
+        total_views = digital_views + newsletter_views
+
+    # Program Reach Section - All three rings in one row
+    st.markdown("##### 🏠 Program Reach & Digital Engagement")
 
     home_target = 25_000
     home_pct = (enrollment_count / home_target * 100) if home_target > 0 else 0
@@ -2772,7 +2809,9 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     book_bank_target = 55_000
     book_bank_pct = (book_bank_children / book_bank_target * 100) if book_bank_target > 0 else 0
 
-    def create_count_ring(count, target, pct, color_fill):
+    digital_pct = (total_views / target_views * 100) if target_views > 0 else 0
+
+    def create_count_ring(count, target, pct, color_fill, is_large_number=False):
         """Create a donut chart showing progress toward target."""
         display_pct = min(pct, 100)
         remaining_pct = max(100 - display_pct, 0)
@@ -2787,13 +2826,17 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         )])
 
         # Format count
-        if count >= 1000:
+        if is_large_number and count >= 1000000:
+            count_str = f"{count/1000000:.1f}M"
+        elif count >= 1000:
             count_str = f"{count/1000:.1f}K"
         else:
             count_str = f"{count:,}"
 
         # Format target
-        if target >= 1000:
+        if target >= 1000000:
+            target_str = f"{target/1000000:.1f}M"
+        elif target >= 1000:
             target_str = f"{target/1000:.0f}K"
         else:
             target_str = f"{target:,}"
@@ -2821,96 +2864,52 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         )
         return fig, target_str
 
-    col1, col2 = st.columns(2)
+    # All three rings with stats: Home Delivery | Book Bank | Digital Engagement | Digital Stats
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 0.8])
 
     with col1:
-        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>B3 In-Home Delivery</p>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.75rem; margin-bottom: -10px;'>Active Enrollments</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.85rem; margin-bottom: -10px;'>B3 In-Home Delivery</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.7rem; margin-bottom: -10px;'>Active Enrollments</p>", unsafe_allow_html=True)
         fig, target_str = create_count_ring(enrollment_count, home_target, home_pct, '#3182ce')
         st.plotly_chart(fig, use_container_width=True, key="home_delivery_ring")
-        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>2030 Target: {target_str} families</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.75rem;'>2030 Target: {target_str} families</p>", unsafe_allow_html=True)
 
     with col2:
-        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.85rem; margin-bottom: -10px;'>Book Bank Model (Open Book Distribution)</p>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.75rem; margin-bottom: -10px;'>Children Served (in date range)</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.85rem; margin-bottom: -10px;'>Book Bank Model</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.7rem; margin-bottom: -10px;'>Open Book Distribution</p>", unsafe_allow_html=True)
         fig, target_str = create_count_ring(book_bank_children, book_bank_target, book_bank_pct, '#805ad5')
         st.plotly_chart(fig, use_container_width=True, key="book_bank_ring")
-        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>2030 Target: {target_str} children</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.75rem;'>2030 Target: {target_str} children</p>", unsafe_allow_html=True)
+
+    with col3:
+        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.85rem; margin-bottom: -10px;'>Digital Engagement</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.7rem; margin-bottom: -10px;'>Total Views</p>", unsafe_allow_html=True)
+        fig, target_str = create_count_ring(int(total_views), target_views, digital_pct, '#ed8936', is_large_number=True)
+        st.plotly_chart(fig, use_container_width=True, key="digital_engagement_ring")
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.75rem;'>2030 Target: {target_str} views/year</p>", unsafe_allow_html=True)
+
+    with col4:
+        # Format view counts
+        digital_str = f"{digital_views/1000000:.2f}M" if digital_views >= 1000000 else f"{digital_views/1000:.0f}K" if digital_views >= 1000 else f"{int(digital_views):,}"
+        newsletter_str = f"{newsletter_views/1000000:.2f}M" if newsletter_views >= 1000000 else f"{newsletter_views/1000:.0f}K" if newsletter_views >= 1000 else f"{int(newsletter_views):,}"
+        st.markdown(f"""
+            <div style='display: grid; grid-template-columns: 1fr; gap: 0.4rem; padding-top: 1.5rem;'>
+                <div class="metric-card" style="text-align: center; padding: 0.5rem;">
+                    <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.2rem;">📱 Digital Views</div>
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #1a365d;">{digital_str}</div>
+                </div>
+                <div class="metric-card" style="text-align: center; padding: 0.5rem;">
+                    <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.2rem;">📧 Newsletter Views</div>
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #1a365d;">{newsletter_str}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("##### 📱 Digital Engagement")
 
     if not views_data:
         st.warning("No Content Views data available")
         return
-
-    df = pd.DataFrame(views_data)
-
-    # Convert list columns
-    for col in df.columns:
-        if df[col].apply(lambda x: isinstance(x, list)).any():
-            df[col] = df[col].apply(
-                lambda x: x[0] if isinstance(x, list) and len(x) == 1
-                else ", ".join(str(i) for i in x) if isinstance(x, list)
-                else x
-            )
-
-    # Parse and filter by date
-    if "date" in df.columns:
-        df["_parsed_date"] = df["date"].apply(
-            lambda x: x.split("|")[0] if isinstance(x, str) and "|" in x else x
-        )
-        df["_parsed_date"] = pd.to_datetime(df["_parsed_date"], errors='coerce')
-        mask = (df["_parsed_date"] >= pd.Timestamp(start_date)) & (df["_parsed_date"] <= pd.Timestamp(end_date))
-        df = df[mask].copy()
-
-    # Calculate views
-    digital_views = 0
-    newsletter_views = 0
-    if "total_digital_views" in df.columns:
-        df["total_digital_views"] = pd.to_numeric(df["total_digital_views"], errors='coerce').fillna(0)
-        digital_views = df["total_digital_views"].sum()
-    if "total_newsletter_views" in df.columns:
-        df["total_newsletter_views"] = pd.to_numeric(df["total_newsletter_views"], errors='coerce').fillna(0)
-        newsletter_views = df["total_newsletter_views"].sum()
-
-    total_views = digital_views + newsletter_views
-    target_views = 1_500_000
-    progress = min(total_views / target_views * 100, 100) if target_views > 0 else 0
-
-    # Metrics - show red when below target
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        views_delta = total_views - target_views
-        if views_delta >= 0:
-            st.metric("Total Views", f"{int(total_views):,}", delta=f"+{int(views_delta):,} vs target")
-        else:
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
-                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Total Views</p>
-                <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{int(total_views):,}</p>
-                <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(int(views_delta)):,} below target</p>
-            </div>
-            """, unsafe_allow_html=True)
-    with col2:
-        st.metric("Digital Views", f"{int(digital_views):,}")
-    with col3:
-        st.metric("Newsletter Views", f"{int(newsletter_views):,}")
-    with col4:
-        st.metric("Annual Target (by 2030)", "1.5M views/year")
-
-    # Progress bar
-    st.markdown(f"""
-    <div class="progress-container">
-        <div class="progress-bar goal2" style="width: {progress}%"></div>
-    </div>
-    <div class="progress-label">
-        <span>Progress toward 1.5M views/year</span>
-        <span><strong>{progress:.1f}%</strong></span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
 
     # Charts row
     col1, col2 = st.columns(2)
