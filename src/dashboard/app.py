@@ -1211,6 +1211,40 @@ def load_active_enrollment_count():
         return 0
 
 
+@st.cache_data(ttl=86400)  # Cache for 24 hours
+def load_b3_low_income_stats():
+    """Load B3 enrollment stats including % low income eligible.
+
+    Returns tuple of (active_count, low_income_pct).
+    """
+    try:
+        client = FusiooClient()
+        # Fetch active_enrollment and low_income_eligible fields
+        records = client.get_all_records(B3_CHILD_FAMILY_APP_ID, fields=["active_enrollment", "low_income_eligible"])
+
+        active_count = 0
+        low_income_count = 0
+
+        for record in records:
+            active = record.get('active_enrollment', False)
+            # Handle various formats for boolean
+            if isinstance(active, str):
+                active = active.lower() in ('true', 'yes', '1')
+            if active:
+                active_count += 1
+                low_income = record.get('low_income_eligible', '')
+                if isinstance(low_income, list):
+                    low_income = low_income[0] if low_income else ''
+                if str(low_income).lower() in ('yes', 'true', '1'):
+                    low_income_count += 1
+
+        low_income_pct = (low_income_count / active_count * 100) if active_count > 0 else 0.0
+        return active_count, low_income_pct
+    except Exception as e:
+        st.error(f"Failed to load B3 low income stats: {e}")
+        return 0, 0.0
+
+
 def _get_ttl_until_noon_refresh():
     """Calculate seconds until next 12:05pm for financial data refresh.
 
@@ -2156,59 +2190,13 @@ def combine_activity_data(current_records: list, legacy_records: list, cutoff_da
     return combined
 
 
-def render_hero_header(processor: DataProcessor, activity_records: list = None, partners_data: list = None, start_date: date = None, end_date: date = None):
+def render_hero_header(processor: DataProcessor, low_income_pct: float = 0.0):
     """Render the hero header with key stats."""
     stats = processor.get_summary_stats()
     # Use _books_distributed_all for total (includes books to previously served children)
     books = int(stats.get("totals", {}).get("_books_distributed_all", 0) or stats.get("totals", {}).get("_of_books_distributed", 0))
     children = int(stats.get("totals", {}).get("total_children", 0))
     parents = int(stats.get("totals", {}).get("parents_or_caregivers", 0))
-
-    # Calculate average % low income children served from partners in date range
-    avg_low_income_pct = 0.0
-    if activity_records and partners_data and start_date and end_date:
-        # Build partner ID to percentage_lowincome mapping
-        partner_low_income = {}
-        for partner in partners_data:
-            pid = partner.get('id', '')
-            pct = partner.get('percentage_lowincome', None)
-            if pid and pct is not None:
-                try:
-                    if isinstance(pct, list):
-                        pct = pct[0] if pct else None
-                    if pct is not None:
-                        partner_low_income[pid] = float(pct)
-                except (ValueError, TypeError):
-                    pass
-
-        # Filter activity records by date range and collect low income percentages
-        low_income_values = []
-        for record in activity_records:
-            # Check date range (matching pattern from render_goal2)
-            record_date = record.get('date_of_activity') or record.get('date')
-            if record_date:
-                if isinstance(record_date, str):
-                    try:
-                        record_dt = pd.to_datetime(record_date)
-                        if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
-                            continue
-                    except:
-                        continue
-                else:
-                    continue
-            else:
-                continue
-
-            # Get partner ID and look up low income percentage
-            partner_id = record.get('partners_testing', '')
-            if isinstance(partner_id, list):
-                partner_id = partner_id[0] if partner_id else ''
-            if partner_id and partner_id in partner_low_income:
-                low_income_values.append(partner_low_income[partner_id])
-
-        # Calculate average
-        if low_income_values:
-            avg_low_income_pct = sum(low_income_values) / len(low_income_values)
 
     # Get current fiscal year for display
     fy_info = get_fiscal_year_info(date.today())
@@ -2281,7 +2269,7 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
         </div>
         <div class="metric-card" style="text-align: center; padding: 1.25rem;">
             <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📊 % in Low Income Settings</div>
-            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{avg_low_income_pct:.1f}%</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{low_income_pct:.1f}%</div>
         </div>
         <div class="metric-card" style="text-align: center; padding: 1.25rem;">
             <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">👨‍👩‍👧 Parents/Caregivers</div>
@@ -2693,7 +2681,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     st.markdown("<p style='font-size: 0.85rem; color: #718096; text-decoration: underline; text-align: center;'>Both trends count only first-time visits each period — a conservative measure toward our stretch goal of 4 books/child</p>", unsafe_allow_html=True)
 
 
-def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0, inperson_events: int = 0, activity_records: list = None, partners_data: list = None):
+def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0, inperson_events: int = 0, activity_records: list = None, partners_data: list = None, low_income_pct: float = 0.0):
     """Render Goal 2: Inspire Engagement with Content Views."""
     st.markdown("""
     <div class="section-header">
@@ -2753,52 +2741,6 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         # Get recurring partners (appeared more than once)
         recurring_partners = [(pid, count) for pid, count in partner_counts.most_common() if count > 1]
         recurring_count = len(recurring_partners)
-
-    # Calculate % low income from partners for activities in date range
-    avg_low_income_pct = 0.0
-    if activity_records and partners_data:
-        # Build partner ID to percentage_lowincome mapping
-        partner_low_income = {}
-        for partner in partners_data:
-            pid = partner.get('id', '')
-            pct = partner.get('percentage_lowincome', None)
-            if pid and pct is not None:
-                try:
-                    if isinstance(pct, list):
-                        pct = pct[0] if pct else None
-                    if pct is not None:
-                        partner_low_income[pid] = float(pct)
-                except (ValueError, TypeError):
-                    pass
-
-        # Filter activity records by date range, collect low income percentages
-        low_income_values = []
-        for record in activity_records:
-            # Check date range
-            record_date = record.get('date_of_activity') or record.get('date')
-            if record_date:
-                if isinstance(record_date, str):
-                    try:
-                        record_dt = pd.to_datetime(record_date)
-                        if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
-                            continue
-                    except:
-                        continue
-                else:
-                    continue
-            else:
-                continue
-
-            # Get partner ID and look up low income percentage
-            partner_id = record.get('partners_testing', '')
-            if isinstance(partner_id, list):
-                partner_id = partner_id[0] if partner_id else ''
-            if partner_id and partner_id in partner_low_income:
-                low_income_values.append(partner_low_income[partner_id])
-
-        # Calculate average
-        if low_income_values:
-            avg_low_income_pct = sum(low_income_values) / len(low_income_values)
 
     # Calculate partners for in-person events (same date range filter)
     inperson_event_partners = set()
@@ -2991,7 +2933,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
             <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding-top: 2rem;">
                 <div class="metric-card" style="text-align: center; padding: 0.75rem;">
                     <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.3rem;">📊 % in Low Income Settings</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; color: #1a365d;">{avg_low_income_pct:.1f}%</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #1a365d;">{low_income_pct:.1f}%</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -4448,7 +4390,7 @@ def main():
         original_books = load_original_books()
         content_views = load_content_views()
         financial_data = load_financial_data()
-        enrollment_count = load_active_enrollment_count()
+        enrollment_count, b3_low_income_pct = load_b3_low_income_stats()
         events_data = load_events_data()
         partners_data = load_partners_data()
 
@@ -4503,13 +4445,13 @@ def main():
         inperson_events = int(event_mask.sum())
 
     # Hero header
-    render_hero_header(processor, activity_records, partners_data, start_date, end_date)
+    render_hero_header(processor, b3_low_income_pct)
 
     # Dashboard sections
     render_goal1_strengthen_impact(processor, time_unit)
     st.markdown("---")
 
-    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count, book_bank_children, inperson_events, activity_records, partners_data)
+    render_goal2_inspire_engagement(content_views, time_unit, start_date, end_date, enrollment_count, book_bank_children, inperson_events, activity_records, partners_data, b3_low_income_pct)
     st.markdown("---")
 
     render_goal3_advance_innovation(original_books)
