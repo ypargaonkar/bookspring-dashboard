@@ -2167,7 +2167,7 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
     # Calculate average % low income children served from partners in date range
     avg_low_income_pct = 0.0
     if activity_records and partners_data and start_date and end_date:
-        # Build partner ID to percent_low_income mapping
+        # Build partner ID to percentage_lowincome mapping
         partner_low_income = {}
         for partner in partners_data:
             pid = partner.get('id', '')
@@ -2184,16 +2184,19 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
         # Filter activity records by date range and collect low income percentages
         low_income_values = []
         for record in activity_records:
-            record_date = record.get('date', '')
-            if isinstance(record_date, str) and '|' in record_date:
-                record_date = record_date.split('|')[0]
-            try:
-                parsed_date = pd.to_datetime(record_date, errors='coerce')
-                if pd.isna(parsed_date):
+            # Check date range (matching pattern from render_goal2)
+            record_date = record.get('date_of_activity') or record.get('date')
+            if record_date:
+                if isinstance(record_date, str):
+                    try:
+                        record_dt = pd.to_datetime(record_date)
+                        if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
+                            continue
+                    except:
+                        continue
+                else:
                     continue
-                if parsed_date.date() < start_date or parsed_date.date() > end_date:
-                    continue
-            except Exception:
+            else:
                 continue
 
             # Get partner ID and look up low income percentage
