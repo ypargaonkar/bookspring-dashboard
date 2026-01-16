@@ -2222,8 +2222,8 @@ def render_hero_header(processor: DataProcessor):
     </div>
     """, unsafe_allow_html=True)
 
-    # Use native Streamlit metrics for the stats
-    col1, col2, col3 = st.columns(3)
+    # Use native Streamlit metrics for the stats - centered with spacer columns
+    _, col1, col2, col3, _ = st.columns([1, 2, 2, 2, 1])
     with col1:
         st.metric("📚 Books Distributed", f"{books:,}")
     with col2:
