@@ -3303,41 +3303,42 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 return 100.0 if curr_val > 0 else 0.0
             return ((curr_val - prior_val) / prior_val) * 100
 
-        col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+        # All three rings and stats in one row: Grants | Grant Stats | Gifts | Gift Stats | Books
+        col1, col2, col3, col4, col5 = st.columns([1, 0.8, 1, 1.2, 1])
 
         with col1:
-            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 1rem; margin-bottom: -10px;'>Grants</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>Grants</p>", unsafe_allow_html=True)
             fig, goal_str = create_progress_ring(
                 grants_received, grants_goal, grants_pct,
                 "Grants", "#38a169", "#e2e8f0"
             )
             st.plotly_chart(fig, use_container_width=True, key="grants_ring")
-            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
 
         with col2:
             if has_grant_data:
                 avg_grant_str = f"${avg_grant/1000:.1f}K" if avg_grant >= 1000 else f"${avg_grant:,.0f}"
                 st.markdown(f"""
-                    <div style='display: grid; grid-template-columns: 1fr; gap: 0.5rem; padding-top: 1.5rem;'>
-                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
-                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">📋 # Grants</div>
-                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{grant_count:,}</div>
+                    <div style='display: grid; grid-template-columns: 1fr; gap: 0.4rem; padding-top: 1.5rem;'>
+                        <div class="metric-card" style="text-align: center; padding: 0.5rem;">
+                            <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.2rem;">📋 # Grants</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #1a365d;">{grant_count:,}</div>
                         </div>
-                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
-                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">📊 Avg Grant</div>
-                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{avg_grant_str}</div>
+                        <div class="metric-card" style="text-align: center; padding: 0.5rem;">
+                            <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.2rem;">📊 Avg Grant</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #1a365d;">{avg_grant_str}</div>
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
 
         with col3:
-            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 1rem; margin-bottom: -10px;'>Gifts</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>Gifts</p>", unsafe_allow_html=True)
             fig, goal_str = create_progress_ring(
                 gifts_received, gifts_goal, gifts_pct,
                 "Gifts", "#805ad5", "#e2e8f0"
             )
             st.plotly_chart(fig, use_container_width=True, key="gifts_ring")
-            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>Goal: {goal_str}</p>", unsafe_allow_html=True)
 
         with col4:
             if has_donor_data:
@@ -3347,44 +3348,40 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 ret_chg = pct_change(reactivated, reactivated_prior)
                 avg_chg = pct_change(avg_gift, avg_gift_prior)
                 st.markdown(f"""
-                    <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; padding-top: 0.5rem;'>
-                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
-                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">🎁 Gifts</div>
-                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{gift_count:,}</div>
-                            <div style="font-size: 0.7rem; color: {'#38a169' if gift_chg >= 0 else '#e53e3e'};">
+                    <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; padding-top: 0.5rem;'>
+                        <div class="metric-card" style="text-align: center; padding: 0.5rem;">
+                            <div style="font-size: 0.65rem; color: #718096; margin-bottom: 0.15rem;">🎁 Gifts</div>
+                            <div style="font-size: 1rem; font-weight: 700; color: #1a365d;">{gift_count:,}</div>
+                            <div style="font-size: 0.6rem; color: {'#38a169' if gift_chg >= 0 else '#e53e3e'};">
                                 {'+' if gift_chg >= 0 else ''}{gift_chg:.0f}% vs {prior_fy_label}
                             </div>
                         </div>
-                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
-                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">🆕 New</div>
-                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{new_donors:,}</div>
-                            <div style="font-size: 0.7rem; color: {'#38a169' if new_chg >= 0 else '#e53e3e'};">
+                        <div class="metric-card" style="text-align: center; padding: 0.5rem;">
+                            <div style="font-size: 0.65rem; color: #718096; margin-bottom: 0.15rem;">🆕 New</div>
+                            <div style="font-size: 1rem; font-weight: 700; color: #1a365d;">{new_donors:,}</div>
+                            <div style="font-size: 0.6rem; color: {'#38a169' if new_chg >= 0 else '#e53e3e'};">
                                 {'+' if new_chg >= 0 else ''}{new_chg:.0f}% vs {prior_fy_label}
                             </div>
                         </div>
-                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
-                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">🔄 Returning</div>
-                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{reactivated:,}</div>
-                            <div style="font-size: 0.7rem; color: {'#38a169' if ret_chg >= 0 else '#e53e3e'};">
+                        <div class="metric-card" style="text-align: center; padding: 0.5rem;">
+                            <div style="font-size: 0.65rem; color: #718096; margin-bottom: 0.15rem;">🔄 Returning</div>
+                            <div style="font-size: 1rem; font-weight: 700; color: #1a365d;">{reactivated:,}</div>
+                            <div style="font-size: 0.6rem; color: {'#38a169' if ret_chg >= 0 else '#e53e3e'};">
                                 {'+' if ret_chg >= 0 else ''}{ret_chg:.0f}% vs {prior_fy_label}
                             </div>
                         </div>
-                        <div class="metric-card" style="text-align: center; padding: 0.75rem;">
-                            <div style="font-size: 0.75rem; color: #718096; margin-bottom: 0.25rem;">📊 Avg Gift</div>
-                            <div style="font-size: 1.25rem; font-weight: 700; color: #1a365d;">{avg_gift_str}</div>
-                            <div style="font-size: 0.7rem; color: {'#38a169' if avg_chg >= 0 else '#e53e3e'};">
+                        <div class="metric-card" style="text-align: center; padding: 0.5rem;">
+                            <div style="font-size: 0.65rem; color: #718096; margin-bottom: 0.15rem;">📊 Avg Gift</div>
+                            <div style="font-size: 1rem; font-weight: 700; color: #1a365d;">{avg_gift_str}</div>
+                            <div style="font-size: 0.6rem; color: {'#38a169' if avg_chg >= 0 else '#e53e3e'};">
                                 {'+' if avg_chg >= 0 else ''}{avg_chg:.0f}% vs {prior_fy_label}
                             </div>
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
 
-        # Donated Books row
-        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
-        col_books1, col_books2 = st.columns([1, 3])
-
-        with col_books1:
-            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 1rem; margin-bottom: -10px;'>Donated Books</p>", unsafe_allow_html=True)
+        with col5:
+            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>Donated Books</p>", unsafe_allow_html=True)
             # Create progress ring for donated books (use a different format since it's count not currency)
             display_pct = min(donated_books_pct, 100)
             remaining_pct = max(100 - display_pct, 0)
@@ -3419,14 +3416,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             )
             st.plotly_chart(fig, use_container_width=True, key="donated_books_ring")
             goal_str = f"{donated_books_goal:,.0f}" if donated_books_goal < 1000 else f"{donated_books_goal/1000:.0f}K"
-            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str} books</p>", unsafe_allow_html=True)
-
-        with col_books2:
-            st.markdown("""
-                <div style='padding-top: 3rem; color: #64748b; font-size: 0.85rem;'>
-                    <em>Donated books from Fusioo Inventory (Transaction Type: Receiving, Books IN: Donated)</em>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>Goal: {goal_str} books</p>", unsafe_allow_html=True)
 
     else:
         st.info("Financial data not available")
