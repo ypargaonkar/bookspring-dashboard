@@ -1280,11 +1280,11 @@ def load_events_data():
 
 @st.cache_data(ttl=86400)  # Cache for 24 hours
 def load_partners_data():
-    """Load partners data from Fusioo for partner name lookups (minimal fields for privacy)."""
+    """Load partners data from Fusioo for partner name lookups and low income stats."""
     try:
         client = FusiooClient()
-        # Only fetch fields needed for display - avoid loading PII
-        records = client.get_all_records(PARTNERS_APP_ID, fields=["id", "site_name", "main_organization_from_list"])
+        # Fetch fields needed for display and low income calculation - avoid loading PII
+        records = client.get_all_records(PARTNERS_APP_ID, fields=["id", "site_name", "main_organization_from_list", "percentage_lowincome"])
         return records
     except Exception as e:
         st.error(f"Failed to load partners data: {e}")
@@ -2156,13 +2156,56 @@ def combine_activity_data(current_records: list, legacy_records: list, cutoff_da
     return combined
 
 
-def render_hero_header(processor: DataProcessor):
+def render_hero_header(processor: DataProcessor, activity_records: list = None, partners_data: list = None, start_date: date = None, end_date: date = None):
     """Render the hero header with key stats."""
     stats = processor.get_summary_stats()
     # Use _books_distributed_all for total (includes books to previously served children)
     books = int(stats.get("totals", {}).get("_books_distributed_all", 0) or stats.get("totals", {}).get("_of_books_distributed", 0))
     children = int(stats.get("totals", {}).get("total_children", 0))
     parents = int(stats.get("totals", {}).get("parents_or_caregivers", 0))
+
+    # Calculate average % low income children served from partners in date range
+    avg_low_income_pct = 0.0
+    if activity_records and partners_data and start_date and end_date:
+        # Build partner ID to percent_low_income mapping
+        partner_low_income = {}
+        for partner in partners_data:
+            pid = partner.get('id', '')
+            pct = partner.get('percentage_lowincome', None)
+            if pid and pct is not None:
+                try:
+                    if isinstance(pct, list):
+                        pct = pct[0] if pct else None
+                    if pct is not None:
+                        partner_low_income[pid] = float(pct)
+                except (ValueError, TypeError):
+                    pass
+
+        # Filter activity records by date range and collect low income percentages
+        low_income_values = []
+        for record in activity_records:
+            record_date = record.get('date', '')
+            if isinstance(record_date, str) and '|' in record_date:
+                record_date = record_date.split('|')[0]
+            try:
+                parsed_date = pd.to_datetime(record_date, errors='coerce')
+                if pd.isna(parsed_date):
+                    continue
+                if parsed_date.date() < start_date or parsed_date.date() > end_date:
+                    continue
+            except Exception:
+                continue
+
+            # Get partner ID and look up low income percentage
+            partner_id = record.get('partners_testing', '')
+            if isinstance(partner_id, list):
+                partner_id = partner_id[0] if partner_id else ''
+            if partner_id and partner_id in partner_low_income:
+                low_income_values.append(partner_low_income[partner_id])
+
+        # Calculate average
+        if low_income_values:
+            avg_low_income_pct = sum(low_income_values) / len(low_income_values)
 
     # Get current fiscal year for display
     fy_info = get_fiscal_year_info(date.today())
@@ -2224,7 +2267,7 @@ def render_hero_header(processor: DataProcessor):
 
     # Summary metrics in styled boxes - centered
     st.markdown(f"""
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem auto 2rem auto; max-width: 900px;">
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 1rem auto 2rem auto; max-width: 1100px;">
         <div class="metric-card" style="text-align: center; padding: 1.25rem;">
             <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📚 Books Distributed</div>
             <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{books:,}</div>
@@ -2236,6 +2279,10 @@ def render_hero_header(processor: DataProcessor):
         <div class="metric-card" style="text-align: center; padding: 1.25rem;">
             <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">👨‍👩‍👧 Parents/Caregivers</div>
             <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{parents:,}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📊 % Low Income Served</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{avg_low_income_pct:.1f}%</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -4396,7 +4443,7 @@ def main():
         inperson_events = int(event_mask.sum())
 
     # Hero header
-    render_hero_header(processor)
+    render_hero_header(processor, activity_records, partners_data, start_date, end_date)
 
     # Dashboard sections
     render_goal1_strengthen_impact(processor, time_unit)
