@@ -2964,16 +2964,16 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     col1, col1b, col2, col3, col4 = st.columns([1, 0.5, 1, 1, 0.8])
 
     with col1:
-        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.85rem; margin-bottom: -10px;'>B3 In-Home Delivery</p>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.7rem; margin-bottom: -10px;'>Active Enrollments</p>", unsafe_allow_html=True)
         fig, target_str = create_count_ring(enrollment_count, home_target, home_pct, '#3182ce')
         st.plotly_chart(fig, use_container_width=True, key="home_delivery_ring")
         st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>2030 Target: {target_str} families</p>", unsafe_allow_html=True)
 
     with col1b:
-        # % in Low Income Settings box aligned next to ring
+        # Labels and % Low Income box between ring and other columns
         st.markdown(f"""
-            <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding-top: 2rem;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding-top: 1rem;">
+                <p style="font-weight: 600; color: #1a365d; font-size: 0.85rem; margin: 0;">B3 In-Home Delivery</p>
+                <p style="color: #64748b; font-size: 0.7rem; margin: 0.2rem 0 1rem 0;">Active Enrollments</p>
                 <div class="metric-card" style="text-align: center; padding: 0.75rem;">
                     <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.3rem;">📊 % in Low Income Settings</div>
                     <div style="font-size: 1.3rem; font-weight: 700; color: #1a365d;">{low_income_pct:.1f}%</div>
