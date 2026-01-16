@@ -1215,24 +1215,36 @@ def load_active_enrollment_count():
 def load_b3_low_income_stats():
     """Load B3 enrollment stats including % low income eligible.
 
-    Uses server-side count/filter API for efficiency.
+    Fetches only active enrollments and counts low_income_eligible locally.
     Returns tuple of (active_count, low_income_pct).
     """
     try:
         client = FusiooClient()
 
-        # Count all active enrollments
+        # Fetch only active enrollments with low_income_eligible field
         active_filters = {"active_enrollment": {"equal": True}}
-        result = client._request("POST", f"records/apps/{B3_CHILD_FAMILY_APP_ID}/count/filter", json=active_filters)
-        active_count = result.get("data", {}).get("count", 0)
+        all_active = []
+        offset = 0
+        limit = 200
+        while True:
+            result = client._request("POST", f"records/apps/{B3_CHILD_FAMILY_APP_ID}/filter",
+                                    json=active_filters, params={"limit": limit, "offset": offset, "fields": "low_income_eligible"})
+            records = result.get("data", [])
+            if not records:
+                break
+            all_active.extend(records)
+            if len(records) < limit:
+                break
+            offset += limit
 
-        # Count active enrollments that are also low income eligible
-        low_income_filters = {
-            "active_enrollment": {"equal": True},
-            "low_income_eligible": {"equal": True}
-        }
-        result = client._request("POST", f"records/apps/{B3_CHILD_FAMILY_APP_ID}/count/filter", json=low_income_filters)
-        low_income_count = result.get("data", {}).get("count", 0)
+        active_count = len(all_active)
+        low_income_count = 0
+        for record in all_active:
+            low_income = record.get('low_income_eligible', '')
+            if isinstance(low_income, list):
+                low_income = low_income[0] if low_income else ''
+            if str(low_income).lower() in ('yes', 'true', '1'):
+                low_income_count += 1
 
         low_income_pct = (low_income_count / active_count * 100) if active_count > 0 else 0.0
         return active_count, low_income_pct
