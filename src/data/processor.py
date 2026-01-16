@@ -60,6 +60,26 @@ class DataProcessor:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors="coerce")
 
+        # Convert known numeric columns (handles legacy data that may come as strings)
+        numeric_columns = [
+            "_of_books_distributed",
+            "total_children",
+            "children_035_months",
+            "children_03_years",
+            "children_35_years",
+            "children_34_years",
+            "children_68_years",
+            "children_512_years",
+            "children_912_years",
+            "teens",
+            "parents_or_caregivers",
+            "minutes_of_activity",
+            "percentage_low_income",
+        ]
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
         return df
 
     def _exclude_previously_served_children(self):
