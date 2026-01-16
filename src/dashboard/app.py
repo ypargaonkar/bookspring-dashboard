@@ -2222,16 +2222,23 @@ def render_hero_header(processor: DataProcessor):
     </div>
     """, unsafe_allow_html=True)
 
-    # Use native Streamlit metrics for the stats - centered with spacer columns
-    _, col1, col2, col3, _ = st.columns([1, 2, 2, 2, 1])
-    with col1:
-        st.metric("📚 Books Distributed", f"{books:,}")
-    with col2:
-        st.metric("👶 Children Served", f"{children:,}")
-    with col3:
-        st.metric("👨‍👩‍👧 Parents/Caregivers", f"{parents:,}")
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    # Summary metrics in styled boxes - centered
+    st.markdown(f"""
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem auto 2rem auto; max-width: 900px;">
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📚 Books Distributed</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{books:,}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">👶 Children Served</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{children:,}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">👨‍👩‍👧 Parents/Caregivers</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{parents:,}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def render_print_snapshot(processor: DataProcessor, views_data: list, books_data: list, start_date: date, end_date: date):
