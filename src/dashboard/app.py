@@ -28,6 +28,7 @@ from src.reports.excel_generator import generate_standard_report
 # App IDs
 ORIGINAL_BOOKS_APP_ID = os.getenv("ORIGINAL_BOOKS_APP_ID", "ib506ce2df9e6443e88ded1316581d74e")
 CONTENT_VIEWS_APP_ID = os.getenv("CONTENT_VIEWS_APP_ID", "i43f611d038d24840907ff5b2970eeb3c")
+INVENTORY_APP_ID = os.getenv("INVENTORY_APP_ID", "i9b10a433e9414b67ae1a5d77b4a7769d")
 
 # Google Sheets configuration
 FINANCIAL_SHEET_ID = os.getenv("FINANCIAL_SHEET_ID", "17jObocsIQJnazyvWToi_AtsrLJ1I9bnMpWw9BMiixA8")
@@ -1288,6 +1289,44 @@ def load_partners_data():
     except Exception as e:
         st.error(f"Failed to load partners data: {e}")
         return []
+
+
+@st.cache_data(ttl=86400)  # Cache for 24 hours
+def load_donated_books_count():
+    """Load donated books count from Fusioo Inventory Data.
+
+    Filters for: Transaction Type = Receiving, Books IN: Purchased or Donated = Donated
+    Returns sum of Total Books Received for matching records.
+    """
+    try:
+        client = FusiooClient()
+        records = client.get_all_records(INVENTORY_APP_ID)
+
+        # Filter for donated receiving transactions and sum books
+        total_donated = 0
+        for record in records:
+            # Check transaction type (handle various field name formats)
+            transaction_type = record.get('transaction_type') or record.get('Transaction Type') or ''
+            purchased_or_donated = record.get('books_in_purchased_or_donated') or record.get('Books IN: Purchased or Donated') or record.get('books_in__purchased_or_donated') or ''
+
+            # Normalize values for comparison
+            if isinstance(transaction_type, list):
+                transaction_type = transaction_type[0] if transaction_type else ''
+            if isinstance(purchased_or_donated, list):
+                purchased_or_donated = purchased_or_donated[0] if purchased_or_donated else ''
+
+            # Check if this is a donated receiving transaction
+            if str(transaction_type).lower() == 'receiving' and str(purchased_or_donated).lower() == 'donated':
+                books_received = record.get('total_books_received') or record.get('Total Books Received') or 0
+                if isinstance(books_received, (int, float)):
+                    total_donated += int(books_received)
+                elif isinstance(books_received, str) and books_received.isdigit():
+                    total_donated += int(books_received)
+
+        return total_donated
+    except Exception as e:
+        st.error(f"Failed to load inventory data: {e}")
+        return 0
 
 
 def _execute_donorperfect_query(query: str) -> tuple:
@@ -3125,8 +3164,8 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
 
         st.markdown("<br><br>", unsafe_allow_html=True)
 
-    # === Grants & Gifts Received ===
-    st.markdown("##### 💰 Grants & Gifts Received")
+    # === Grants, Gifts & Donated Books ===
+    st.markdown("##### 💰 Grants, Gifts & Donated Books")
     st.caption(f"{current_fy_label} YTD")
 
     if financial_df is not None and not financial_df.empty:
@@ -3135,6 +3174,11 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         grants_goal = float(latest.get('grants_goal', 0) or 0)
         gifts_received = float(latest.get('gifts_received', 0) or 0)
         gifts_goal = float(latest.get('gifts_goal', 0) or 0)
+        donated_books_goal = float(latest.get('donated_books_goal', 0) or 0)
+
+        # Load donated books count from Fusioo
+        donated_books_count = load_donated_books_count()
+        donated_books_pct = (donated_books_count / donated_books_goal * 100) if donated_books_goal > 0 else 0
 
         grants_pct = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
         gifts_pct = (gifts_received / gifts_goal * 100) if gifts_goal > 0 else 0
@@ -3312,6 +3356,56 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
+
+        # Donated Books row
+        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+        col_books1, col_books2 = st.columns([1, 3])
+
+        with col_books1:
+            st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 1rem; margin-bottom: -10px;'>Donated Books</p>", unsafe_allow_html=True)
+            # Create progress ring for donated books (use a different format since it's count not currency)
+            display_pct = min(donated_books_pct, 100)
+            remaining_pct = max(100 - display_pct, 0)
+            fig = go.Figure(data=[go.Pie(
+                values=[display_pct, remaining_pct],
+                hole=0.7,
+                marker=dict(colors=['#ed8936', '#e2e8f0']),
+                textinfo='none',
+                hoverinfo='skip',
+                sort=False
+            )])
+            fig.update_layout(
+                showlegend=False,
+                margin=dict(t=30, b=30, l=10, r=10),
+                height=200,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                annotations=[
+                    dict(
+                        text=f"<b>{donated_books_count:,}</b>",
+                        x=0.5, y=0.55,
+                        font=dict(size=22, color='#1a365d', family='system-ui'),
+                        showarrow=False
+                    ),
+                    dict(
+                        text=f"{donated_books_pct:.0f}% of goal",
+                        x=0.5, y=0.38,
+                        font=dict(size=12, color='#64748b', family='system-ui'),
+                        showarrow=False
+                    )
+                ]
+            )
+            st.plotly_chart(fig, use_container_width=True, key="donated_books_ring")
+            goal_str = f"{donated_books_goal:,.0f}" if donated_books_goal < 1000 else f"{donated_books_goal/1000:.0f}K"
+            st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.85rem;'>Goal: {goal_str} books</p>", unsafe_allow_html=True)
+
+        with col_books2:
+            st.markdown("""
+                <div style='padding-top: 3rem; color: #64748b; font-size: 0.85rem;'>
+                    <em>Donated books from Fusioo Inventory (Transaction Type: Receiving, Books IN: Donated)</em>
+                </div>
+            """, unsafe_allow_html=True)
+
     else:
         st.info("Financial data not available")
 
