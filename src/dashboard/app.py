@@ -54,6 +54,7 @@ LEGACY_PASSTHROUGH_FIELDS = [
     "_of_books_distributed",
     "total_children",
     "previously_served_this_fy",
+    "percentage_low_income",
 ]
 
 # Brand Colors
@@ -2218,19 +2219,29 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
             # Check date range
             record_date = record.get('date_of_activity') or record.get('date')
             if record_date:
-                if isinstance(record_date, str):
-                    try:
-                        record_dt = pd.to_datetime(record_date)
-                        if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
-                            continue
-                    except:
+                try:
+                    record_dt = pd.to_datetime(record_date)
+                    if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
                         continue
-                else:
+                except:
                     continue
             else:
                 continue
 
-            # Get partner ID and look up low income percentage
+            # For legacy records, use percentage_low_income directly from the record
+            if record.get('_is_legacy'):
+                pct = record.get('percentage_low_income')
+                if pct is not None:
+                    try:
+                        if isinstance(pct, list):
+                            pct = pct[0] if pct else None
+                        if pct is not None:
+                            low_income_values.append(float(pct))
+                    except (ValueError, TypeError):
+                        pass
+                continue
+
+            # For current records, get partner ID and look up low income percentage from partners table
             partner_id = record.get('partners_testing', '')
             if isinstance(partner_id, list):
                 partner_id = partner_id[0] if partner_id else ''
@@ -2765,15 +2776,14 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
             # Check date range
             record_date = record.get('date_of_activity') or record.get('date')
             if record_date:
-                if isinstance(record_date, str):
-                    try:
-                        record_dt = pd.to_datetime(record_date)
-                        if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
-                            continue
-                    except:
+                try:
+                    record_dt = pd.to_datetime(record_date)
+                    if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
                         continue
-                else:
+                except:
                     continue
+            else:
+                continue
 
             partner_id = record.get('partners_testing', '')
             if isinstance(partner_id, list):
@@ -2792,15 +2802,14 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
             # Check date range
             record_date = record.get('date_of_activity') or record.get('date')
             if record_date:
-                if isinstance(record_date, str):
-                    try:
-                        record_dt = pd.to_datetime(record_date)
-                        if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
-                            continue
-                    except:
+                try:
+                    record_dt = pd.to_datetime(record_date)
+                    if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
                         continue
-                else:
+                except:
                     continue
+            else:
+                continue
 
             # Check if it's an in-person event
             activity_type = record.get('activity_type', '')
