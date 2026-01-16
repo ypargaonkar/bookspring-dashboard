@@ -2975,7 +2975,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         st.markdown(f"""
             <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding-top: 2rem;">
                 <div class="metric-card" style="text-align: center; padding: 0.75rem;">
-                    <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.3rem;">📊 % in Low Income Settings</div>
+                    <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.3rem;">📊 % Enrolled in Low Income Settings</div>
                     <div style="font-size: 1.3rem; font-weight: 700; color: #1a365d;">{low_income_pct:.1f}%</div>
                 </div>
             </div>
