@@ -3388,7 +3388,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             fig = go.Figure(data=[go.Pie(
                 values=[display_pct, remaining_pct],
                 hole=0.7,
-                marker=dict(colors=['#ed8936', '#e2e8f0']),
+                marker=dict(colors=['#e53e3e', '#e2e8f0']),
                 textinfo='none',
                 hoverinfo='skip',
                 sort=False
