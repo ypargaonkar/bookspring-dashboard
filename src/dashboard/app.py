@@ -2280,12 +2280,12 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
             <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{children:,}</div>
         </div>
         <div class="metric-card" style="text-align: center; padding: 1.25rem;">
-            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">👨‍👩‍👧 Parents/Caregivers</div>
-            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{parents:,}</div>
-        </div>
-        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
             <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📊 % in Low Income Settings</div>
             <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{avg_low_income_pct:.1f}%</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">👨‍👩‍👧 Parents/Caregivers</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{parents:,}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -2754,8 +2754,8 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         recurring_partners = [(pid, count) for pid, count in partner_counts.most_common() if count > 1]
         recurring_count = len(recurring_partners)
 
-    # Calculate B3 In-Home Delivery % low income from partners
-    b3_low_income_pct = 0.0
+    # Calculate % low income from partners for activities in date range
+    avg_low_income_pct = 0.0
     if activity_records and partners_data:
         # Build partner ID to percentage_lowincome mapping
         partner_low_income = {}
@@ -2771,8 +2771,8 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
                 except (ValueError, TypeError):
                     pass
 
-        # Filter activity records by date range and B3 program, collect low income percentages
-        b3_low_income_values = []
+        # Filter activity records by date range, collect low income percentages
+        low_income_values = []
         for record in activity_records:
             # Check date range
             record_date = record.get('date_of_activity') or record.get('date')
@@ -2789,24 +2789,16 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
             else:
                 continue
 
-            # Check if it's a B3/Born to Read program activity
-            program = record.get('program', '')
-            if isinstance(program, list):
-                program = program[0] if program else ''
-            # Filter for B3 In-Home Delivery programs
-            if not ('B3' in str(program) or 'Born to Read' in str(program)):
-                continue
-
             # Get partner ID and look up low income percentage
             partner_id = record.get('partners_testing', '')
             if isinstance(partner_id, list):
                 partner_id = partner_id[0] if partner_id else ''
             if partner_id and partner_id in partner_low_income:
-                b3_low_income_values.append(partner_low_income[partner_id])
+                low_income_values.append(partner_low_income[partner_id])
 
         # Calculate average
-        if b3_low_income_values:
-            b3_low_income_pct = sum(b3_low_income_values) / len(b3_low_income_values)
+        if low_income_values:
+            avg_low_income_pct = sum(low_income_values) / len(low_income_values)
 
     # Calculate partners for in-person events (same date range filter)
     inperson_event_partners = set()
@@ -2983,8 +2975,8 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         )
         return fig, target_str
 
-    # All three rings with stats: Home Delivery | Book Bank | Digital Engagement | Digital Stats
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 0.8])
+    # All three rings with stats: Home Delivery + Low Income | Book Bank | Digital Engagement | Digital Stats
+    col1, col1b, col2, col3, col4 = st.columns([1, 0.5, 1, 1, 0.8])
 
     with col1:
         st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.85rem; margin-bottom: -10px;'>B3 In-Home Delivery</p>", unsafe_allow_html=True)
@@ -2992,11 +2984,15 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         fig, target_str = create_count_ring(enrollment_count, home_target, home_pct, '#3182ce')
         st.plotly_chart(fig, use_container_width=True, key="home_delivery_ring")
         st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>2030 Target: {target_str} families</p>", unsafe_allow_html=True)
-        # B3 % in Low Income Settings box
+
+    with col1b:
+        # % in Low Income Settings box aligned next to ring
         st.markdown(f"""
-            <div class="metric-card" style="text-align: center; padding: 0.5rem; margin-top: 0.5rem;">
-                <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.2rem;">📊 % in Low Income Settings</div>
-                <div style="font-size: 1.1rem; font-weight: 700; color: #1a365d;">{b3_low_income_pct:.1f}%</div>
+            <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding-top: 2rem;">
+                <div class="metric-card" style="text-align: center; padding: 0.75rem;">
+                    <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.3rem;">📊 % in Low Income Settings</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #1a365d;">{avg_low_income_pct:.1f}%</div>
+                </div>
             </div>
         """, unsafe_allow_html=True)
 
