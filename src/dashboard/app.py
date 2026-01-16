@@ -3023,17 +3023,26 @@ def render_goal3_advance_innovation(books_data: list):
     in_progress = total - completed
     bilingual = len(df[df["language"].str.contains("Spanish|Bi-lingual", case=False, na=False)]) if "language" in df.columns else 0
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Books", total)
-    with col2:
-        st.metric("Completed", completed)
-    with col3:
-        st.metric("In Progress", in_progress)
-    with col4:
-        st.metric("Spanish/Bilingual", bilingual)
-
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📚 Total Books</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{total}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">✅ Completed</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{completed}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">🔄 In Progress</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{in_progress}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">🌎 Spanish/Bilingual</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{bilingual}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Charts
     col1, col2 = st.columns(2)
