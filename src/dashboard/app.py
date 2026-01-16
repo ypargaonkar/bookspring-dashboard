@@ -3085,6 +3085,16 @@ def render_goal3_advance_innovation(books_data: list):
                 textfont_color='#ffffff',
                 marker=dict(line=dict(color='#ffffff', width=2))
             )
+            fig.update_layout(
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.2,
+                    xanchor="center",
+                    x=0.5,
+                    font=dict(size=10)
+                )
+            )
             st.plotly_chart(fig, use_container_width=True)
 
 
