@@ -1295,8 +1295,8 @@ def load_partners_data():
 def load_donated_books_count():
     """Load donated books count from Fusioo Inventory Data.
 
-    Filters for: Transaction Type = Receiving, Books IN: Purchased or Donated = Donated
-    Returns sum of Total Books Received for matching records.
+    Filters for: receiving_or_distributing = Receiving, books_in_purchase_or_donation = Donated
+    Returns sum of total_books_this_entry for matching records.
     """
     try:
         client = FusiooClient()
@@ -1305,23 +1305,22 @@ def load_donated_books_count():
         # Filter for donated receiving transactions and sum books
         total_donated = 0
         for record in records:
-            # Check transaction type (handle various field name formats)
-            transaction_type = record.get('transaction_type') or record.get('Transaction Type') or ''
-            purchased_or_donated = record.get('books_in_purchased_or_donated') or record.get('Books IN: Purchased or Donated') or record.get('books_in__purchased_or_donated') or ''
+            receiving_or_distributing = record.get('receiving_or_distributing', '')
+            books_in_purchase_or_donation = record.get('books_in_purchase_or_donation', '')
 
-            # Normalize values for comparison
-            if isinstance(transaction_type, list):
-                transaction_type = transaction_type[0] if transaction_type else ''
-            if isinstance(purchased_or_donated, list):
-                purchased_or_donated = purchased_or_donated[0] if purchased_or_donated else ''
+            # Normalize values for comparison (handle list values from Fusioo)
+            if isinstance(receiving_or_distributing, list):
+                receiving_or_distributing = receiving_or_distributing[0] if receiving_or_distributing else ''
+            if isinstance(books_in_purchase_or_donation, list):
+                books_in_purchase_or_donation = books_in_purchase_or_donation[0] if books_in_purchase_or_donation else ''
 
             # Check if this is a donated receiving transaction
-            if str(transaction_type).lower() == 'receiving' and str(purchased_or_donated).lower() == 'donated':
-                books_received = record.get('total_books_received') or record.get('Total Books Received') or 0
-                if isinstance(books_received, (int, float)):
-                    total_donated += int(books_received)
-                elif isinstance(books_received, str) and books_received.isdigit():
-                    total_donated += int(books_received)
+            if str(receiving_or_distributing).lower() == 'receiving' and str(books_in_purchase_or_donation).lower() == 'donated':
+                books_count = record.get('total_books_this_entry', 0)
+                if isinstance(books_count, (int, float)):
+                    total_donated += int(books_count)
+                elif isinstance(books_count, str) and books_count.isdigit():
+                    total_donated += int(books_count)
 
         return total_donated
     except Exception as e:
