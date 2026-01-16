@@ -1292,19 +1292,40 @@ def load_partners_data():
 
 
 @st.cache_data(ttl=86400)  # Cache for 24 hours
-def load_donated_books_count():
-    """Load donated books count from Fusioo Inventory Data.
+def load_donated_books_count(start_date: str, end_date: str):
+    """Load donated books count from Fusioo Inventory Data for a date range.
 
-    Filters for: receiving_or_distributing = Receiving, books_in_purchase_or_donation = Donated
+    Filters for: receiving_or_distributing = Receiving, books_in_purchase_or_donation = Donated,
+    date_of_transaction within start_date to end_date.
     Returns sum of total_books_this_entry for matching records.
     """
     try:
         client = FusiooClient()
         records = client.get_all_records(INVENTORY_APP_ID)
 
+        # Parse date range
+        start_dt = pd.to_datetime(start_date).date()
+        end_dt = pd.to_datetime(end_date).date()
+
         # Filter for donated receiving transactions and sum books
         total_donated = 0
         for record in records:
+            # Check date is within range
+            transaction_date = record.get('date_of_transaction', '')
+            if not transaction_date:
+                continue
+
+            try:
+                if isinstance(transaction_date, str):
+                    record_date = pd.to_datetime(transaction_date).date()
+                else:
+                    record_date = pd.to_datetime(str(transaction_date)).date()
+
+                if not (start_dt <= record_date <= end_dt):
+                    continue
+            except (ValueError, TypeError):
+                continue
+
             receiving_or_distributing = record.get('receiving_or_distributing', '')
             books_in_purchase_or_donation = record.get('books_in_purchase_or_donation', '')
 
@@ -3175,8 +3196,10 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         gifts_goal = float(latest.get('gifts_goal', 0) or 0)
         donated_books_goal = float(latest.get('donated_books_goal', 0) or 0)
 
-        # Load donated books count from Fusioo
-        donated_books_count = load_donated_books_count()
+        # Load donated books count from Fusioo (filtered by current FY)
+        fy_start = fy_info['current_fy_start'].strftime("%Y-%m-%d")
+        fy_end = today.isoformat()
+        donated_books_count = load_donated_books_count(fy_start, fy_end)
         donated_books_pct = (donated_books_count / donated_books_goal * 100) if donated_books_goal > 0 else 0
 
         grants_pct = (grants_received / grants_goal * 100) if grants_goal > 0 else 0
