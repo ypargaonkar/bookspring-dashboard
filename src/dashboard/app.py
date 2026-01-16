@@ -3077,7 +3077,7 @@ def render_goal3_advance_innovation(books_data: list):
                 hole=0.4,
                 color_discrete_sequence=pie_colors
             )
-            fig = style_plotly_chart(fig, height=350)
+            fig = style_plotly_chart(fig, height=300)
             fig.update_traces(
                 textposition='inside',
                 textinfo='value+percent',
@@ -3086,13 +3086,13 @@ def render_goal3_advance_innovation(books_data: list):
                 marker=dict(line=dict(color='#ffffff', width=2))
             )
             fig.update_layout(
-                margin=dict(t=60, b=20),
+                margin=dict(t=20, b=20, r=120),
                 legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="center",
-                    x=0.5,
+                    orientation="v",
+                    yanchor="middle",
+                    y=0.5,
+                    xanchor="left",
+                    x=1.02,
                     font=dict(size=10)
                 )
             )
