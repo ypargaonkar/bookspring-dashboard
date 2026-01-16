@@ -2763,69 +2763,79 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     </div>
     """, unsafe_allow_html=True)
 
-    # Home Delivery Section
-    st.markdown("##### 🏠 B3 In-Home Delivery Program")
+    # Home Delivery & Book Bank Section - Side by side rings
+    st.markdown("##### 🏠 Program Reach")
+
     home_target = 25_000
-    home_progress = min(enrollment_count / home_target * 100, 100) if home_target > 0 else 0
+    home_pct = (enrollment_count / home_target * 100) if home_target > 0 else 0
 
-    col1, col2 = st.columns(2)
-    with col1:
-        delta_val = enrollment_count - home_target
-        if delta_val >= 0:
-            st.metric("B3 In-home delivery current active enrollments", f"{enrollment_count:,}", delta=f"+{delta_val:,} vs target")
-        else:
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
-                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">B3 In-home delivery current active enrollments</p>
-                <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{enrollment_count:,}</p>
-                <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
-            </div>
-            """, unsafe_allow_html=True)
-    with col2:
-        st.metric("2030 Target", "25K families")
-
-    st.markdown(f"""
-    <div class="progress-container">
-        <div class="progress-bar goal2" style="width: {home_progress}%"></div>
-    </div>
-    <div class="progress-label">
-        <span>Progress toward 25K home delivery enrollments</span>
-        <span><strong>{home_progress:.1f}%</strong></span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Book Bank Section
-    st.markdown("##### 📚 Book Bank Model (Open Book Distribution)")
     book_bank_target = 55_000
-    book_bank_progress = min(book_bank_children / book_bank_target * 100, 100) if book_bank_target > 0 else 0
+    book_bank_pct = (book_bank_children / book_bank_target * 100) if book_bank_target > 0 else 0
+
+    def create_count_ring(count, target, pct, color_fill):
+        """Create a donut chart showing progress toward target."""
+        display_pct = min(pct, 100)
+        remaining_pct = max(100 - display_pct, 0)
+
+        fig = go.Figure(data=[go.Pie(
+            values=[display_pct, remaining_pct],
+            hole=0.7,
+            marker=dict(colors=[color_fill, '#e2e8f0']),
+            textinfo='none',
+            hoverinfo='skip',
+            sort=False
+        )])
+
+        # Format count
+        if count >= 1000:
+            count_str = f"{count/1000:.1f}K"
+        else:
+            count_str = f"{count:,}"
+
+        # Format target
+        if target >= 1000:
+            target_str = f"{target/1000:.0f}K"
+        else:
+            target_str = f"{target:,}"
+
+        fig.update_layout(
+            showlegend=False,
+            margin=dict(t=30, b=30, l=10, r=10),
+            height=200,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            annotations=[
+                dict(
+                    text=f"<b>{count_str}</b>",
+                    x=0.5, y=0.55,
+                    font=dict(size=22, color='#1a365d', family='system-ui'),
+                    showarrow=False
+                ),
+                dict(
+                    text=f"{pct:.0f}% of goal",
+                    x=0.5, y=0.38,
+                    font=dict(size=12, color='#64748b', family='system-ui'),
+                    showarrow=False
+                )
+            ]
+        )
+        return fig, target_str
 
     col1, col2 = st.columns(2)
-    with col1:
-        delta_val = book_bank_children - book_bank_target
-        if delta_val >= 0:
-            st.metric("Children Served (in date range)", f"{book_bank_children:,}", delta=f"+{delta_val:,} vs target")
-        else:
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
-                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Children Served (in date range)</p>
-                <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{book_bank_children:,}</p>
-                <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):,} below target</p>
-            </div>
-            """, unsafe_allow_html=True)
-    with col2:
-        st.metric("2030 Target", "55K children")
 
-    st.markdown(f"""
-    <div class="progress-container">
-        <div class="progress-bar goal2" style="width: {book_bank_progress}%"></div>
-    </div>
-    <div class="progress-label">
-        <span>Progress toward 55K partner program children</span>
-        <span><strong>{book_bank_progress:.1f}%</strong></span>
-    </div>
-    """, unsafe_allow_html=True)
+    with col1:
+        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>B3 In-Home Delivery</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.75rem; margin-bottom: -10px;'>Active Enrollments</p>", unsafe_allow_html=True)
+        fig, target_str = create_count_ring(enrollment_count, home_target, home_pct, '#3182ce')
+        st.plotly_chart(fig, use_container_width=True, key="home_delivery_ring")
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>2030 Target: {target_str} families</p>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>Book Bank Model</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.75rem; margin-bottom: -10px;'>Children Served (in date range)</p>", unsafe_allow_html=True)
+        fig, target_str = create_count_ring(book_bank_children, book_bank_target, book_bank_pct, '#805ad5')
+        st.plotly_chart(fig, use_container_width=True, key="book_bank_ring")
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>2030 Target: {target_str} children</p>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("##### 📱 Digital Engagement")
