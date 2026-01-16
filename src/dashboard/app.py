@@ -2510,46 +2510,52 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     total_children = processor.df[available_age_cols].fillna(0).sum().sum() if available_age_cols else 0
     avg_overall = total_books / total_children if total_children > 0 else 0
     target = 4.0
-    progress = min(avg_overall / target * 100, 100)
+    pct = (avg_overall / target * 100) if target > 0 else 0
 
-    # Metrics row - show red when below target
-    col1, col2 = st.columns(2)
+    # Row 1: Ring + Overall Trend
+    col1, col2 = st.columns([1, 2])
+
     with col1:
-        delta_val = avg_overall - target
-        # Show red when below target (normal = green up/red down, off = no color)
-        if delta_val >= 0:
-            st.metric("Avg Books/Child (in date range)", f"{avg_overall:.2f}", delta=f"{delta_val:+.2f} vs target")
-            st.caption("Includes all books given to each unique child this year")
-        else:
-            # Custom HTML for red indicator when below target
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #fff 0%, #fef2f2 100%); border: 1px solid #fecaca; border-radius: 10px; padding: 1rem;">
-                <p style="color: #718096; font-size: 0.85rem; margin: 0 0 0.25rem 0;">Avg Books/Child (in date range)</p>
-                <p style="font-size: 1.75rem; font-weight: 700; color: #1a202c; margin: 0;">{avg_overall:.2f}</p>
-                <p style="color: #dc2626; font-size: 0.85rem; margin: 0.25rem 0 0 0; font-weight: 600;">▼ {abs(delta_val):.2f} below target</p>
-                <p style="color: #718096; font-size: 0.7rem; margin: 0.5rem 0 0 0;">Includes all books given to each unique child this year</p>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>Avg Books/Child</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.75rem; margin-bottom: -10px;'>(in date range)</p>", unsafe_allow_html=True)
+
+        # Create progress ring
+        display_pct = min(pct, 100)
+        remaining_pct = max(100 - display_pct, 0)
+        fig = go.Figure(data=[go.Pie(
+            values=[display_pct, remaining_pct],
+            hole=0.7,
+            marker=dict(colors=['#667eea', '#e2e8f0']),
+            textinfo='none',
+            hoverinfo='skip',
+            sort=False
+        )])
+        fig.update_layout(
+            showlegend=False,
+            margin=dict(t=30, b=30, l=10, r=10),
+            height=200,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            annotations=[
+                dict(
+                    text=f"<b>{avg_overall:.2f}</b>",
+                    x=0.5, y=0.55,
+                    font=dict(size=24, color='#1a365d', family='system-ui'),
+                    showarrow=False
+                ),
+                dict(
+                    text=f"{pct:.0f}% of goal",
+                    x=0.5, y=0.38,
+                    font=dict(size=12, color='#64748b', family='system-ui'),
+                    showarrow=False
+                )
+            ]
+        )
+        st.plotly_chart(fig, use_container_width=True, key="goal1_ring")
+        st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.8rem;'>2030 Target: 4.0 books/child</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #718096; font-size: 0.7rem; margin-top: 0.25rem;'>Includes all books given to each unique child this year</p>", unsafe_allow_html=True)
+
     with col2:
-        st.metric("Annual Target (by 2030)", "4.00 books/child")
-
-    # Custom progress bar
-    st.markdown(f"""
-    <div class="progress-container">
-        <div class="progress-bar goal1" style="width: {progress}%"></div>
-    </div>
-    <div class="progress-label">
-        <span>Progress toward 4 books/child/year</span>
-        <span><strong>{progress:.1f}%</strong></span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Trend charts
-    col1, col2 = st.columns(2)
-
-    with col1:
         st.markdown("##### Overall Trend")
         if "avg_books_per_child" in processor.df.columns:
             trend_df = processor.aggregate_by_time(time_unit, ["avg_books_per_child"])
@@ -2575,55 +2581,57 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-    with col2:
-        st.markdown("##### By Age Group <span style='font-weight: normal; font-size: 0.7rem; color: #718096;'>(click legend to toggle)</span>", unsafe_allow_html=True)
-        age_metrics = ["books_per_child_0_2", "books_per_child_3_5",
-                       "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
-        available_age = [m for m in age_metrics if m in processor.df.columns]
+    st.markdown("<br>", unsafe_allow_html=True)
 
-        if available_age:
-            trend_df = processor.aggregate_by_time(time_unit, available_age)
-            if not trend_df.empty:
-                # Shorten legend names for space
-                short_names = {
-                    "books_per_child_0_2": "0-2 yrs",
-                    "books_per_child_3_5": "3-5 yrs",
-                    "books_per_child_6_8": "6-8 yrs",
-                    "books_per_child_9_12": "9-12 yrs",
-                    "books_per_child_teens": "Teens",
-                }
-                rename_map = {c: short_names.get(c, c) for c in trend_df.columns if c != "period"}
-                trend_df = trend_df.rename(columns=rename_map)
+    # Row 2: By Age Group trend (full width)
+    st.markdown("##### By Age Group <span style='font-weight: normal; font-size: 0.7rem; color: #718096;'>(click legend to toggle)</span>", unsafe_allow_html=True)
+    age_metrics = ["books_per_child_0_2", "books_per_child_3_5",
+                   "books_per_child_6_8", "books_per_child_9_12", "books_per_child_teens"]
+    available_age = [m for m in age_metrics if m in processor.df.columns]
 
-                # Better color palette for age groups
-                age_colors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"]
-                fig = px.line(
-                    trend_df,
-                    x="period",
-                    y=[short_names.get(m, m) for m in available_age],
-                    markers=True,
-                    color_discrete_sequence=age_colors
+    if available_age:
+        trend_df = processor.aggregate_by_time(time_unit, available_age)
+        if not trend_df.empty:
+            # Shorten legend names for space
+            short_names = {
+                "books_per_child_0_2": "0-2 yrs",
+                "books_per_child_3_5": "3-5 yrs",
+                "books_per_child_6_8": "6-8 yrs",
+                "books_per_child_9_12": "9-12 yrs",
+                "books_per_child_teens": "Teens",
+            }
+            rename_map = {c: short_names.get(c, c) for c in trend_df.columns if c != "period"}
+            trend_df = trend_df.rename(columns=rename_map)
+
+            # Better color palette for age groups
+            age_colors = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"]
+            fig = px.line(
+                trend_df,
+                x="period",
+                y=[short_names.get(m, m) for m in available_age],
+                markers=True,
+                color_discrete_sequence=age_colors
+            )
+            fig.add_hline(y=4.0, line_dash="dash", line_color="#22c55e",
+                         annotation_text="Target", annotation_font_color="#22c55e")
+            fig = style_plotly_chart(fig, height=280)
+            # Use same Y-axis scale as overall trend (0 to 5)
+            numeric_cols = [short_names.get(m, m) for m in available_age]
+            y_max = max(5, trend_df[numeric_cols].max().max() + 0.5)
+            fig.update_layout(
+                yaxis_title="Books/Child",
+                xaxis_title="",
+                yaxis=dict(range=[0, y_max], dtick=0.5, gridcolor='#e5e7eb'),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="left",
+                    x=0,
+                    font=dict(size=10)
                 )
-                fig.add_hline(y=4.0, line_dash="dash", line_color="#22c55e",
-                             annotation_text="Target", annotation_font_color="#22c55e")
-                fig = style_plotly_chart(fig, height=280)
-                # Use same Y-axis scale as overall trend (0 to 5)
-                numeric_cols = [short_names.get(m, m) for m in available_age]
-                y_max = max(5, trend_df[numeric_cols].max().max() + 0.5)
-                fig.update_layout(
-                    yaxis_title="Books/Child",
-                    xaxis_title="",
-                    yaxis=dict(range=[0, y_max], dtick=0.5, gridcolor='#e5e7eb'),
-                    legend=dict(
-                        orientation="h",
-                        yanchor="bottom",
-                        y=1.02,
-                        xanchor="left",
-                        x=0,
-                        font=dict(size=10)
-                    )
-                )
-                st.plotly_chart(fig, use_container_width=True)
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("<p style='font-size: 0.85rem; color: #718096; text-decoration: underline; text-align: center;'>Both trends count only first-time visits each period — a conservative measure toward our stretch goal of 4 books/child</p>", unsafe_allow_html=True)
 
