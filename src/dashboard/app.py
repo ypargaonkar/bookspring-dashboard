@@ -2889,18 +2889,15 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #64748b; font-size: 0.75rem;'>2030 Target: {target_str} views/year</p>", unsafe_allow_html=True)
 
     with col4:
-        # Format view counts
-        digital_str = f"{digital_views/1000000:.2f}M" if digital_views >= 1000000 else f"{digital_views/1000:.0f}K" if digital_views >= 1000 else f"{int(digital_views):,}"
-        newsletter_str = f"{newsletter_views/1000000:.2f}M" if newsletter_views >= 1000000 else f"{newsletter_views/1000:.0f}K" if newsletter_views >= 1000 else f"{int(newsletter_views):,}"
         st.markdown(f"""
             <div style='display: grid; grid-template-columns: 1fr; gap: 0.4rem; padding-top: 1.5rem;'>
                 <div class="metric-card" style="text-align: center; padding: 0.5rem;">
                     <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.2rem;">📱 Digital Views</div>
-                    <div style="font-size: 1.1rem; font-weight: 700; color: #1a365d;">{digital_str}</div>
+                    <div style="font-size: 1rem; font-weight: 700; color: #1a365d;">{int(digital_views):,}</div>
                 </div>
                 <div class="metric-card" style="text-align: center; padding: 0.5rem;">
                     <div style="font-size: 0.7rem; color: #718096; margin-bottom: 0.2rem;">📧 Newsletter Views</div>
-                    <div style="font-size: 1.1rem; font-weight: 700; color: #1a365d;">{newsletter_str}</div>
+                    <div style="font-size: 1rem; font-weight: 700; color: #1a365d;">{int(newsletter_views):,}</div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
