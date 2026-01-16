@@ -2533,7 +2533,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
         fig.update_layout(
             showlegend=False,
             margin=dict(t=30, b=30, l=10, r=10),
-            height=200,
+            height=230,
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             annotations=[
@@ -2852,7 +2852,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         fig.update_layout(
             showlegend=False,
             margin=dict(t=30, b=30, l=10, r=10),
-            height=200,
+            height=230,
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
             annotations=[
