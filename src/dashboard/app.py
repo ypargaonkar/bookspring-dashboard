@@ -3822,97 +3822,86 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
 
     # Row 1: YTD Actuals with Budget Variance
     st.markdown("##### 📊 YTD Revenue & Expenses")
-    col1, col2, col3 = st.columns(3)
 
-    with col1:
-        # Revenue: budget - actual
-        # Positive = below budget (down arrow needed, red - bad)
-        # Negative = above budget (up arrow needed, green - good)
-        if ytd_revenue_budget > 0:
-            rev_diff = ytd_revenue_budget - ytd_revenue  # positive if under budget
-            rev_pct = (rev_diff / ytd_revenue_budget * 100)
-            st.metric(
-                "YTD Revenue",
-                f"${ytd_revenue:,.0f}",
-                delta=f"-${rev_diff:,.0f} ({-rev_pct:.1f}%)" if rev_diff > 0 else f"+${-rev_diff:,.0f} ({-rev_pct:.1f}%)",
-                delta_color="normal"  # negative=red (bad), positive=green (good)
-            )
-        else:
-            st.metric("YTD Revenue", f"${ytd_revenue:,.0f}")
+    # Calculate variance info for display
+    rev_diff = ytd_revenue_budget - ytd_revenue if ytd_revenue_budget > 0 else 0
+    rev_pct = (rev_diff / ytd_revenue_budget * 100) if ytd_revenue_budget > 0 else 0
+    rev_color = '#e53e3e' if rev_diff > 0 else '#38a169'
+    rev_text = f"-${rev_diff:,.0f} ({-rev_pct:.1f}%)" if rev_diff > 0 else f"+${-rev_diff:,.0f} ({-rev_pct:.1f}%)"
 
-    with col2:
-        # Expenses: budget - actual
-        # Positive = under budget (down arrow needed, green - good!)
-        # Negative = over budget (up arrow needed, red - bad!)
-        if ytd_expenses_budget > 0:
-            exp_diff = ytd_expenses_budget - ytd_expenses  # positive if under budget
-            exp_pct = (exp_diff / ytd_expenses_budget * 100)
-            st.metric(
-                "YTD Expenses",
-                f"${ytd_expenses:,.0f}",
-                delta=f"-${exp_diff:,.0f} ({-exp_pct:.1f}%)" if exp_diff > 0 else f"+${-exp_diff:,.0f} ({-exp_pct:.1f}%)",
-                delta_color="inverse"
-            )
-        else:
-            st.metric("YTD Expenses", f"${ytd_expenses:,.0f}")
+    exp_diff = ytd_expenses_budget - ytd_expenses if ytd_expenses_budget > 0 else 0
+    exp_pct = (exp_diff / ytd_expenses_budget * 100) if ytd_expenses_budget > 0 else 0
+    exp_color = '#38a169' if exp_diff > 0 else '#e53e3e'  # Under budget is good for expenses
+    exp_text = f"-${exp_diff:,.0f} ({-exp_pct:.1f}%)" if exp_diff > 0 else f"+${-exp_diff:,.0f} ({-exp_pct:.1f}%)"
 
-    with col3:
-        # Income: actual - budget (positive is good)
-        if ytd_income_budget != 0:
-            inc_diff = ytd_income - ytd_income_budget
-            inc_pct = (inc_diff / abs(ytd_income_budget) * 100) if ytd_income_budget != 0 else 0
-            st.metric(
-                "YTD Net Income",
-                f"${ytd_income:,.0f}",
-                delta=f"+${inc_diff:,.0f} ({inc_pct:.1f}%)" if inc_diff >= 0 else f"${inc_diff:,.0f} ({inc_pct:.1f}%)",
-                delta_color="normal"  # positive=green (good), negative=red (bad)
-            )
-        else:
-            st.metric("YTD Net Income", f"${ytd_income:,.0f}")
+    inc_diff = ytd_income - ytd_income_budget if ytd_income_budget != 0 else 0
+    inc_pct = (inc_diff / abs(ytd_income_budget) * 100) if ytd_income_budget != 0 else 0
+    inc_color = '#38a169' if inc_diff >= 0 else '#e53e3e'
+    inc_text = f"+${inc_diff:,.0f} ({inc_pct:.1f}%)" if inc_diff >= 0 else f"${inc_diff:,.0f} ({inc_pct:.1f}%)"
+
+    st.markdown(f"""
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">💵 YTD Revenue</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">${ytd_revenue:,.0f}</div>
+            <div style="font-size: 0.8rem; color: {rev_color}; margin-top: 0.25rem;">{rev_text} vs budget</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">💳 YTD Expenses</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">${ytd_expenses:,.0f}</div>
+            <div style="font-size: 0.8rem; color: {exp_color}; margin-top: 0.25rem;">{exp_text} vs budget</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📈 YTD Net Income</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">${ytd_income:,.0f}</div>
+            <div style="font-size: 0.8rem; color: {inc_color}; margin-top: 0.25rem;">{inc_text} vs budget</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Row 2: Budgets
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric("Revenue Budget", f"${ytd_revenue_budget:,.0f}")
-
-    with col2:
-        st.metric("Expenses Budget", f"${ytd_expenses_budget:,.0f}")
-
-    with col3:
-        st.metric("Net Income Budget", f"${ytd_income_budget:,.0f}")
-
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📋 Revenue Budget</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">${ytd_revenue_budget:,.0f}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📋 Expenses Budget</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">${ytd_expenses_budget:,.0f}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📋 Net Income Budget</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">${ytd_income_budget:,.0f}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Row 3: Cash, Inventory, Admin Ratio
     st.markdown("##### 💵 Financial Health")
-    col1, col2, col3 = st.columns(3)
 
-    with col1:
-        # Color code months of cash
-        if months_cash_on_hand > 0:
-            cash_status = "🟢" if months_cash_on_hand >= 6 else "🟡" if months_cash_on_hand >= 3 else "🔴"
-            runway_text = f"{months_cash_on_hand:.1f} months runway"
-        else:
-            cash_status = ""
-            runway_text = "Set monthly_expenses_avg to calculate" if total_cash > 0 else None
-        st.metric(
-            f"Total Cash {cash_status}",
-            f"${total_cash:,.0f}",
-            delta=runway_text,
-            delta_color="off"
-        )
+    # Calculate status indicators
+    cash_status = "🟢" if months_cash_on_hand >= 6 else "🟡" if months_cash_on_hand >= 3 else "🔴" if months_cash_on_hand > 0 else ""
+    runway_text = f"{months_cash_on_hand:.1f} months runway" if months_cash_on_hand > 0 else ""
+    ratio_status = "🟢" if admin_pct_of_total <= 20 else "🟡" if admin_pct_of_total <= 30 else "🔴"
 
-    with col2:
-        st.metric("Inventory Value", f"${inventory_value:,.0f}")
-
-    with col3:
-        # Admin % of total - lower is generally better for nonprofits
-        ratio_status = "🟢" if admin_pct_of_total <= 20 else "🟡" if admin_pct_of_total <= 30 else "🔴"
-        st.metric(
-            f"Admin % of Total Expenses {ratio_status}",
-            f"{admin_pct_of_total:.1f}%"
-        )
+    st.markdown(f"""
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">🏦 Total Cash {cash_status}</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">${total_cash:,.0f}</div>
+            <div style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;">{runway_text}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📦 Inventory Value</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">${inventory_value:,.0f}</div>
+        </div>
+        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">⚙️ Admin % of Expenses {ratio_status}</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{admin_pct_of_total:.1f}%</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Show last updated date
     if 'date' in latest and pd.notna(latest.get('date')):
