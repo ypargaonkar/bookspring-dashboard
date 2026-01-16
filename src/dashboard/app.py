@@ -3754,66 +3754,6 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
 
                 st.plotly_chart(fig_cc, use_container_width=True)
 
-        # Monthly trend chart - LINE CHART with month names on X-axis
-        st.markdown("""
-        <div style="font-size: 0.95rem; font-weight: 600; color: #1a365d; margin: 1.5rem 0 0.75rem 0;">
-            📈 Monthly Contact Trend
-        </div>
-        """, unsafe_allow_html=True)
-
-        if current_metrics['by_month'] or prior_metrics['by_month']:
-            # Month name mapping for fiscal year order
-            month_names = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-            month_order = {7: 0, 8: 1, 9: 2, 10: 3, 11: 4, 12: 5, 1: 6, 2: 7, 3: 8, 4: 9, 5: 10, 6: 11}
-
-            def get_month_name(year_month_str):
-                # Convert "2025-07" to month number
-                month_num = int(year_month_str.split('-')[1])
-                return month_names[month_order[month_num]]
-
-            def get_month_sort_key(year_month_str):
-                month_num = int(year_month_str.split('-')[1])
-                return month_order[month_num]
-
-            fig_monthly = go.Figure()
-
-            # Current FY line
-            if current_metrics['by_month']:
-                sorted_months = sorted(current_metrics['by_month'].keys(), key=get_month_sort_key)
-                x_labels = [get_month_name(m) for m in sorted_months]
-                y_values = [current_metrics['by_month'][m] for m in sorted_months]
-
-                fig_monthly.add_trace(go.Scatter(
-                    name=current_fy,
-                    x=x_labels,
-                    y=y_values,
-                    mode='lines+markers',
-                    line=dict(color='#667eea', width=3),
-                    marker=dict(size=8),
-                    fill='tozeroy',
-                    fillcolor='rgba(102, 126, 234, 0.15)',
-                    hovertemplate='%{x}<br>%{y:,.0f} contacts<extra></extra>'
-                ))
-
-            # Prior FY line
-            if prior_metrics['by_month']:
-                sorted_months = sorted(prior_metrics['by_month'].keys(), key=get_month_sort_key)
-                x_labels = [get_month_name(m) for m in sorted_months]
-                y_values = [prior_metrics['by_month'][m] for m in sorted_months]
-
-                fig_monthly.add_trace(go.Scatter(
-                    name=prior_fy,
-                    x=x_labels,
-                    y=y_values,
-                    mode='lines+markers',
-                    line=dict(color='#38a169', width=2),
-                    marker=dict(size=6),
-                    hovertemplate='%{x}<br>%{y:,.0f} contacts<extra></extra>'
-                ))
-
-            fig_monthly = style_plotly_chart(fig_monthly, height=280)
-            st.plotly_chart(fig_monthly, use_container_width=True)
-
     except Exception as e:
         st.warning(f"Unable to load donor contacts data: {e}")
 
