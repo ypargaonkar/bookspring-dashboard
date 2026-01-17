@@ -4404,6 +4404,108 @@ def render_period_comparison(processor: DataProcessor):
                 st.plotly_chart(fig, use_container_width=True)
 
 
+def render_metrics_verification(processor: DataProcessor):
+    """Render metrics verification table for debugging/validation."""
+    with st.expander("🔍 Metrics Verification (Monthly Breakdown)", expanded=False):
+        st.caption("This table shows raw monthly data for verifying books/children calculations")
+
+        df = processor.df.copy()
+        date_col = processor.get_date_column()
+
+        if date_col is None or df.empty:
+            st.warning("No data available for verification")
+            return
+
+        # Add month column
+        df['month'] = pd.to_datetime(df[date_col]).dt.to_period('M')
+
+        # Age columns (using _all versions if available)
+        age_cols_config = {
+            '0-2 yrs': ['children_035_months_all', 'children_03_years_all', 'children_035_months', 'children_03_years'],
+            '3-5 yrs': ['children_35_years_all', 'children_34_years_all', 'children_35_years', 'children_34_years'],
+            '6-8 yrs': ['children_68_years_all', 'children_512_years_all', 'children_68_years', 'children_512_years'],
+            '9-12 yrs': ['children_912_years_all', 'children_912_years'],
+            'Teens': ['teens_all', 'teens'],
+        }
+
+        # Find available columns (prefer _all versions)
+        age_cols = {}
+        for age_group, possible_cols in age_cols_config.items():
+            for col in possible_cols:
+                if col in df.columns:
+                    if age_group not in age_cols:
+                        age_cols[age_group] = []
+                    age_cols[age_group].append(col)
+                    break  # Take first available
+
+        # Books column
+        books_col = '_books_distributed_all' if '_books_distributed_all' in df.columns else '_of_books_distributed'
+
+        # Build monthly summary
+        months = sorted(df['month'].unique())
+        summary_data = []
+
+        all_age_cols_flat = []
+        for cols in age_cols.values():
+            all_age_cols_flat.extend(cols)
+        all_age_cols_flat = list(set(all_age_cols_flat))
+
+        for month in months:
+            month_df = df[df['month'] == month]
+            row = {'Month': str(month)}
+
+            # Total books
+            row['Books'] = int(month_df[books_col].sum()) if books_col in month_df.columns else 0
+
+            # Total children
+            total_children = month_df[all_age_cols_flat].fillna(0).sum().sum() if all_age_cols_flat else 0
+            row['Children'] = int(total_children)
+
+            # Average
+            row['Avg B/C'] = round(row['Books'] / row['Children'], 2) if row['Children'] > 0 else 0
+
+            # By age group
+            for age_group, cols in age_cols.items():
+                row[age_group] = int(month_df[cols].fillna(0).sum().sum())
+
+            summary_data.append(row)
+
+        # Add totals row
+        total_row = {'Month': 'TOTAL'}
+        total_row['Books'] = int(df[books_col].sum()) if books_col in df.columns else 0
+        total_children = df[all_age_cols_flat].fillna(0).sum().sum() if all_age_cols_flat else 0
+        total_row['Children'] = int(total_children)
+        total_row['Avg B/C'] = round(total_row['Books'] / total_row['Children'], 2) if total_row['Children'] > 0 else 0
+        for age_group, cols in age_cols.items():
+            total_row[age_group] = int(df[cols].fillna(0).sum().sum())
+        summary_data.append(total_row)
+
+        # Display table
+        summary_df = pd.DataFrame(summary_data)
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+        # Previously served info
+        st.markdown("---")
+        st.markdown("**Previously Served Check:**")
+        if 'previously_served_this_fy' in df.columns:
+            prev_served_mask = df['previously_served_this_fy'].apply(
+                lambda x: (x is True) or (pd.notna(x) and str(x).lower() in ('yes', 'true', '1'))
+            )
+            prev_served_count = prev_served_mask.sum()
+            st.write(f"- Records marked as previously served: **{prev_served_count}**")
+            if prev_served_count > 0 and '_books_distributed_all' in df.columns:
+                books_prev = df.loc[prev_served_mask, '_books_distributed_all'].sum()
+                st.write(f"- Books from previously served records (included in totals): **{int(books_prev):,}**")
+        else:
+            st.write("- No `previously_served_this_fy` column found")
+
+        # Column info
+        st.markdown("---")
+        st.markdown("**Data Sources:**")
+        st.write(f"- Books column: `{books_col}`")
+        st.write(f"- Age columns used: {age_cols}")
+
+
 def render_export_section(processor: DataProcessor):
     """Render export section."""
     st.markdown("""
@@ -4599,6 +4701,9 @@ def main():
     st.markdown("---")
 
     render_export_section(processor)
+
+    # Metrics verification (collapsible)
+    render_metrics_verification(processor)
 
     # Footer
     st.markdown("---")
