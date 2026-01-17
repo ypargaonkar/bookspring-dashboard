@@ -283,16 +283,14 @@ st.markdown("""
 
     .section-subtitle {
         font-size: 0.85rem;
-        color: #1e40af;
+        color: var(--text-muted);
         margin: 0.35rem 0 0 0;
-        font-weight: 600;
     }
 
     .section-note {
         font-size: 0.8rem;
-        color: #1e40af;
+        color: #64748b;
         margin: 0.5rem 0 0 0;
-        font-weight: 600;
     }
 
     /* ========================================
@@ -2293,15 +2291,13 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
         margin: 0;
     }
     .hero-subtitle {
-        color: #1e40af;
+        color: #64748b;
         font-size: 0.85rem;
-        font-weight: 600;
         margin: 0.35rem 0 0 0;
     }
     .hero-date {
-        color: #1e40af;
-        font-size: 0.85rem;
-        font-weight: 600;
+        color: #64748b;
+        font-size: 0.8rem;
         margin: 0.5rem 0 0 0;
     }
     </style>
