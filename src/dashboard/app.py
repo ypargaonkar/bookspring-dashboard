@@ -289,10 +289,13 @@ st.markdown("""
 
     .section-note {
         font-size: 0.8rem;
-        color: var(--text-muted);
-        margin: 0.35rem 0 0 0;
-        font-style: italic;
-        opacity: 0.85;
+        color: #1e40af;
+        margin: 0.5rem 0 0 0;
+        font-weight: 600;
+        background: linear-gradient(90deg, #fef3c7 0%, #fde68a 50%, #fef3c7 100%);
+        padding: 0.3rem 0.6rem;
+        border-radius: 5px;
+        display: inline-block;
     }
 
     /* ========================================
