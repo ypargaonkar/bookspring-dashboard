@@ -1,5 +1,6 @@
 """Streamlit dashboard for BookSpring metrics - Strategic Goals Edition."""
 import streamlit as st
+from zoneinfo import ZoneInfo
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -4454,7 +4455,7 @@ def main():
 
         # Date Range
         st.markdown("##### 📅 Date Range")
-        today = date.today()
+        today = datetime.now(ZoneInfo("America/Chicago"))
         # Fiscal year to date: July 1 of current fiscal year
         fiscal_year = today.year if today.month >= 7 else today.year - 1
         default_start = date(fiscal_year, 7, 1)
