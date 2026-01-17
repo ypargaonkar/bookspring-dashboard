@@ -4419,24 +4419,21 @@ def render_metrics_verification(processor: DataProcessor):
         # Add month column
         df['month'] = pd.to_datetime(df[date_col]).dt.to_period('M')
 
-        # Age columns (using _all versions if available)
+        # Age columns
         age_cols_config = {
-            '0-2 yrs': ['children_035_months_all', 'children_03_years_all', 'children_035_months', 'children_03_years'],
-            '3-5 yrs': ['children_35_years_all', 'children_34_years_all', 'children_35_years', 'children_34_years'],
-            '6-8 yrs': ['children_68_years_all', 'children_512_years_all', 'children_68_years', 'children_512_years'],
-            '9-12 yrs': ['children_912_years_all', 'children_912_years'],
-            'Teens': ['teens_all', 'teens'],
+            '0-2 yrs': ['children_035_months', 'children_03_years'],
+            '3-5 yrs': ['children_35_years', 'children_34_years'],
+            '6-8 yrs': ['children_68_years', 'children_512_years'],
+            '9-12 yrs': ['children_912_years'],
+            'Teens': ['teens'],
         }
 
-        # Find available columns (prefer _all versions)
+        # Find available columns
         age_cols = {}
         for age_group, possible_cols in age_cols_config.items():
-            for col in possible_cols:
-                if col in df.columns:
-                    if age_group not in age_cols:
-                        age_cols[age_group] = []
-                    age_cols[age_group].append(col)
-                    break  # Take first available
+            available = [c for c in possible_cols if c in df.columns]
+            if available:
+                age_cols[age_group] = available
 
         # Books column
         books_col = '_books_distributed_all' if '_books_distributed_all' in df.columns else '_of_books_distributed'
@@ -4464,7 +4461,7 @@ def render_metrics_verification(processor: DataProcessor):
             # Average
             row['Avg B/C'] = round(row['Books'] / row['Children'], 2) if row['Children'] > 0 else 0
 
-            # By age group
+            # By age group - children count
             for age_group, cols in age_cols.items():
                 row[age_group] = int(month_df[cols].fillna(0).sum().sum())
 
@@ -4480,9 +4477,53 @@ def render_metrics_verification(processor: DataProcessor):
             total_row[age_group] = int(df[cols].fillna(0).sum().sum())
         summary_data.append(total_row)
 
-        # Display table
+        # Display counts table
+        st.markdown("**Books & Children Counts:**")
         summary_df = pd.DataFrame(summary_data)
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+        # Build avg by age table
+        st.markdown("---")
+        st.markdown("**Average Books/Child by Age Group:**")
+        avg_data = []
+
+        for month in months:
+            month_df = df[df['month'] == month]
+            row = {'Month': str(month)}
+
+            # Total books and children for this month
+            total_books_month = month_df[books_col].sum() if books_col in month_df.columns else 0
+            total_children_month = month_df[all_age_cols_flat].fillna(0).sum().sum() if all_age_cols_flat else 0
+
+            # Overall avg
+            row['Overall'] = round(total_books_month / total_children_month, 2) if total_children_month > 0 else 0
+
+            # By age group - avg books/child (books / total_children for activities with this age group)
+            for age_group, cols in age_cols.items():
+                age_children = month_df[cols].fillna(0).sum().sum()
+                # Avg = total_books / total_children for rows where this age has children
+                if age_children > 0 and total_children_month > 0:
+                    row[age_group] = round(total_books_month / total_children_month, 2)
+                else:
+                    row[age_group] = 0.0
+
+            avg_data.append(row)
+
+        # Add totals row for averages
+        total_avg_row = {'Month': 'TOTAL'}
+        total_books = df[books_col].sum() if books_col in df.columns else 0
+        total_children_all = df[all_age_cols_flat].fillna(0).sum().sum() if all_age_cols_flat else 0
+        total_avg_row['Overall'] = round(total_books / total_children_all, 2) if total_children_all > 0 else 0
+        for age_group, cols in age_cols.items():
+            age_children_total = df[cols].fillna(0).sum().sum()
+            if age_children_total > 0 and total_children_all > 0:
+                total_avg_row[age_group] = round(total_books / total_children_all, 2)
+            else:
+                total_avg_row[age_group] = 0.0
+        avg_data.append(total_avg_row)
+
+        avg_df = pd.DataFrame(avg_data)
+        st.dataframe(avg_df, use_container_width=True, hide_index=True)
 
         # Previously served info
         st.markdown("---")
