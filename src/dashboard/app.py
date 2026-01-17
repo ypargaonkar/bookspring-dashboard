@@ -35,7 +35,7 @@ INVENTORY_APP_ID = os.getenv("INVENTORY_APP_ID", "i9b10a433e9414b67ae1a5d77b4a77
 FINANCIAL_SHEET_ID = os.getenv("FINANCIAL_SHEET_ID", "17jObocsIQJnazyvWToi_AtsrLJ1I9bnMpWw9BMiixA8")
 
 # DonorPerfect API configuration
-DONORPERFECT_API_KEY = os.getenv("DONORPERFECT_API_KEY", "0rmTeFqHOlaFmZM%2fOlUhnixnvaJaEazzlUh%2bAvxFuukjhgKf6K3ISsVEnom4rg%2bV0kuHNUIVceApdPdPviy0OjeEpKLbkUL3QZaXKvH0Veo%3d")
+DONORPERFECT_API_KEY = os.getenv("DONORPERFECT_API_KEY")
 DONORPERFECT_BASE_URL = "https://www.donorperfect.net/prod/xmlrequest.asp"
 
 # Legacy fields that need to be renamed to match current schema
