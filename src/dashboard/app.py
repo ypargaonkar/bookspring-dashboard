@@ -2611,11 +2611,15 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
         total_books = processor.df["_books_distributed_all"].sum()
     else:
         total_books = processor.df["_of_books_distributed"].sum() if "_of_books_distributed" in processor.df.columns else 0
-    # Use sum of age columns for children count (excludes previously served)
-    age_cols = ["children_035_months", "children_03_years", "children_35_years", "children_34_years",
-                "children_68_years", "children_512_years", "children_912_years", "teens"]
-    available_age_cols = [c for c in age_cols if c in processor.df.columns]
-    total_children = processor.df[available_age_cols].fillna(0).sum().sum() if available_age_cols else 0
+    # Use total_children column directly (excludes previously served)
+    if "total_children" in processor.df.columns:
+        total_children = processor.df["total_children"].fillna(0).sum()
+    else:
+        # Fallback to sum of age columns if total_children not available
+        age_cols = ["children_035_months", "children_03_years", "children_35_years", "children_34_years",
+                    "children_68_years", "children_512_years", "children_912_years", "teens"]
+        available_age_cols = [c for c in age_cols if c in processor.df.columns]
+        total_children = processor.df[available_age_cols].fillna(0).sum().sum() if available_age_cols else 0
     avg_overall = total_books / total_children if total_children > 0 else 0
     target = 4.0
     pct = (avg_overall / target * 100) if target > 0 else 0
@@ -4447,6 +4451,8 @@ def render_metrics_verification(processor: DataProcessor):
             all_age_cols_flat.extend(cols)
         all_age_cols_flat = list(set(all_age_cols_flat))
 
+        has_total_children_col = 'total_children' in df.columns
+
         for month in months:
             month_df = df[df['month'] == month]
             row = {'Month': str(month)}
@@ -4454,12 +4460,17 @@ def render_metrics_verification(processor: DataProcessor):
             # Total books
             row['Books'] = int(month_df[books_col].sum()) if books_col in month_df.columns else 0
 
-            # Total children
-            total_children = month_df[all_age_cols_flat].fillna(0).sum().sum() if all_age_cols_flat else 0
-            row['Children'] = int(total_children)
-
-            # Average
-            row['Avg B/C'] = round(row['Books'] / row['Children'], 2) if row['Children'] > 0 else 0
+            # Total children - show both total_children column and sum of age cols
+            sum_age_cols = month_df[all_age_cols_flat].fillna(0).sum().sum() if all_age_cols_flat else 0
+            if has_total_children_col:
+                total_children_col_val = int(month_df['total_children'].fillna(0).sum())
+                row['Children (total_children)'] = total_children_col_val
+                row['Children (sum ages)'] = int(sum_age_cols)
+                # Average uses total_children column (as per new logic)
+                row['Avg B/C'] = round(row['Books'] / total_children_col_val, 2) if total_children_col_val > 0 else 0
+            else:
+                row['Children'] = int(sum_age_cols)
+                row['Avg B/C'] = round(row['Books'] / sum_age_cols, 2) if sum_age_cols > 0 else 0
 
             # By age group - children count
             for age_group, cols in age_cols.items():
@@ -4470,9 +4481,15 @@ def render_metrics_verification(processor: DataProcessor):
         # Add totals row
         total_row = {'Month': 'TOTAL'}
         total_row['Books'] = int(df[books_col].sum()) if books_col in df.columns else 0
-        total_children = df[all_age_cols_flat].fillna(0).sum().sum() if all_age_cols_flat else 0
-        total_row['Children'] = int(total_children)
-        total_row['Avg B/C'] = round(total_row['Books'] / total_row['Children'], 2) if total_row['Children'] > 0 else 0
+        sum_age_cols_total = df[all_age_cols_flat].fillna(0).sum().sum() if all_age_cols_flat else 0
+        if has_total_children_col:
+            total_children_col_val = int(df['total_children'].fillna(0).sum())
+            total_row['Children (total_children)'] = total_children_col_val
+            total_row['Children (sum ages)'] = int(sum_age_cols_total)
+            total_row['Avg B/C'] = round(total_row['Books'] / total_children_col_val, 2) if total_children_col_val > 0 else 0
+        else:
+            total_row['Children'] = int(sum_age_cols_total)
+            total_row['Avg B/C'] = round(total_row['Books'] / sum_age_cols_total, 2) if sum_age_cols_total > 0 else 0
         for age_group, cols in age_cols.items():
             total_row[age_group] = int(df[cols].fillna(0).sum().sum())
         summary_data.append(total_row)

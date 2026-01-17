@@ -165,12 +165,20 @@ class DataProcessor:
                     self.df.loc[mask, books_col] / self.df.loc[mask, "_total_children_calc"]
                 )
 
-        # Overall average books per child
-        self.df["avg_books_per_child"] = self.df.apply(
-            lambda row: row[books_col] / row["_total_children_calc"]
-            if row["_total_children_calc"] > 0 else 0,
-            axis=1
-        )
+        # Overall average books per child - use total_children column directly
+        if "total_children" in self.df.columns:
+            self.df["avg_books_per_child"] = self.df.apply(
+                lambda row: row[books_col] / row["total_children"]
+                if row["total_children"] > 0 else 0,
+                axis=1
+            )
+        else:
+            # Fallback to calculated total if total_children column not available
+            self.df["avg_books_per_child"] = self.df.apply(
+                lambda row: row[books_col] / row["_total_children_calc"]
+                if row["_total_children_calc"] > 0 else 0,
+                axis=1
+            )
 
         # Clean up temp column
         self.df.drop("_total_children_calc", axis=1, inplace=True)
@@ -273,24 +281,34 @@ class DataProcessor:
                 all_age_cols.extend([c for c in sources if c in df.columns])
 
             if books_col in df.columns and all_age_cols:
-                # Calculate total children as sum of age columns (consistent with per-row calc)
+                # Calculate total children as sum of age columns (for by-age-group metrics)
                 df["_total_children_for_agg"] = df[all_age_cols].fillna(0).sum(axis=1)
 
-                # Aggregate books and children by period
-                period_sums = df.groupby("period", dropna=True).agg({
-                    books_col: "sum",
-                    "_total_children_for_agg": "sum"
-                }).reset_index()
-
-                # Calculate avg_books_per_child: books / children for each period
-                period_sums["avg_books_per_child"] = period_sums.apply(
-                    lambda row: row[books_col] / row["_total_children_for_agg"]
-                    if row["_total_children_for_agg"] > 0 else 0,
-                    axis=1
-                )
-
-                # Merge into result
+                # For overall avg_books_per_child, use total_children column directly
                 if "avg_books_per_child" in ratio_metrics_requested:
+                    if "total_children" in df.columns:
+                        # Use total_children column for overall trendline
+                        period_sums = df.groupby("period", dropna=True).agg({
+                            books_col: "sum",
+                            "total_children": "sum"
+                        }).reset_index()
+                        period_sums["avg_books_per_child"] = period_sums.apply(
+                            lambda row: row[books_col] / row["total_children"]
+                            if row["total_children"] > 0 else 0,
+                            axis=1
+                        )
+                    else:
+                        # Fallback to sum of age columns if total_children not available
+                        period_sums = df.groupby("period", dropna=True).agg({
+                            books_col: "sum",
+                            "_total_children_for_agg": "sum"
+                        }).reset_index()
+                        period_sums["avg_books_per_child"] = period_sums.apply(
+                            lambda row: row[books_col] / row["_total_children_for_agg"]
+                            if row["_total_children_for_agg"] > 0 else 0,
+                            axis=1
+                        )
+
                     result = result.merge(
                         period_sums[["period", "avg_books_per_child"]],
                         on="period",
