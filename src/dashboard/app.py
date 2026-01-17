@@ -2314,7 +2314,7 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
             <div style="text-align: left;">
                 <h1 class="hero-title">BookSpring Strategic Dashboard</h1>
                 <p class="hero-subtitle">Tracking Progress Toward 2025-2030 Strategic Goals</p>
-                <p class="hero-date">Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
+                <p class="hero-date">📅 Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
             </div>
         </div>
     </div>
@@ -2604,7 +2604,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
         <div class="section-title-group">
             <h2 class="section-title">Goal 1: Strengthen Impact</h2>
             <p class="section-subtitle">Target: 4 books/child/year | Daily read-aloud 25%→75% | Home libraries 26%→50%</p>
-            <p class="section-note">Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
+            <p class="section-note">📅 Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -2757,7 +2757,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         <div class="section-title-group">
             <h2 class="section-title">Goal 2: Inspire Engagement</h2>
             <p class="section-subtitle">Target: 25K home delivery | 55K book bank model | 1.5M digital views annually</p>
-            <p class="section-note">Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
+            <p class="section-note">📅 Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3169,7 +3169,7 @@ def render_goal3_advance_innovation(books_data: list):
         <div class="section-title-group">
             <h2 class="section-title">Goal 3: Advance Innovation</h2>
             <p class="section-subtitle">Target: Grow digital library with high-quality, Texas-relevant original content</p>
-            <p class="section-note">Tracking all-time data</p>
+            <p class="section-note">🔒 Tracking all-time data</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3299,7 +3299,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         <div class="section-title-group">
             <h2 class="section-title">Goal 4: Optimize Sustainability</h2>
             <p class="section-subtitle">Target: Diversified funding to $3M annually</p>
-            <p class="section-note">Tracks current fiscal year {current_fy_label} · Adjusting date range in sidebar will not affect these metrics</p>
+            <p class="section-note">🔒 Tracks current fiscal year {current_fy_label} · Adjusting date range in sidebar will not affect these metrics</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3956,7 +3956,7 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         <div class="section-icon financial">💰</div>
         <div class="section-title-group">
             <h2 class="section-title">Financial Metrics</h2>
-            <p class="section-note">Tracks current fiscal year {current_fy} · Updates daily at noon · Adjusting date range in sidebar will not affect these metrics</p>
+            <p class="section-note">🔒 Tracks current fiscal year {current_fy} · Updates daily at noon · Adjusting date range in sidebar will not affect these metrics</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -4254,7 +4254,7 @@ def render_trends_section(processor: DataProcessor, time_unit: str, views_data: 
         <div class="section-title-group">
             <h2 class="section-title">Trends Over Time</h2>
             <p class="section-subtitle">Analyze metric patterns across different time periods</p>
-            <p class="section-note">Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
+            <p class="section-note">📅 Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
