@@ -356,12 +356,12 @@ class DataProcessor:
                                 axis=1
                             )
 
-                                result = result.merge(
-                                    age_period_sums[["period", metric_col]],
-                                    on="period",
-                                    how="left"
-                                )
-                                result[metric_col] = result[metric_col].fillna(0)
+                            result = result.merge(
+                                age_period_sums[["period", metric_col]],
+                                on="period",
+                                how="left"
+                            )
+                            result[metric_col] = result[metric_col].fillna(0)
 
                 # Clean up temp column
                 df.drop("_total_children_for_agg", axis=1, inplace=True)
