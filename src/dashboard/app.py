@@ -2301,9 +2301,14 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
         margin: 0;
     }
     .hero-subtitle {
-        color: #64748b;
-        font-size: 0.9rem;
-        margin: 0.25rem 0 0 0;
+        color: #1e40af;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 0.35rem 0 0 0;
+        background: linear-gradient(90deg, #fef3c7 0%, #fde68a 50%, #fef3c7 100%);
+        padding: 0.3rem 0.6rem;
+        border-radius: 5px;
+        display: inline-block;
     }
     .hero-date {
         color: #1e40af;
@@ -2330,7 +2335,7 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
             <div style="text-align: left;">
                 <h1 class="hero-title">BookSpring Strategic Dashboard</h1>
                 <p class="hero-subtitle">Tracking Progress Toward 2025-2030 Strategic Goals</p>
-                <p class="hero-date">Currently tracking {current_fy} · See date range in sidebar</p>
+                <p class="hero-date">Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
             </div>
         </div>
     </div>
