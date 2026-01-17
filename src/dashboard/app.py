@@ -40,20 +40,20 @@ DONORPERFECT_BASE_URL = "https://www.donorperfect.net/prod/xmlrequest.asp"
 # Legacy fields that need to be renamed to match current schema
 LEGACY_FIELD_MAP = {
     "average_engagement_duration": "minutes_of_activity",
+    "children_served_this_year": "previously_served_this_fy",
+    "children_03_years": "children_035_months",
+    "children_34_years": "children_35_years",
+    "children_512_years": "children_68_years",
     "date": "date_of_activity",  # Current data uses date_of_activity, legacy uses date
 }
 
 # Fields to copy as-is from legacy data (DataProcessor handles these natively)
 LEGACY_PASSTHROUGH_FIELDS = [
-    "children_03_years",
-    "children_34_years",
-    "children_512_years",
     "children_912_years",
     "teens",
     "parents_or_caregivers",
     "_of_books_distributed",
     "total_children",
-    "previously_served_this_fy",
     "percentage_low_income",
     "activity_type",
     "program",
