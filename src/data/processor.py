@@ -122,7 +122,9 @@ class DataProcessor:
         if self.df.empty:
             return
 
-        books_col = "_of_books_distributed"
+        # Use _books_distributed_all to include ALL books (even for previously served children)
+        # This ensures trendlines count all books given to unique children
+        books_col = "_books_distributed_all" if "_books_distributed_all" in self.df.columns else "_of_books_distributed"
         if books_col not in self.df.columns:
             return
 
@@ -253,7 +255,8 @@ class DataProcessor:
         # For ratio metrics, calculate averages per period (books / children for that period)
         # Use sum of age columns for children count (same as per-row calculation)
         if ratio_metrics_requested:
-            books_col = "_of_books_distributed"
+            # Use _books_distributed_all to include ALL books (even for previously served children)
+            books_col = "_books_distributed_all" if "_books_distributed_all" in df.columns else "_of_books_distributed"
 
             # Age group column mapping
             age_group_sources = {
