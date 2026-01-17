@@ -287,6 +287,14 @@ st.markdown("""
         margin: 0.25rem 0 0 0;
     }
 
+    .section-note {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 0.35rem 0 0 0;
+        font-style: italic;
+        opacity: 0.85;
+    }
+
     /* ========================================
        GOAL CARDS
        ======================================== */
@@ -1034,6 +1042,10 @@ st.markdown("""
             font-size: 0.75rem !important;
         }
 
+        .section-note {
+            font-size: 0.7rem !important;
+        }
+
         /* Stack metric cards on mobile */
         div[data-testid="column"] {
             min-width: 100% !important;
@@ -1095,7 +1107,7 @@ st.markdown("""
         }
 
         /* Hide less important elements on very small screens */
-        .section-subtitle {
+        .section-subtitle, .section-note {
             display: none;
         }
     }
@@ -2592,12 +2604,15 @@ def render_print_snapshot(processor: DataProcessor, views_data: list, books_data
 
 def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     """Render Goal 1: Strengthen Impact section."""
-    st.markdown("""
+    fy_info = get_fiscal_year_info(date.today())
+    current_fy = fy_info['current_fy_short']
+    st.markdown(f"""
     <div class="section-header">
         <div class="section-icon goal1">🎯</div>
         <div class="section-title-group">
             <h2 class="section-title">Goal 1: Strengthen Impact</h2>
             <p class="section-subtitle">Target: 4 books/child/year | Daily read-aloud 25%→75% | Home libraries 26%→50%</p>
+            <p class="section-note">Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -2743,12 +2758,15 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
 
 def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0, inperson_events: int = 0, activity_records: list = None, partners_data: list = None, low_income_pct: float = 0.0):
     """Render Goal 2: Inspire Engagement with Content Views."""
-    st.markdown("""
+    fy_info = get_fiscal_year_info(date.today())
+    current_fy = fy_info['current_fy_short']
+    st.markdown(f"""
     <div class="section-header">
         <div class="section-icon goal2">💡</div>
         <div class="section-title-group">
             <h2 class="section-title">Goal 2: Inspire Engagement</h2>
             <p class="section-subtitle">Target: 25K home delivery | 55K book bank model | 1.5M digital views annually</p>
+            <p class="section-note">Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3161,6 +3179,7 @@ def render_goal3_advance_innovation(books_data: list):
         <div class="section-title-group">
             <h2 class="section-title">Goal 3: Advance Innovation</h2>
             <p class="section-subtitle">Target: Grow digital library with high-quality, Texas-relevant original content</p>
+            <p class="section-note">Tracking all-time data</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3280,20 +3299,21 @@ def render_goal3_advance_innovation(books_data: list):
 
 def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataFrame = None):
     """Render Goal 4: Optimize Sustainability."""
-    st.markdown("""
+    # Get FY info for header (used by multiple sections)
+    today = date.today()
+    fy_info = get_fiscal_year_info(today)
+    current_fy_label = fy_info['current_fy_short']
+    st.markdown(f"""
     <div class="section-header">
         <div class="section-icon goal4">🌱</div>
         <div class="section-title-group">
             <h2 class="section-title">Goal 4: Optimize Sustainability</h2>
             <p class="section-subtitle">Target: Diversified funding to $3M annually</p>
+            <p class="section-note">Tracks {current_fy_label} only · Adjusting date range in sidebar will not affect these metrics</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Get FY info for header (used by multiple sections)
-    today = date.today()
-    fy_info = get_fiscal_year_info(today)
-    current_fy_label = fy_info['current_fy_short']
     prior_fy_label = fy_info['prior_fy_short']
 
     # === Donor Comparison Metrics (Individuals / Organizations / Total) ===
@@ -3939,12 +3959,15 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
 
 def render_financial_metrics(financial_df: pd.DataFrame = None):
     """Render Financial Metrics section with real data from Google Sheets."""
-    st.markdown("""
+    fy_info = get_fiscal_year_info(date.today())
+    current_fy = fy_info['current_fy_short']
+    st.markdown(f"""
     <div class="section-header">
         <div class="section-icon financial">💰</div>
         <div class="section-title-group">
             <h2 class="section-title">Financial Metrics</h2>
             <p class="section-subtitle">Fiscal year to date (July 1 – present) · Updates daily at noon</p>
+            <p class="section-note">Tracks {current_fy} only · Adjusting date range in sidebar will not affect these metrics</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -4234,12 +4257,15 @@ def render_upcoming_events(events_data: list):
 
 def render_trends_section(processor: DataProcessor, time_unit: str, views_data: list = None, start_date: date = None, end_date: date = None):
     """Render trends over time section."""
-    st.markdown("""
+    fy_info = get_fiscal_year_info(date.today())
+    current_fy = fy_info['current_fy_short']
+    st.markdown(f"""
     <div class="section-header">
         <div class="section-icon trends">📈</div>
         <div class="section-title-group">
             <h2 class="section-title">Trends Over Time</h2>
             <p class="section-subtitle">Analyze metric patterns across different time periods</p>
+            <p class="section-note">Currently tracking {current_fy} · Adjust date range in sidebar to view metrics for a different period</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
