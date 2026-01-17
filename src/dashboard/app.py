@@ -3320,7 +3320,7 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         <div class="section-title-group">
             <h2 class="section-title">Goal 4: Optimize Sustainability</h2>
             <p class="section-subtitle">Target: Diversified funding to $3M annually</p>
-            <p class="section-note">Tracks {current_fy_label} only · Adjusting date range in sidebar will not affect these metrics</p>
+            <p class="section-note">Tracks current fiscal year {current_fy_label} · Adjusting date range in sidebar will not affect these metrics</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3977,8 +3977,7 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         <div class="section-icon financial">💰</div>
         <div class="section-title-group">
             <h2 class="section-title">Financial Metrics</h2>
-            <p class="section-subtitle">Fiscal year to date (July 1 – present) · Updates daily at noon</p>
-            <p class="section-note">Tracks {current_fy} only · Adjusting date range in sidebar will not affect these metrics</p>
+            <p class="section-note">Tracks current fiscal year {current_fy} · Updates daily at noon · Adjusting date range in sidebar will not affect these metrics</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
