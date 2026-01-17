@@ -282,9 +282,14 @@ st.markdown("""
     }
 
     .section-subtitle {
-        font-size: 0.9rem;
-        color: var(--text-muted);
-        margin: 0.25rem 0 0 0;
+        font-size: 0.85rem;
+        color: #1e40af;
+        margin: 0.35rem 0 0 0;
+        font-weight: 600;
+        background: linear-gradient(90deg, #fef3c7 0%, #fde68a 50%, #fef3c7 100%);
+        padding: 0.3rem 0.6rem;
+        border-radius: 5px;
+        display: inline-block;
     }
 
     .section-note {
@@ -2640,7 +2645,6 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
 
     with col1:
         st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>Avg Books/Child</p>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.75rem; margin-bottom: -10px;'>(in date range)</p>", unsafe_allow_html=True)
 
         # Create progress ring
         display_pct = min(pct, 100)
@@ -2923,8 +2927,7 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         </div>
         <div style="flex: 1; min-width: 0;">
             <p style="font-size: 1.1rem; font-weight: 700; color: #1a202c; margin: 0;">BookSpring In-Person Events</p>
-            <p style="font-size: 0.85rem; color: #6b7280; margin: 0.25rem 0 0 0;">(in date range)</p>
-            <p style="font-size: 0.75rem; color: #9ca3af; margin: 0.5rem 0 0 0; font-style: italic;">Includes: Literacy Materials Distribution, Family Literacy Activity</p>
+            <p style="font-size: 0.75rem; color: #9ca3af; margin: 0.35rem 0 0 0; font-style: italic;">Includes: Literacy Materials Distribution, Family Literacy Activity</p>
             <div style="margin-top: 0.6rem; display: flex; flex-wrap: wrap; gap: 0.3rem;">{inperson_partners_html if inperson_partners_html else ''}</div>
         </div>
     </div>
@@ -2945,8 +2948,8 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
         </div>
         <div style="flex: 1; min-width: 0;">
             <p style="font-size: 1.15rem; font-weight: 700; color: #1a202c; margin: 0;">Recurring Partners</p>
-            <p style="font-size: 0.85rem; color: #6b7280; margin: 0.25rem 0 0 0;">(2+ activities in date range)</p>
-            <div style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.35rem; line-height: 1.6;">{all_partners_html if all_partners_html else '<span style="font-size: 0.75rem; color: #9ca3af;">No recurring partners in date range</span>'}</div>
+            <p style="font-size: 0.75rem; color: #9ca3af; margin: 0.25rem 0 0 0; font-style: italic;">Partners with 2+ activities</p>
+            <div style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.35rem; line-height: 1.6;">{all_partners_html if all_partners_html else '<span style="font-size: 0.75rem; color: #9ca3af;">No recurring partners</span>'}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
