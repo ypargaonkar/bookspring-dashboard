@@ -87,9 +87,9 @@ class DataProcessor:
 
         This ensures that previously served children are not double-counted in metrics
         like total children served, average books per child, and age group breakdowns.
-        Books are also zeroed for trendline calculations (per-period ratios).
+        Books are also zeroed to exclude them from trendline calculations.
 
-        Original books are preserved in _books_distributed_all for total display metrics.
+        Original values are preserved in _all columns for reference if needed.
         """
         if self.df.empty:
             return
@@ -131,9 +131,8 @@ class DataProcessor:
         if self.df.empty:
             return
 
-        # Use _books_distributed_all to include ALL books (even for previously served children)
-        # This ensures trendlines count all books given to unique children
-        books_col = "_books_distributed_all" if "_books_distributed_all" in self.df.columns else "_of_books_distributed"
+        # Use _of_books_distributed to exclude books for previously served children
+        books_col = "_of_books_distributed"
         if books_col not in self.df.columns:
             return
 
@@ -278,8 +277,8 @@ class DataProcessor:
         # For ratio metrics, calculate averages per period (books / children for that period)
         # Use sum of age columns for children count (same as per-row calculation)
         if ratio_metrics_requested:
-            # Use _books_distributed_all to include ALL books (even for previously served children)
-            books_col = "_books_distributed_all" if "_books_distributed_all" in df.columns else "_of_books_distributed"
+            # Use _of_books_distributed to exclude books for previously served children
+            books_col = "_of_books_distributed"
 
             # Age group column mapping - use _all columns to include previously served children
             age_group_sources_base = {
