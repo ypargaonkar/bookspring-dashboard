@@ -138,7 +138,7 @@ class DataProcessor:
 
         # Age group mapping: metric name -> list of possible source columns
         # Multiple source columns handle different schemas (legacy vs current)
-        # Use _all columns (preserved before zeroing) to include previously served children
+        # Use base columns (zeroed for previously served) to exclude previously served children
         age_group_sources_base = {
             "books_per_child_0_2": ["children_035_months", "children_03_years"],
             "books_per_child_3_5": ["children_35_years", "children_34_years"],
@@ -147,19 +147,13 @@ class DataProcessor:
             "books_per_child_teens": ["teens"],
         }
 
-        # Build age_group_sources using _all columns when available
+        # Build age_group_sources using base columns (zeroed for previously served)
+        # This ensures both books AND children exclude previously served rows
         age_group_sources = {}
         for metric, base_cols in age_group_sources_base.items():
-            all_cols = []
-            for col in base_cols:
-                # Prefer _all column if it exists, otherwise use base column
-                all_col = f"{col}_all"
-                if all_col in self.df.columns:
-                    all_cols.append(all_col)
-                elif col in self.df.columns:
-                    all_cols.append(col)
-            if all_cols:
-                age_group_sources[metric] = all_cols
+            existing_cols = [col for col in base_cols if col in self.df.columns]
+            if existing_cols:
+                age_group_sources[metric] = existing_cols
 
         # Get all possible source columns that exist in the data
         all_source_cols = []
@@ -280,7 +274,7 @@ class DataProcessor:
             # Use _of_books_distributed to exclude books for previously served children
             books_col = "_of_books_distributed"
 
-            # Age group column mapping - use _all columns to include previously served children
+            # Age group column mapping - use base columns (not _all) to exclude previously served children
             age_group_sources_base = {
                 "books_per_child_0_2": ["children_035_months", "children_03_years"],
                 "books_per_child_3_5": ["children_35_years", "children_34_years"],
@@ -289,19 +283,13 @@ class DataProcessor:
                 "books_per_child_teens": ["teens"],
             }
 
-            # Build age_group_sources using _all columns when available
+            # Build age_group_sources using base columns (zeroed for previously served)
+            # This ensures both books AND children exclude previously served rows
             age_group_sources = {}
             for metric, base_cols in age_group_sources_base.items():
-                all_cols = []
-                for col in base_cols:
-                    # Prefer _all column if it exists, otherwise use base column
-                    all_col = f"{col}_all"
-                    if all_col in df.columns:
-                        all_cols.append(all_col)
-                    elif col in df.columns:
-                        all_cols.append(col)
-                if all_cols:
-                    age_group_sources[metric] = all_cols
+                existing_cols = [col for col in base_cols if col in df.columns]
+                if existing_cols:
+                    age_group_sources[metric] = existing_cols
 
             # Get all age columns that exist for calculating total children
             all_age_cols = []
