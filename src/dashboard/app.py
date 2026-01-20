@@ -2605,8 +2605,12 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     </div>
     """, unsafe_allow_html=True)
 
-    # Calculate avg books/child: books / unique children (excluding previously served)
-    total_books = processor.df["_of_books_distributed"].sum() if "_of_books_distributed" in processor.df.columns else 0
+    # Calculate avg books/child: total books / unique children
+    # Use _books_distributed_all for total books (includes all books distributed)
+    if "_books_distributed_all" in processor.df.columns:
+        total_books = processor.df["_books_distributed_all"].sum()
+    else:
+        total_books = processor.df["_of_books_distributed"].sum() if "_of_books_distributed" in processor.df.columns else 0
     # Use sum of age columns for children count (excludes previously served)
     age_cols = ["children_035_months", "children_03_years", "children_35_years", "children_34_years",
                 "children_68_years", "children_512_years", "children_912_years", "teens"]
@@ -2656,7 +2660,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
         )
         st.plotly_chart(fig, use_container_width=True, key="goal1_ring")
         st.markdown(f"<p style='text-align: center; margin-top: -20px; color: #1a365d; font-size: 0.9rem; font-weight: 700;'>2030 Target: 4.0 books/child</p>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #718096; font-size: 0.7rem; margin-top: 0.25rem;'>Books distributed to unique children this fiscal year</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #718096; font-size: 0.7rem; margin-top: 0.25rem;'>All books distributed / unique children served</p>", unsafe_allow_html=True)
 
     with col2:
         st.markdown("##### Overall Trend")
