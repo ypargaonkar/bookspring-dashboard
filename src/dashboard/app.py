@@ -3851,9 +3851,9 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         cc_prior = prior_metrics['by_type'].get('CC', 0)
         cc_pct = ((cc_current - cc_prior) / cc_prior * 100) if cc_prior > 0 else 0
 
-        ma_current = current_metrics['by_type'].get('MA', 0)
-        ma_prior = prior_metrics['by_type'].get('MA', 0)
-        ma_pct = ((ma_current - ma_prior) / ma_prior * 100) if ma_prior > 0 else 0
+        lt_current = current_metrics['by_type'].get('LT', 0)
+        lt_prior = prior_metrics['by_type'].get('LT', 0)
+        lt_pct = ((lt_current - lt_prior) / lt_prior * 100) if lt_prior > 0 else 0
 
         rcpt_current = current_metrics['by_type'].get('RCPTSNT', 0)
         rcpt_prior = prior_metrics['by_type'].get('RCPTSNT', 0)
@@ -3878,9 +3878,9 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             </div>
             <div class="metric-card" style="text-align: center; padding: 1.25rem;">
                 <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📬 Mailings</div>
-                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{ma_current:,}</div>
-                <div style="font-size: 0.8rem; color: {'#38a169' if ma_pct >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
-                    {'+' if ma_pct >= 0 else ''}{ma_pct:.1f}% vs {prior_fy}
+                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{lt_current:,}</div>
+                <div style="font-size: 0.8rem; color: {'#38a169' if lt_pct >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
+                    {'+' if lt_pct >= 0 else ''}{lt_pct:.1f}% vs {prior_fy}
                 </div>
             </div>
             <div class="metric-card" style="text-align: center; padding: 1.25rem;">
