@@ -63,6 +63,38 @@ LEGACY_PASSTHROUGH_FIELDS = [
     "site_name",
 ]
 
+def parse_financial_value(value) -> float:
+    """Parse a financial value, handling accounting format where () indicates negative.
+
+    Examples:
+        "1,234.56" -> 1234.56
+        "(1,234.56)" -> -1234.56
+        "$1,234" -> 1234.0
+        "($1,234)" -> -1234.0
+    """
+    if value is None or value == '':
+        return 0.0
+
+    # If already a number, return it
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    # Convert to string for processing
+    val_str = str(value).strip()
+
+    # Check if negative (wrapped in parentheses)
+    is_negative = val_str.startswith('(') and val_str.endswith(')')
+
+    # Remove parentheses, dollar signs, commas, and whitespace
+    val_str = val_str.replace('(', '').replace(')', '').replace('$', '').replace(',', '').strip()
+
+    try:
+        result = float(val_str) if val_str else 0.0
+        return -result if is_negative else result
+    except ValueError:
+        return 0.0
+
+
 # Brand Colors
 COLORS = {
     "primary": "#1a365d",       # Deep navy blue
@@ -3972,20 +4004,20 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
     else:
         latest = financial_df.iloc[0] if len(financial_df) > 0 else {}
 
-    # Extract metrics with safe defaults
-    ytd_revenue = float(latest.get('ytd_revenue', 0) or 0)
-    ytd_revenue_budget = float(latest.get('ytd_revenue_budget', 0) or 0)
-    ytd_expenses = float(latest.get('ytd_expenses', 0) or 0)
-    ytd_expenses_budget = float(latest.get('ytd_expenses_budget', 0) or 0)
-    ytd_income = float(latest.get('ytd_income', 0) or 0)
-    ytd_income_budget = float(latest.get('ytd_income_budget', 0) or 0)
-    total_cash = float(latest.get('total_cash', 0) or 0)
-    monthly_expenses_avg = float(latest.get('monthly_expenses_avg', 0) or 0)
-    inventory_value = float(latest.get('inventory_value', 0) or 0)
-    admin_expenses = float(latest.get('admin_expenses', 0) or 0)
-    program_expenses = float(latest.get('program_expenses', 0) or 0)
-    grants_received = float(latest.get('grants_received', 0) or 0)
-    grants_goal = float(latest.get('grants_goal', 0) or 0)
+    # Extract metrics with safe defaults (handles accounting format where () = negative)
+    ytd_revenue = parse_financial_value(latest.get('ytd_revenue', 0))
+    ytd_revenue_budget = parse_financial_value(latest.get('ytd_revenue_budget', 0))
+    ytd_expenses = parse_financial_value(latest.get('ytd_expenses', 0))
+    ytd_expenses_budget = parse_financial_value(latest.get('ytd_expenses_budget', 0))
+    ytd_income = parse_financial_value(latest.get('ytd_income', 0))
+    ytd_income_budget = parse_financial_value(latest.get('ytd_income_budget', 0))
+    total_cash = parse_financial_value(latest.get('total_cash', 0))
+    monthly_expenses_avg = parse_financial_value(latest.get('monthly_expenses_avg', 0))
+    inventory_value = parse_financial_value(latest.get('inventory_value', 0))
+    admin_expenses = parse_financial_value(latest.get('admin_expenses', 0))
+    program_expenses = parse_financial_value(latest.get('program_expenses', 0))
+    grants_received = parse_financial_value(latest.get('grants_received', 0))
+    grants_goal = parse_financial_value(latest.get('grants_goal', 0))
 
     # Calculate derived metrics
     revenue_variance = ytd_revenue - ytd_revenue_budget
