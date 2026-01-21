@@ -4522,9 +4522,11 @@ def render_debug_avg_books_section(processor: DataProcessor):
         row["Books (All)"] = int(books_all)
         row["Books (Excl Prev)"] = int(books_excl)
 
-        # Total children from total_children field
+        # Total children - both excluding and including previously served
         children_total = month_df["total_children"].sum() if "total_children" in month_df.columns else 0
-        row["Children (Total)"] = int(children_total)
+        children_all = month_df["total_children_all"].sum() if "total_children_all" in month_df.columns else 0
+        row["Children (Excl)"] = int(children_total)
+        row["Children (All)"] = int(children_all)
 
         # Children by age group (sum of available columns)
         total_from_age = 0
@@ -4539,18 +4541,25 @@ def render_debug_avg_books_section(processor: DataProcessor):
         row["Children (Sum Age)"] = int(total_from_age)
 
         # Calculate averages - show formula as "result = X/Y"
-        # Overall avg: books_all / children_total (matching dashboard calculation)
+        # Avg using all books / children excluding prev served (used in dashboard ring)
         if children_total > 0:
             avg_val = round(books_all / children_total, 2)
-            row["Avg (All/Total)"] = f"{avg_val} = {int(books_all)}/{int(children_total)}"
+            row["Avg (All/Excl)"] = f"{avg_val} = {int(books_all)}/{int(children_total)}"
         else:
-            row["Avg (All/Total)"] = "0"
+            row["Avg (All/Excl)"] = "0"
+
+        # Avg if we didn't exclude children (all books / all children)
+        if children_all > 0:
+            avg_val = round(books_all / children_all, 2)
+            row["Avg (All/All)"] = f"{avg_val} = {int(books_all)}/{int(children_all)}"
+        else:
+            row["Avg (All/All)"] = "0"
 
         if children_total > 0:
             avg_val = round(books_excl / children_total, 2)
-            row["Avg (Excl/Total)"] = f"{avg_val} = {int(books_excl)}/{int(children_total)}"
+            row["Avg (Excl/Excl)"] = f"{avg_val} = {int(books_excl)}/{int(children_total)}"
         else:
-            row["Avg (Excl/Total)"] = "0"
+            row["Avg (Excl/Excl)"] = "0"
 
         if total_from_age > 0:
             avg_val = round(books_excl / total_from_age, 2)
@@ -4584,12 +4593,14 @@ def render_debug_avg_books_section(processor: DataProcessor):
     totals_row = {"Month": "TOTAL"}
     total_books_all = debug_df["Books (All)"].sum()
     total_books_excl = debug_df["Books (Excl Prev)"].sum()
-    total_children = debug_df["Children (Total)"].sum()
+    total_children_excl = debug_df["Children (Excl)"].sum()
+    total_children_all = debug_df["Children (All)"].sum()
     total_children_age = debug_df["Children (Sum Age)"].sum()
 
     totals_row["Books (All)"] = int(total_books_all)
     totals_row["Books (Excl Prev)"] = int(total_books_excl)
-    totals_row["Children (Total)"] = int(total_children)
+    totals_row["Children (Excl)"] = int(total_children_excl)
+    totals_row["Children (All)"] = int(total_children_all)
     totals_row["Children (Sum Age)"] = int(total_children_age)
 
     # Sum children by age group
@@ -4599,17 +4610,25 @@ def render_debug_avg_books_section(processor: DataProcessor):
             totals_row[col_name] = int(debug_df[col_name].sum())
 
     # Calculate overall averages for totals row - show formula
-    if total_children > 0:
-        avg_val = round(total_books_all / total_children, 2)
-        totals_row["Avg (All/Total)"] = f"{avg_val} = {int(total_books_all)}/{int(total_children)}"
+    # Avg (All/Excl) - all books / children excluding prev served (used in dashboard)
+    if total_children_excl > 0:
+        avg_val = round(total_books_all / total_children_excl, 2)
+        totals_row["Avg (All/Excl)"] = f"{avg_val} = {int(total_books_all)}/{int(total_children_excl)}"
     else:
-        totals_row["Avg (All/Total)"] = "0"
+        totals_row["Avg (All/Excl)"] = "0"
 
-    if total_children > 0:
-        avg_val = round(total_books_excl / total_children, 2)
-        totals_row["Avg (Excl/Total)"] = f"{avg_val} = {int(total_books_excl)}/{int(total_children)}"
+    # Avg (All/All) - what it would be without excluding children
+    if total_children_all > 0:
+        avg_val = round(total_books_all / total_children_all, 2)
+        totals_row["Avg (All/All)"] = f"{avg_val} = {int(total_books_all)}/{int(total_children_all)}"
     else:
-        totals_row["Avg (Excl/Total)"] = "0"
+        totals_row["Avg (All/All)"] = "0"
+
+    if total_children_excl > 0:
+        avg_val = round(total_books_excl / total_children_excl, 2)
+        totals_row["Avg (Excl/Excl)"] = f"{avg_val} = {int(total_books_excl)}/{int(total_children_excl)}"
+    else:
+        totals_row["Avg (Excl/Excl)"] = "0"
 
     if total_children_age > 0:
         avg_val = round(total_books_excl / total_children_age, 2)
@@ -4636,10 +4655,10 @@ def render_debug_avg_books_section(processor: DataProcessor):
     with col1:
         st.metric("Total Books (All)", f"{int(total_books_all):,}")
     with col2:
-        st.metric("Total Children", f"{int(total_children):,}")
+        st.metric("Children (Excl)", f"{int(total_children_excl):,}")
     with col3:
-        overall_avg = total_books_all / total_children if total_children > 0 else 0
-        st.metric("Overall Avg", f"{overall_avg:.2f}")
+        overall_avg = total_books_all / total_children_excl if total_children_excl > 0 else 0
+        st.metric("Avg (All/Excl)", f"{overall_avg:.2f}")
     with col4:
         st.metric("Months", len(debug_df) - 1)  # Exclude totals row
 
@@ -4654,10 +4673,12 @@ def render_debug_avg_books_section(processor: DataProcessor):
             "Month": st.column_config.TextColumn("Month", width="small"),
             "Books (All)": st.column_config.NumberColumn("Books (All)", format="%d"),
             "Books (Excl Prev)": st.column_config.NumberColumn("Books (Excl)", format="%d"),
-            "Children (Total)": st.column_config.NumberColumn("Children", format="%d"),
+            "Children (Excl)": st.column_config.NumberColumn("Children (Excl)", format="%d"),
+            "Children (All)": st.column_config.NumberColumn("Children (All)", format="%d"),
             "Children (Sum Age)": st.column_config.NumberColumn("Children (Age Sum)", format="%d"),
-            "Avg (All/Total)": st.column_config.TextColumn("Avg (All/Tot)"),
-            "Avg (Excl/Total)": st.column_config.TextColumn("Avg (Excl/Tot)"),
+            "Avg (All/Excl)": st.column_config.TextColumn("Avg (All/Excl)"),
+            "Avg (All/All)": st.column_config.TextColumn("Avg (All/All)"),
+            "Avg (Excl/Excl)": st.column_config.TextColumn("Avg (Excl/Excl)"),
             "Avg (Excl/SumAge)": st.column_config.TextColumn("Avg (Excl/Age)"),
         }
     )
@@ -4668,10 +4689,12 @@ def render_debug_avg_books_section(processor: DataProcessor):
     <strong>Legend:</strong><br>
     • <strong>Books (All)</strong>: All books distributed including previously served children<br>
     • <strong>Books (Excl Prev)</strong>: Books excluding previously served children (zeroed out)<br>
-    • <strong>Children (Total)</strong>: From total_children field (excl. previously served)<br>
+    • <strong>Children (Excl)</strong>: From total_children field (excl. previously served)<br>
+    • <strong>Children (All)</strong>: From total_children_all field (incl. previously served)<br>
     • <strong>Children (Sum Age)</strong>: Sum of all age group columns<br>
-    • <strong>Avg (All/Tot)</strong>: Books(All) / Children(Total) - <em>used in dashboard ring</em><br>
-    • <strong>Avg (Excl/Tot)</strong>: Books(Excl) / Children(Total)<br>
+    • <strong>Avg (All/Excl)</strong>: Books(All) / Children(Excl) - <em>used in dashboard ring</em><br>
+    • <strong>Avg (All/All)</strong>: Books(All) / Children(All) - <em>what avg would be without excluding</em><br>
+    • <strong>Avg (Excl/Excl)</strong>: Books(Excl) / Children(Excl)<br>
     • <strong>Avg (Excl/Age)</strong>: Books(Excl) / Children(SumAge) - <em>used in trendlines</em>
     </p>
     """, unsafe_allow_html=True)
