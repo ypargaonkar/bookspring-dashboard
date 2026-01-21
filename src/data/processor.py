@@ -278,8 +278,12 @@ class DataProcessor:
         # For ratio metrics, calculate averages per period (books / children for that period)
         # Use sum of age columns for children count (same as per-row calculation)
         if ratio_metrics_requested:
-            # Use _of_books_distributed to exclude books for previously served children
-            books_col = "_of_books_distributed"
+            # Use _books_distributed_all to include books for previously served children
+            # Fall back to _of_books_distributed if _all column doesn't exist
+            if "_books_distributed_all" in df.columns:
+                books_col = "_books_distributed_all"
+            else:
+                books_col = "_of_books_distributed"
 
             # Age group column mapping - use base columns (not _all) to exclude previously served children
             age_group_sources_base = {
@@ -290,8 +294,8 @@ class DataProcessor:
                 "books_per_child_teens": ["teens"],
             }
 
-            # Build age_group_sources using base columns (zeroed for previously served)
-            # This ensures both books AND children exclude previously served rows
+            # Build age_group_sources using base columns
+            # Books include previously served, children use base columns for counting
             age_group_sources = {}
             for metric, base_cols in age_group_sources_base.items():
                 existing_cols = [col for col in base_cols if col in df.columns]
