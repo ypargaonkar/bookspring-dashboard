@@ -4562,19 +4562,50 @@ def render_debug_avg_books_section(processor: DataProcessor):
         st.info("No monthly data available")
         return
 
-    # Summary stats at top
+    # Add totals row
+    totals_row = {"Month": "TOTAL"}
+    total_books_all = debug_df["Books (All)"].sum()
+    total_books_excl = debug_df["Books (Excl Prev)"].sum()
+    total_children = debug_df["Children (Total)"].sum()
+    total_children_age = debug_df["Children (Sum Age)"].sum()
+
+    totals_row["Books (All)"] = int(total_books_all)
+    totals_row["Books (Excl Prev)"] = int(total_books_excl)
+    totals_row["Children (Total)"] = int(total_children)
+    totals_row["Children (Sum Age)"] = int(total_children_age)
+
+    # Sum children by age group
+    for age_name in ["0-2", "3-5", "6-8", "9-12", "Teens"]:
+        col_name = f"Children {age_name}"
+        if col_name in debug_df.columns:
+            totals_row[col_name] = int(debug_df[col_name].sum())
+
+    # Calculate overall averages for totals row
+    totals_row["Avg (All/Total)"] = round(total_books_all / total_children, 2) if total_children > 0 else 0
+    totals_row["Avg (Excl/Total)"] = round(total_books_excl / total_children, 2) if total_children > 0 else 0
+    totals_row["Avg (Excl/SumAge)"] = round(total_books_excl / total_children_age, 2) if total_children_age > 0 else 0
+
+    # Age group averages for totals
+    for age_name in ["0-2", "3-5", "6-8", "9-12", "Teens"]:
+        col_name = f"Avg {age_name}"
+        age_children_col = f"Children {age_name}"
+        if age_children_col in debug_df.columns:
+            age_children_total = debug_df[age_children_col].sum()
+            totals_row[col_name] = round(total_books_excl / total_children_age, 2) if total_children_age > 0 and age_children_total > 0 else 0
+
+    debug_df = pd.concat([debug_df, pd.DataFrame([totals_row])], ignore_index=True)
+
+    # Summary stats at top (use pre-calculated totals, not from df which now includes totals row)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        total_books = debug_df["Books (All)"].sum()
-        st.metric("Total Books (All)", f"{total_books:,}")
+        st.metric("Total Books (All)", f"{int(total_books_all):,}")
     with col2:
-        total_children = debug_df["Children (Total)"].sum()
-        st.metric("Total Children", f"{total_children:,}")
+        st.metric("Total Children", f"{int(total_children):,}")
     with col3:
-        overall_avg = total_books / total_children if total_children > 0 else 0
+        overall_avg = total_books_all / total_children if total_children > 0 else 0
         st.metric("Overall Avg", f"{overall_avg:.2f}")
     with col4:
-        st.metric("Months", len(debug_df))
+        st.metric("Months", len(debug_df) - 1)  # Exclude totals row
 
     st.markdown("##### Monthly Breakdown")
 
