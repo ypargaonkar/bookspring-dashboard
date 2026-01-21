@@ -4566,7 +4566,7 @@ def render_export_section(processor: DataProcessor):
 
 def render_debug_avg_books_section(processor: DataProcessor):
     """Render debug section showing detailed avg books/child calculation by month."""
-    with st.expander("🔍 Debug: Avg Books/Child Calculation", expanded=False):
+    with st.expander("Debug: Avg Books/Child Calculation", expanded=False):
         st.markdown("<p style='color: #718096; font-size: 0.85rem;'>Monthly breakdown of books, children, and averages by age group</p>", unsafe_allow_html=True)
 
         # Get the date column for grouping
@@ -4876,7 +4876,7 @@ def main():
 
     # DEBUG: Avg Books/Child metric and trends calculation
     with st.sidebar:
-        with st.expander("🔍 Debug: Avg Books/Child", expanded=False):
+        with st.expander("Debug: Avg Books/Child", expanded=False):
             st.markdown("**Raw Data Totals:**")
             # Books distributed
             books_col = "_of_books_distributed"
