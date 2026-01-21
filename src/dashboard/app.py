@@ -2396,7 +2396,7 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
             ]
         )
         st.plotly_chart(fig, use_container_width=True, key="hero_books_ring")
-        st.markdown(f"<p style='text-align: center; margin-top: -15px; color: #64748b; font-size: 0.75rem;'>Goal: {books_goal:,}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; margin-top: -15px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>Goal: {books_goal:,}</p>", unsafe_allow_html=True)
 
     # Children Served Ring
     with col2:
@@ -2434,7 +2434,7 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
             ]
         )
         st.plotly_chart(fig, use_container_width=True, key="hero_children_ring")
-        st.markdown(f"<p style='text-align: center; margin-top: -15px; color: #64748b; font-size: 0.75rem;'>Goal: {children_goal:,}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; margin-top: -15px; color: #1a365d; font-size: 0.85rem; font-weight: 700;'>Goal: {children_goal:,}</p>", unsafe_allow_html=True)
 
     # Low Income % - styled box
     with col3:
