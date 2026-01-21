@@ -4577,6 +4577,70 @@ def main():
         st.warning("No data found for the selected date range.")
         return
 
+    # DEBUG: Avg Books/Child metric and trends calculation
+    with st.sidebar:
+        with st.expander("🔍 Debug: Avg Books/Child", expanded=False):
+            st.markdown("**Raw Data Totals:**")
+            # Books distributed
+            books_col = "_of_books_distributed"
+            books_all_col = "_books_distributed_all"
+            books_dist = processor.df[books_col].sum() if books_col in processor.df.columns else 0
+            books_all = processor.df[books_all_col].sum() if books_all_col in processor.df.columns else 0
+            st.write(f"Books (excl. prev served): {books_dist:,.0f}")
+            st.write(f"Books (all distributed): {books_all:,.0f}")
+
+            # Children counts
+            children_col = "total_children"
+            children_all_col = "total_children_all"
+            children = processor.df[children_col].sum() if children_col in processor.df.columns else 0
+            children_all = processor.df[children_all_col].sum() if children_all_col in processor.df.columns else 0
+            st.write(f"Children (excl. prev served): {children:,.0f}")
+            st.write(f"Children (all): {children_all:,.0f}")
+
+            # Previously served breakdown
+            st.markdown("**Previously Served Analysis:**")
+            if "previously_served_this_fy" in processor.df.columns:
+                prev_served_mask = processor.df["previously_served_this_fy"].apply(
+                    lambda x: (x is True) or (pd.notna(x) and str(x).lower() in ("yes", "true", "1"))
+                )
+                prev_count = prev_served_mask.sum()
+                total_rows = len(processor.df)
+                st.write(f"Total rows: {total_rows:,}")
+                st.write(f"Previously served rows: {prev_count:,}")
+                st.write(f"New rows: {total_rows - prev_count:,}")
+            else:
+                st.write("previously_served_this_fy column not found")
+
+            # Calculate avg books/child
+            st.markdown("**Avg Books/Child Calculation:**")
+            avg_calc = books_all / children if children > 0 else 0
+            st.write(f"Formula: books_all / children")
+            st.write(f"= {books_all:,.0f} / {children:,.0f}")
+            st.write(f"= **{avg_calc:.2f}** books/child")
+
+            # Trend data preview
+            st.markdown("**Trend Aggregation Preview:**")
+            if "avg_books_per_child" in processor.df.columns:
+                # Use debug=True to print detailed calculation to console
+                trend_df = processor.aggregate_by_time("month", ["avg_books_per_child"], debug=True)
+                if not trend_df.empty:
+                    st.write(f"Periods: {len(trend_df)}")
+                    st.dataframe(trend_df, use_container_width=True, height=150)
+                else:
+                    st.write("No trend data available")
+            else:
+                st.write("avg_books_per_child column not found")
+
+            # Age breakdown debug
+            st.markdown("**Age Group Columns:**")
+            age_cols = ["children_035_months", "children_03_years", "children_35_years",
+                       "children_34_years", "children_68_years", "children_512_years",
+                       "children_912_years", "teens"]
+            for col in age_cols:
+                if col in processor.df.columns:
+                    total = processor.df[col].sum()
+                    st.write(f"{col}: {total:,.0f}")
+
     # Note: Previously served children exclusion is handled by DataProcessor._exclude_previously_served_children()
     # which zeros out both children counts AND books distributed for those rows
 

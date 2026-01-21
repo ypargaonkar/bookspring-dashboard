@@ -248,9 +248,16 @@ class DataProcessor:
     }
 
     def aggregate_by_time(self, time_unit: TimeUnit,
-                          metrics: Optional[list] = None) -> pd.DataFrame:
+                          metrics: Optional[list] = None,
+                          debug: bool = False) -> pd.DataFrame:
         """Aggregate metrics by time period."""
         df = self._add_time_period_column(time_unit)
+
+        if debug:
+            print(f"\n=== DEBUG aggregate_by_time ===")
+            print(f"Time unit: {time_unit}")
+            print(f"Metrics requested: {metrics}")
+            print(f"Total rows: {len(df)}")
 
         # Default metrics to aggregate
         if metrics is None:
@@ -301,6 +308,11 @@ class DataProcessor:
                 # Calculate total children as sum of age columns (consistent with per-row calc)
                 df["_total_children_for_agg"] = df[all_age_cols].fillna(0).sum(axis=1)
 
+                if debug:
+                    print(f"Age columns used: {all_age_cols}")
+                    print(f"Total books ({books_col}): {df[books_col].sum():,.0f}")
+                    print(f"Total children (from age cols): {df['_total_children_for_agg'].sum():,.0f}")
+
                 # Aggregate books and children by period
                 period_sums = df.groupby("period", dropna=True).agg({
                     books_col: "sum",
@@ -313,6 +325,10 @@ class DataProcessor:
                     if row["_total_children_for_agg"] > 0 else 0,
                     axis=1
                 )
+
+                if debug:
+                    print(f"\nPeriod sums (first 5):")
+                    print(period_sums.head().to_string())
 
                 # Merge into result
                 if "avg_books_per_child" in ratio_metrics_requested:
@@ -359,6 +375,11 @@ class DataProcessor:
         for col in self.RATIO_METRICS:
             if col in result.columns:
                 result[col] = result[col].round(2)
+
+        if debug:
+            print(f"\n=== Final result ({len(result)} periods) ===")
+            print(result.to_string())
+            print("=== END DEBUG ===\n")
 
         return result
 
