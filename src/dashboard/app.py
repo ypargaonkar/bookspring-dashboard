@@ -4538,20 +4538,38 @@ def render_debug_avg_books_section(processor: DataProcessor):
 
         row["Children (Sum Age)"] = int(total_from_age)
 
-        # Calculate averages
+        # Calculate averages - show formula as "result = X/Y"
         # Overall avg: books_all / children_total (matching dashboard calculation)
-        row["Avg (All/Total)"] = round(books_all / children_total, 2) if children_total > 0 else 0
-        row["Avg (Excl/Total)"] = round(books_excl / children_total, 2) if children_total > 0 else 0
-        row["Avg (Excl/SumAge)"] = round(books_excl / total_from_age, 2) if total_from_age > 0 else 0
+        if children_total > 0:
+            avg_val = round(books_all / children_total, 2)
+            row["Avg (All/Total)"] = f"{avg_val} = {int(books_all)}/{int(children_total)}"
+        else:
+            row["Avg (All/Total)"] = "0"
 
-        # Per age group averages (books_excl / age_children where that age exists)
+        if children_total > 0:
+            avg_val = round(books_excl / children_total, 2)
+            row["Avg (Excl/Total)"] = f"{avg_val} = {int(books_excl)}/{int(children_total)}"
+        else:
+            row["Avg (Excl/Total)"] = "0"
+
+        if total_from_age > 0:
+            avg_val = round(books_excl / total_from_age, 2)
+            row["Avg (Excl/SumAge)"] = f"{avg_val} = {int(books_excl)}/{int(total_from_age)}"
+        else:
+            row["Avg (Excl/SumAge)"] = "0"
+
+        # Per age group averages (books_excl / total_from_age where that age exists)
         for age_name, cols in age_groups.items():
             age_children = 0
             for col in cols:
                 if col in month_df.columns:
                     age_children += month_df[col].sum()
             # For age-specific avg, we use total children from all age cols (same as processor)
-            row[f"Avg {age_name}"] = round(books_excl / total_from_age, 2) if total_from_age > 0 and age_children > 0 else 0
+            if total_from_age > 0 and age_children > 0:
+                avg_val = round(books_excl / total_from_age, 2)
+                row[f"Avg {age_name}"] = f"{avg_val} = {int(books_excl)}/{int(total_from_age)}"
+            else:
+                row[f"Avg {age_name}"] = "0"
 
         monthly_data.append(row)
 
@@ -4580,10 +4598,24 @@ def render_debug_avg_books_section(processor: DataProcessor):
         if col_name in debug_df.columns:
             totals_row[col_name] = int(debug_df[col_name].sum())
 
-    # Calculate overall averages for totals row
-    totals_row["Avg (All/Total)"] = round(total_books_all / total_children, 2) if total_children > 0 else 0
-    totals_row["Avg (Excl/Total)"] = round(total_books_excl / total_children, 2) if total_children > 0 else 0
-    totals_row["Avg (Excl/SumAge)"] = round(total_books_excl / total_children_age, 2) if total_children_age > 0 else 0
+    # Calculate overall averages for totals row - show formula
+    if total_children > 0:
+        avg_val = round(total_books_all / total_children, 2)
+        totals_row["Avg (All/Total)"] = f"{avg_val} = {int(total_books_all)}/{int(total_children)}"
+    else:
+        totals_row["Avg (All/Total)"] = "0"
+
+    if total_children > 0:
+        avg_val = round(total_books_excl / total_children, 2)
+        totals_row["Avg (Excl/Total)"] = f"{avg_val} = {int(total_books_excl)}/{int(total_children)}"
+    else:
+        totals_row["Avg (Excl/Total)"] = "0"
+
+    if total_children_age > 0:
+        avg_val = round(total_books_excl / total_children_age, 2)
+        totals_row["Avg (Excl/SumAge)"] = f"{avg_val} = {int(total_books_excl)}/{int(total_children_age)}"
+    else:
+        totals_row["Avg (Excl/SumAge)"] = "0"
 
     # Age group averages for totals
     for age_name in ["0-2", "3-5", "6-8", "9-12", "Teens"]:
@@ -4591,7 +4623,11 @@ def render_debug_avg_books_section(processor: DataProcessor):
         age_children_col = f"Children {age_name}"
         if age_children_col in debug_df.columns:
             age_children_total = debug_df[age_children_col].sum()
-            totals_row[col_name] = round(total_books_excl / total_children_age, 2) if total_children_age > 0 and age_children_total > 0 else 0
+            if total_children_age > 0 and age_children_total > 0:
+                avg_val = round(total_books_excl / total_children_age, 2)
+                totals_row[col_name] = f"{avg_val} = {int(total_books_excl)}/{int(total_children_age)}"
+            else:
+                totals_row[col_name] = "0"
 
     debug_df = pd.concat([debug_df, pd.DataFrame([totals_row])], ignore_index=True)
 
@@ -4620,9 +4656,9 @@ def render_debug_avg_books_section(processor: DataProcessor):
             "Books (Excl Prev)": st.column_config.NumberColumn("Books (Excl)", format="%d"),
             "Children (Total)": st.column_config.NumberColumn("Children", format="%d"),
             "Children (Sum Age)": st.column_config.NumberColumn("Children (Age Sum)", format="%d"),
-            "Avg (All/Total)": st.column_config.NumberColumn("Avg (All/Tot)", format="%.2f"),
-            "Avg (Excl/Total)": st.column_config.NumberColumn("Avg (Excl/Tot)", format="%.2f"),
-            "Avg (Excl/SumAge)": st.column_config.NumberColumn("Avg (Excl/Age)", format="%.2f"),
+            "Avg (All/Total)": st.column_config.TextColumn("Avg (All/Tot)"),
+            "Avg (Excl/Total)": st.column_config.TextColumn("Avg (Excl/Tot)"),
+            "Avg (Excl/SumAge)": st.column_config.TextColumn("Avg (Excl/Age)"),
         }
     )
 
