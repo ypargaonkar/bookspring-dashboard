@@ -4830,9 +4830,16 @@ def main():
                 st.toast("Refreshing financial metrics...", icon="💰")
                 st.rerun()
 
-        if st.button("🔄 Refresh Data from Fusioo", use_container_width=True, help="Click to pull latest data from Fusioo"):
-            st.cache_data.clear()
+        if st.button("🔄 Refresh Data from Fusioo", use_container_width=True, help="Click to pull latest data from Fusioo (excludes legacy data)"):
+            load_activity_data.clear()
+            load_original_books.clear()
+            load_content_views.clear()
             st.toast("Fetching fresh data from Fusioo...", icon="🔄")
+            st.rerun()
+
+        if st.button("📜 Refresh Legacy Data from Fusioo", use_container_width=True, help="Refresh only legacy data (pre-July 2025)"):
+            load_legacy_data.clear()
+            st.toast("Fetching fresh legacy data from Fusioo...", icon="📜")
             st.rerun()
 
         if st.button("📅 Refresh Events", use_container_width=True, help="Refresh only upcoming events data"):
