@@ -2198,7 +2198,7 @@ def normalize_legacy_record(record: dict) -> dict:
     return normalized
 
 
-def combine_activity_data(current_records: list, legacy_records: list, cutoff_date: str = "2030-12-31") -> list:
+def combine_activity_data(current_records: list, legacy_records: list, cutoff_date: str = "2025-06-20") -> list:
     """Combine current and legacy activity records, avoiding duplicates.
 
     Args:
