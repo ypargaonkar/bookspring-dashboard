@@ -4728,16 +4728,16 @@ def render_debug_avg_books_section(processor: DataProcessor):
         debug_df = pd.concat([debug_df, pd.DataFrame([totals_row])], ignore_index=True)
 
         # Summary stats at top (use pre-calculated totals, not from df which now includes totals row)
+        overall_avg = total_books_all / total_children_excl if total_children_excl > 0 else 0
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Total Books (All)", f"{int(total_books_all):,}")
+            st.markdown(f"**Total Books (All)**<br><span style='font-size: 1.5rem; color: #1a365d;'>{int(total_books_all):,}</span>", unsafe_allow_html=True)
         with col2:
-            st.metric("Children (Excl)", f"{int(total_children_excl):,}")
+            st.markdown(f"**Children (Excl)**<br><span style='font-size: 1.5rem; color: #1a365d;'>{int(total_children_excl):,}</span>", unsafe_allow_html=True)
         with col3:
-            overall_avg = total_books_all / total_children_excl if total_children_excl > 0 else 0
-            st.metric("Avg (All/Excl)", f"{overall_avg:.2f}")
+            st.markdown(f"**Avg (All/Excl)**<br><span style='font-size: 1.5rem; color: #1a365d;'>{overall_avg:.2f}</span>", unsafe_allow_html=True)
         with col4:
-            st.metric("Months", len(debug_df) - 1)  # Exclude totals row
+            st.markdown(f"**Months**<br><span style='font-size: 1.5rem; color: #1a365d;'>{len(debug_df) - 1}</span>", unsafe_allow_html=True)
 
         st.markdown("##### Monthly Breakdown")
 
