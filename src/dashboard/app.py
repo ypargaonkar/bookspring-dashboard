@@ -4066,14 +4066,19 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
             st.metric("YTD Expenses", f"${ytd_expenses:,.0f}")
 
     with col3:
-        # Income: actual - budget (positive is good)
+        # Income: actual - budget (positive diff is good, negative diff is bad)
         if ytd_income_budget != 0:
             inc_diff = ytd_income - ytd_income_budget
             inc_pct = (inc_diff / abs(ytd_income_budget) * 100) if ytd_income_budget != 0 else 0
+            # Format with minus sign before $ so Streamlit recognizes negative values
+            if inc_diff >= 0:
+                delta_str = f"+${inc_diff:,.0f} ({inc_pct:.1f}%)"
+            else:
+                delta_str = f"-${abs(inc_diff):,.0f} ({inc_pct:.1f}%)"
             st.metric(
                 "YTD Net Income",
                 f"${ytd_income:,.0f}",
-                delta=f"+${inc_diff:,.0f} ({inc_pct:.1f}%)" if inc_diff >= 0 else f"${inc_diff:,.0f} ({inc_pct:.1f}%)",
+                delta=delta_str,
                 delta_color="normal"  # positive=green (good), negative=red (bad)
             )
         else:
