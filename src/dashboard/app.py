@@ -779,19 +779,12 @@ st.markdown("""
         border-radius: 0 0 var(--radius) var(--radius);
     }
 
-    /* Fix for Material Icons not loading - hide icon text fallback */
-    [data-testid="stExpander"] details summary span[data-testid="stExpanderToggleIcon"] {
-        font-size: 0 !important;
-        width: 1rem;
-        height: 1rem;
+    /* Fix for broken icon - center align expander text */
+    [data-testid="stExpander"] summary {
+        justify-content: center !important;
     }
-    [data-testid="stExpander"] details summary span[data-testid="stExpanderToggleIcon"]::before {
-        content: "▶";
-        font-size: 0.75rem;
-        color: var(--text);
-    }
-    [data-testid="stExpander"] details[open] summary span[data-testid="stExpanderToggleIcon"]::before {
-        content: "▼";
+    [data-testid="stExpander"] summary > span:first-child {
+        display: none !important;
     }
 
     /* ========================================
