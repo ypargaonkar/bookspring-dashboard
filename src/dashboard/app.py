@@ -4480,6 +4480,136 @@ def render_export_section(processor: DataProcessor):
                     st.error(f"Error generating report: {e}")
 
 
+def render_debug_avg_books_section(processor: DataProcessor):
+    """Render debug section showing detailed avg books/child calculation by month."""
+    st.markdown("""
+    <div class="section-header">
+        <div class="section-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">🔍</div>
+        <div class="section-title-group">
+            <h2 class="section-title">Debug: Avg Books/Child Calculation</h2>
+            <p class="section-subtitle">Monthly breakdown of books, children, and averages by age group</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Get the date column for grouping
+    date_col = processor.get_date_column()
+    if not date_col or date_col not in processor.df.columns:
+        st.warning("No date column found for monthly aggregation")
+        return
+
+    df = processor.df.copy()
+    df["_month"] = df[date_col].dt.to_period("M").dt.start_time
+
+    # Define age group mappings (same as processor)
+    age_groups = {
+        "0-2": ["children_035_months", "children_03_years"],
+        "3-5": ["children_35_years", "children_34_years"],
+        "6-8": ["children_68_years", "children_512_years"],
+        "9-12": ["children_912_years"],
+        "Teens": ["teens"],
+    }
+
+    # Build monthly debug data
+    monthly_data = []
+
+    for month, month_df in df.groupby("_month"):
+        row = {"Month": month.strftime("%Y-%m")}
+
+        # Total books (using _books_distributed_all for total, _of_books_distributed for excl prev served)
+        books_all = month_df["_books_distributed_all"].sum() if "_books_distributed_all" in month_df.columns else 0
+        books_excl = month_df["_of_books_distributed"].sum() if "_of_books_distributed" in month_df.columns else 0
+        row["Books (All)"] = int(books_all)
+        row["Books (Excl Prev)"] = int(books_excl)
+
+        # Total children from total_children field
+        children_total = month_df["total_children"].sum() if "total_children" in month_df.columns else 0
+        row["Children (Total)"] = int(children_total)
+
+        # Children by age group (sum of available columns)
+        total_from_age = 0
+        for age_name, cols in age_groups.items():
+            age_sum = 0
+            for col in cols:
+                if col in month_df.columns:
+                    age_sum += month_df[col].sum()
+            row[f"Children {age_name}"] = int(age_sum)
+            total_from_age += age_sum
+
+        row["Children (Sum Age)"] = int(total_from_age)
+
+        # Calculate averages
+        # Overall avg: books_all / children_total (matching dashboard calculation)
+        row["Avg (All/Total)"] = round(books_all / children_total, 2) if children_total > 0 else 0
+        row["Avg (Excl/Total)"] = round(books_excl / children_total, 2) if children_total > 0 else 0
+        row["Avg (Excl/SumAge)"] = round(books_excl / total_from_age, 2) if total_from_age > 0 else 0
+
+        # Per age group averages (books_excl / age_children where that age exists)
+        for age_name, cols in age_groups.items():
+            age_children = 0
+            for col in cols:
+                if col in month_df.columns:
+                    age_children += month_df[col].sum()
+            # For age-specific avg, we use total children from all age cols (same as processor)
+            row[f"Avg {age_name}"] = round(books_excl / total_from_age, 2) if total_from_age > 0 and age_children > 0 else 0
+
+        monthly_data.append(row)
+
+    # Create DataFrame and display
+    debug_df = pd.DataFrame(monthly_data)
+
+    if debug_df.empty:
+        st.info("No monthly data available")
+        return
+
+    # Summary stats at top
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        total_books = debug_df["Books (All)"].sum()
+        st.metric("Total Books (All)", f"{total_books:,}")
+    with col2:
+        total_children = debug_df["Children (Total)"].sum()
+        st.metric("Total Children", f"{total_children:,}")
+    with col3:
+        overall_avg = total_books / total_children if total_children > 0 else 0
+        st.metric("Overall Avg", f"{overall_avg:.2f}")
+    with col4:
+        st.metric("Months", len(debug_df))
+
+    st.markdown("##### Monthly Breakdown")
+
+    # Display the full table
+    st.dataframe(
+        debug_df,
+        use_container_width=True,
+        height=400,
+        column_config={
+            "Month": st.column_config.TextColumn("Month", width="small"),
+            "Books (All)": st.column_config.NumberColumn("Books (All)", format="%d"),
+            "Books (Excl Prev)": st.column_config.NumberColumn("Books (Excl)", format="%d"),
+            "Children (Total)": st.column_config.NumberColumn("Children", format="%d"),
+            "Children (Sum Age)": st.column_config.NumberColumn("Children (Age Sum)", format="%d"),
+            "Avg (All/Total)": st.column_config.NumberColumn("Avg (All/Tot)", format="%.2f"),
+            "Avg (Excl/Total)": st.column_config.NumberColumn("Avg (Excl/Tot)", format="%.2f"),
+            "Avg (Excl/SumAge)": st.column_config.NumberColumn("Avg (Excl/Age)", format="%.2f"),
+        }
+    )
+
+    # Explanation
+    st.markdown("""
+    <p style='font-size: 0.8rem; color: #718096;'>
+    <strong>Legend:</strong><br>
+    • <strong>Books (All)</strong>: All books distributed including previously served children<br>
+    • <strong>Books (Excl Prev)</strong>: Books excluding previously served children (zeroed out)<br>
+    • <strong>Children (Total)</strong>: From total_children field (excl. previously served)<br>
+    • <strong>Children (Sum Age)</strong>: Sum of all age group columns<br>
+    • <strong>Avg (All/Tot)</strong>: Books(All) / Children(Total) - <em>used in dashboard ring</em><br>
+    • <strong>Avg (Excl/Tot)</strong>: Books(Excl) / Children(Total)<br>
+    • <strong>Avg (Excl/Age)</strong>: Books(Excl) / Children(SumAge) - <em>used in trendlines</em>
+    </p>
+    """, unsafe_allow_html=True)
+
+
 def main():
     """Main dashboard function."""
     # Sidebar
@@ -4697,6 +4827,9 @@ def main():
     st.markdown("---")
 
     render_export_section(processor)
+    st.markdown("---")
+
+    render_debug_avg_books_section(processor)
 
     # Footer
     st.markdown("---")
