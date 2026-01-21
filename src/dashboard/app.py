@@ -2236,13 +2236,22 @@ def combine_activity_data(current_records: list, legacy_records: list, cutoff_da
     return combined
 
 
-def render_hero_header(processor: DataProcessor, activity_records: list = None, partners_data: list = None, start_date: date = None, end_date: date = None):
+def render_hero_header(processor: DataProcessor, activity_records: list = None, partners_data: list = None, start_date: date = None, end_date: date = None, financial_data: pd.DataFrame = None):
     """Render the hero header with key stats."""
     stats = processor.get_summary_stats()
     # Use _books_distributed_all for total (includes books to previously served children)
     books = int(stats.get("totals", {}).get("_books_distributed_all", 0) or stats.get("totals", {}).get("_of_books_distributed", 0))
     children = int(stats.get("totals", {}).get("total_children", 0))
     parents = int(stats.get("totals", {}).get("parents_or_caregivers", 0))
+
+    # Get goals from financial data
+    books_goal = 0
+    children_goal = 0
+    if financial_data is not None and not financial_data.empty:
+        if 'books_distributed_goal' in financial_data.columns:
+            books_goal = pd.to_numeric(financial_data['books_distributed_goal'], errors='coerce').sum()
+        if 'children_served_goal' in financial_data.columns:
+            children_goal = pd.to_numeric(financial_data['children_served_goal'], errors='coerce').sum()
 
     # Calculate average % low income children served from partners in date range
     low_income_pct = 0.0
@@ -2348,27 +2357,102 @@ def render_hero_header(processor: DataProcessor, activity_records: list = None, 
     </div>
     """, unsafe_allow_html=True)
 
-    # Summary metrics in styled boxes - centered
-    st.markdown(f"""
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 1rem auto 2rem auto; max-width: 1100px;">
-        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
-            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📚 Books Distributed</div>
-            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{books:,}</div>
-        </div>
-        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
-            <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">👶 Children Served</div>
-            <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{children:,}</div>
-        </div>
-        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+    # Summary metrics - first two as rings, last two as boxes
+    col1, col2, col3, col4 = st.columns(4)
+
+    # Books Distributed Ring
+    with col1:
+        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>📚 Books Distributed</p>", unsafe_allow_html=True)
+        books_pct = (books / books_goal * 100) if books_goal > 0 else 0
+        display_pct = min(books_pct, 100)
+        remaining_pct = max(100 - display_pct, 0)
+        fig = go.Figure(data=[go.Pie(
+            values=[display_pct, remaining_pct],
+            hole=0.7,
+            marker=dict(colors=['#3b82f6', '#e2e8f0']),
+            textinfo='none',
+            hoverinfo='skip',
+            sort=False
+        )])
+        fig.update_layout(
+            showlegend=False,
+            margin=dict(t=20, b=20, l=10, r=10),
+            height=180,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            annotations=[
+                dict(
+                    text=f"<b>{books:,}</b>",
+                    x=0.5, y=0.55,
+                    font=dict(size=18, color='#1a365d', family='system-ui'),
+                    showarrow=False
+                ),
+                dict(
+                    text=f"{books_pct:.0f}% of goal",
+                    x=0.5, y=0.38,
+                    font=dict(size=10, color='#64748b', family='system-ui'),
+                    showarrow=False
+                )
+            ]
+        )
+        st.plotly_chart(fig, use_container_width=True, key="hero_books_ring")
+        st.markdown(f"<p style='text-align: center; margin-top: -15px; color: #64748b; font-size: 0.75rem;'>Goal: {books_goal:,}</p>", unsafe_allow_html=True)
+
+    # Children Served Ring
+    with col2:
+        st.markdown("<p style='text-align: center; font-weight: 600; color: #1a365d; font-size: 0.9rem; margin-bottom: -10px;'>👶 Children Served</p>", unsafe_allow_html=True)
+        children_pct = (children / children_goal * 100) if children_goal > 0 else 0
+        display_pct = min(children_pct, 100)
+        remaining_pct = max(100 - display_pct, 0)
+        fig = go.Figure(data=[go.Pie(
+            values=[display_pct, remaining_pct],
+            hole=0.7,
+            marker=dict(colors=['#10b981', '#e2e8f0']),
+            textinfo='none',
+            hoverinfo='skip',
+            sort=False
+        )])
+        fig.update_layout(
+            showlegend=False,
+            margin=dict(t=20, b=20, l=10, r=10),
+            height=180,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            annotations=[
+                dict(
+                    text=f"<b>{children:,}</b>",
+                    x=0.5, y=0.55,
+                    font=dict(size=18, color='#1a365d', family='system-ui'),
+                    showarrow=False
+                ),
+                dict(
+                    text=f"{children_pct:.0f}% of goal",
+                    x=0.5, y=0.38,
+                    font=dict(size=10, color='#64748b', family='system-ui'),
+                    showarrow=False
+                )
+            ]
+        )
+        st.plotly_chart(fig, use_container_width=True, key="hero_children_ring")
+        st.markdown(f"<p style='text-align: center; margin-top: -15px; color: #64748b; font-size: 0.75rem;'>Goal: {children_goal:,}</p>", unsafe_allow_html=True)
+
+    # Low Income % - styled box
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card" style="text-align: center; padding: 1.25rem; height: 180px; display: flex; flex-direction: column; justify-content: center;">
             <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📊 % in Low Income Settings</div>
             <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{low_income_pct:.1f}%</div>
         </div>
-        <div class="metric-card" style="text-align: center; padding: 1.25rem;">
+        """, unsafe_allow_html=True)
+
+    # Parents/Caregivers - styled box
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card" style="text-align: center; padding: 1.25rem; height: 180px; display: flex; flex-direction: column; justify-content: center;">
             <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">👨‍👩‍👧 Parents/Caregivers</div>
             <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{parents:,}</div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
 
 def render_print_snapshot(processor: DataProcessor, views_data: list, books_data: list, start_date: date, end_date: date):
@@ -4889,7 +4973,7 @@ def main():
         inperson_events = int(event_mask.sum())
 
     # Hero header
-    render_hero_header(processor, combined_records, partners_data, start_date, end_date)
+    render_hero_header(processor, combined_records, partners_data, start_date, end_date, financial_data)
 
     # Dashboard sections
     render_goal1_strengthen_impact(processor, time_unit)
