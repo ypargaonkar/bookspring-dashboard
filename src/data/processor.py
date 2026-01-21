@@ -276,12 +276,23 @@ class DataProcessor:
             result = result.drop("_count", axis=1)
 
         # For ratio metrics, calculate averages per period (books / children for that period)
-        # Use sum of age columns for children count (same as per-row calculation)
+        # Use _books_distributed_all and total_children_all to include previously served
         if ratio_metrics_requested:
-            # Use _of_books_distributed to exclude books for previously served children
-            books_col = "_of_books_distributed"
+            # Use _books_distributed_all to include all books (including previously served)
+            # Fall back to _of_books_distributed if _all column doesn't exist
+            if "_books_distributed_all" in df.columns:
+                books_col = "_books_distributed_all"
+            else:
+                books_col = "_of_books_distributed"
 
-            # Age group column mapping - use base columns (not _all) to exclude previously served children
+            # Use total_children_all to include all children (including previously served)
+            # Fall back to total_children if _all column doesn't exist
+            if "total_children_all" in df.columns:
+                children_col = "total_children_all"
+            else:
+                children_col = "total_children"
+
+            # Age group column mapping for age-specific metrics
             age_group_sources_base = {
                 "books_per_child_0_2": ["children_035_months", "children_03_years"],
                 "books_per_child_3_5": ["children_35_years", "children_34_years"],
@@ -290,23 +301,22 @@ class DataProcessor:
                 "books_per_child_teens": ["teens"],
             }
 
-            # Build age_group_sources using base columns (zeroed for previously served)
-            # This ensures both books AND children exclude previously served rows
+            # Build age_group_sources
             age_group_sources = {}
             for metric, base_cols in age_group_sources_base.items():
                 existing_cols = [col for col in base_cols if col in df.columns]
                 if existing_cols:
                     age_group_sources[metric] = existing_cols
 
-            # Get all age columns that exist for calculating total children
+            # Get all age columns that exist for calculating total children (for age group filtering)
             all_age_cols = []
             for sources in age_group_sources.values():
                 all_age_cols.extend(sources)
             all_age_cols = list(set(all_age_cols))  # Remove duplicates
 
-            if books_col in df.columns and all_age_cols:
-                # Calculate total children as sum of age columns (consistent with per-row calc)
-                df["_total_children_for_agg"] = df[all_age_cols].fillna(0).sum(axis=1)
+            if books_col in df.columns and children_col in df.columns:
+                # Use total_children_all directly for children count
+                df["_total_children_for_agg"] = df[children_col].fillna(0)
 
                 if debug:
                     print(f"Age columns used: {all_age_cols}")
