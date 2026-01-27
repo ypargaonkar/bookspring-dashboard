@@ -3809,12 +3809,15 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
             'VI': 'Visit',
             'YEA_MAIL': 'Year End Appeal Mailer',
             'ZOOMCALL': 'Zoom Call',
+            'DONORACTIVITY': 'Donor Activity',
+            'GRANTACTIVITY': 'Grant Activity',
         }
 
         # Get all unique contact types from both periods
         all_types = set(current_metrics['by_type'].keys()) | set(prior_metrics['by_type'].keys())
         # Sort: known types first in preferred order, then unknown types alphabetically
         preferred_order = [
+            'DONORACTIVITY', 'GRANTACTIVITY',
             'CC', 'EO', 'EI', 'GE', 'MA', 'LT', 'RCPTSNT', 'TYNOTE',
             'TE', 'ME', 'ZOOMCALL', 'VI', 'EVENT', 'EV_IN', 'LUNCHEONINVITE',
             'GFU', 'GP', 'GLOI', 'GRANTAWARD', 'GRANTDECLINED', 'GR', 'FIREP',
@@ -3851,13 +3854,13 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
         cc_prior = prior_metrics['by_type'].get('CC', 0)
         cc_pct = ((cc_current - cc_prior) / cc_prior * 100) if cc_prior > 0 else 0
 
-        lt_current = current_metrics['by_type'].get('LT', 0)
-        lt_prior = prior_metrics['by_type'].get('LT', 0)
-        lt_pct = ((lt_current - lt_prior) / lt_prior * 100) if lt_prior > 0 else 0
+        donor_current = current_metrics['by_type'].get('DONORACTIVITY', 0)
+        donor_prior = prior_metrics['by_type'].get('DONORACTIVITY', 0)
+        donor_pct = ((donor_current - donor_prior) / donor_prior * 100) if donor_prior > 0 else 0
 
-        rcpt_current = current_metrics['by_type'].get('RCPTSNT', 0)
-        rcpt_prior = prior_metrics['by_type'].get('RCPTSNT', 0)
-        rcpt_pct = ((rcpt_current - rcpt_prior) / rcpt_prior * 100) if rcpt_prior > 0 else 0
+        grant_current = current_metrics['by_type'].get('GRANTACTIVITY', 0)
+        grant_prior = prior_metrics['by_type'].get('GRANTACTIVITY', 0)
+        grant_pct = ((grant_current - grant_prior) / grant_prior * 100) if grant_prior > 0 else 0
 
         # Create metric cards row for contact totals
         st.markdown(f"""
@@ -3877,17 +3880,17 @@ def render_goal4_sustainability(processor: DataProcessor, financial_df: pd.DataF
                 </div>
             </div>
             <div class="metric-card" style="text-align: center; padding: 1.25rem;">
-                <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📬 Mailings</div>
-                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{lt_current:,}</div>
-                <div style="font-size: 0.8rem; color: {'#38a169' if lt_pct >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
-                    {'+' if lt_pct >= 0 else ''}{lt_pct:.1f}% vs {prior_fy}
+                <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">🤝 Donor Activity</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{donor_current:,}</div>
+                <div style="font-size: 0.8rem; color: {'#38a169' if donor_pct >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
+                    {'+' if donor_pct >= 0 else ''}{donor_pct:.1f}% vs {prior_fy}
                 </div>
             </div>
             <div class="metric-card" style="text-align: center; padding: 1.25rem;">
-                <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">🧾 Receipts Sent</div>
-                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{rcpt_current:,}</div>
-                <div style="font-size: 0.8rem; color: {'#38a169' if rcpt_pct >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
-                    {'+' if rcpt_pct >= 0 else ''}{rcpt_pct:.1f}% vs {prior_fy}
+                <div style="font-size: 0.85rem; color: #718096; margin-bottom: 0.5rem;">📋 Grant Activity</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: #1a365d;">{grant_current:,}</div>
+                <div style="font-size: 0.8rem; color: {'#38a169' if grant_pct >= 0 else '#e53e3e'}; margin-top: 0.25rem;">
+                    {'+' if grant_pct >= 0 else ''}{grant_pct:.1f}% vs {prior_fy}
                 </div>
             </div>
         </div>
