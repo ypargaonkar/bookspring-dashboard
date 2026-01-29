@@ -165,6 +165,7 @@ st.markdown("""
 
     /* Hide Streamlit branding, toolbar, and manage app button */
     #MainMenu, footer, [data-testid="stToolbar"], .stDeployButton, [data-testid="manage-app-button"] {visibility: hidden;}
+    .stAppDeployButton, ._container_gzau3_1, [data-testid="stStatusWidget"] {display: none !important;}
 
     /* Fix sidebar toggle button icon */
     button[kind="headerNoPadding"] span {
