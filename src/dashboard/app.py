@@ -163,8 +163,8 @@ st.markdown("""
         background: transparent;
     }
 
-    /* Hide Streamlit branding but keep sidebar toggle */
-    #MainMenu, footer {visibility: hidden;}
+    /* Hide Streamlit branding and toolbar */
+    #MainMenu, footer, [data-testid="stToolbar"], .stDeployButton {visibility: hidden;}
 
     /* Fix sidebar toggle button icon */
     button[kind="headerNoPadding"] span {
