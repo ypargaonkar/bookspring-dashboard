@@ -1040,6 +1040,16 @@ st.markdown("""
         .section-title {
             font-size: 1.3rem !important;
         }
+
+        /* Make 4-column grids into 2-column on tablets */
+        div[style*="grid-template-columns: repeat(4"] {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
+
+        /* Plotly charts responsive */
+        .js-plotly-plot, .plotly, .plot-container {
+            width: 100% !important;
+        }
     }
 
     /* Mobile styles */
@@ -1121,6 +1131,20 @@ st.markdown("""
         section[data-testid="stSidebar"] > div {
             padding: 1rem;
         }
+
+        /* Make 4-column grids into 2-column on tablets */
+        div[style*="grid-template-columns: repeat(4"] {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
+
+        /* Metric cards responsive */
+        .metric-card {
+            padding: 1rem !important;
+        }
+
+        .metric-card div[style*="font-size: 1.75rem"] {
+            font-size: 1.5rem !important;
+        }
     }
 
     /* Small mobile styles */
@@ -1148,6 +1172,22 @@ st.markdown("""
         /* Hide less important elements on very small screens */
         .section-subtitle, .section-note {
             display: none;
+        }
+
+        /* Make all grids single column on mobile */
+        div[style*="grid-template-columns: repeat(4"],
+        div[style*="grid-template-columns: repeat(2"] {
+            grid-template-columns: 1fr !important;
+        }
+
+        /* Smaller metric card text on mobile */
+        .metric-card div[style*="font-size: 1.75rem"],
+        .metric-card div[style*="font-size: 1.5rem"] {
+            font-size: 1.25rem !important;
+        }
+
+        .metric-card div[style*="font-size: 0.85rem"] {
+            font-size: 0.75rem !important;
         }
     }
 
