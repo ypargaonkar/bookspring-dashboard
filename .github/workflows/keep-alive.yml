@@ -2,12 +2,12 @@ name: Keep Streamlit App Alive
 
 on:
   schedule:
-    # Runs every 6 hours, aligned with 3AM CT (9AM UTC) for cache refresh
-    # 9AM UTC = 3AM CT, 3PM UTC = 9AM CT, 9PM UTC = 3PM CT, 3AM UTC = 9PM CT
-    - cron: '0 3 * * *'
-    - cron: '0 9 * * *'
-    - cron: '0 15 * * *'
-    - cron: '0 21 * * *'
+    # Runs every 6 hours, with 3:10AM CT ping (9:10 UTC) to ensure cache has expired
+    # Cache expires at 3AM CT (9:00 UTC), ping at 3:10AM CT guarantees refresh
+    - cron: '10 3 * * *'   # 9:10PM CT
+    - cron: '10 9 * * *'   # 3:10AM CT - triggers cache refresh
+    - cron: '10 15 * * *'  # 9:10AM CT
+    - cron: '10 21 * * *'  # 3:10PM CT
   workflow_dispatch: # Allow manual trigger
 
 jobs:
