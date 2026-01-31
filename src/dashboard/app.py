@@ -1350,20 +1350,12 @@ def load_b3_low_income_stats():
 
 
 def _get_ttl_until_noon_refresh():
-    """Calculate seconds until next 12:05pm for financial data refresh.
+    """Cache financial data for 24 hours.
 
-    Returns TTL in seconds that will cause cache to expire at 12:05pm daily,
-    aligning with the Google Sheets update schedule (updates at noon).
+    Simple fixed TTL to ensure cache works reliably.
+    Manual refresh available via sidebar button.
     """
-    now = datetime.now()
-    target_time = now.replace(hour=12, minute=5, second=0, microsecond=0)
-
-    # If it's already past 12:05pm today, target tomorrow's 12:05pm
-    if now >= target_time:
-        target_time += timedelta(days=1)
-
-    ttl_seconds = (target_time - now).total_seconds()
-    return int(ttl_seconds)
+    return 86400  # 24 hours in seconds
 
 
 @st.cache_data(ttl=_get_ttl_until_noon_refresh())  # Cache until 12:05pm daily
