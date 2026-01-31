@@ -2906,6 +2906,89 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     st.markdown("<p style='font-size: 0.85rem; color: #718096; text-decoration: underline; text-align: center;'> Trends include all books and all children per period (including previously served).</p>", unsafe_allow_html=True)
 
 
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())
+def _compute_partner_metrics(activity_records_json: str, partners_data_json: str, start_date_str: str, end_date_str: str):
+    """Cached computation of partner metrics to avoid recomputing on every render."""
+    activity_records = json.loads(activity_records_json) if activity_records_json else []
+    partners_data = json.loads(partners_data_json) if partners_data_json else []
+    start_date = pd.to_datetime(start_date_str).date()
+    end_date = pd.to_datetime(end_date_str).date()
+
+    recurring_partners = []
+    inperson_event_partners = set()
+    partner_names = {}
+
+    if not activity_records or not partners_data:
+        return [], [], 0
+
+    # Build partner ID to name mapping
+    for partner in partners_data:
+        pid = partner.get('id', '')
+        site_name = partner.get('site_name', '')
+        if isinstance(site_name, list):
+            site_name = site_name[0] if site_name else ''
+        if site_name and site_name.lower() == 'various':
+            main_org = partner.get('main_organization_from_list', '')
+            if isinstance(main_org, list):
+                main_org = main_org[0] if main_org else ''
+            if main_org:
+                site_name = main_org
+        if pid and site_name:
+            partner_names[pid] = site_name
+
+    # Single pass through activity records for both metrics
+    partner_name_counts = Counter()
+    for record in activity_records:
+        record_date = record.get('date_of_activity') or record.get('date')
+        if not record_date:
+            continue
+        try:
+            record_dt = pd.to_datetime(record_date)
+            if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
+                continue
+        except:
+            continue
+
+        # Extract partner name
+        partner_name = None
+        if record.get('_is_legacy'):
+            main_partner = record.get('main_partner', '')
+            if isinstance(main_partner, list):
+                main_partner = main_partner[0] if main_partner else ''
+            if main_partner and '* Other - See Site Name' not in str(main_partner):
+                partner_name = main_partner
+            else:
+                site_name_new = record.get('site_name_new', '')
+                if isinstance(site_name_new, list):
+                    site_name_new = site_name_new[0] if site_name_new else ''
+                if site_name_new and '* See Additional Site Names' not in str(site_name_new):
+                    partner_name = site_name_new
+                else:
+                    site_name_val = record.get('site_name', '')
+                    if isinstance(site_name_val, list):
+                        site_name_val = site_name_val[0] if site_name_val else ''
+                    if site_name_val:
+                        partner_name = site_name_val
+        else:
+            partner_id = record.get('partners_testing', '')
+            if isinstance(partner_id, list):
+                partner_id = partner_id[0] if partner_id else ''
+            if partner_id and partner_id in partner_names:
+                partner_name = partner_names[partner_id]
+
+        if partner_name:
+            partner_name_counts[partner_name] += 1
+            # Check for in-person event
+            activity_type = record.get('activity_type', '')
+            if isinstance(activity_type, list):
+                activity_type = ', '.join(str(x) for x in activity_type)
+            if "Literacy Materials Distribution" in str(activity_type) or "Family Literacy Activity" in str(activity_type):
+                inperson_event_partners.add(partner_name)
+
+    recurring_partners = [(name, count) for name, count in partner_name_counts.most_common() if count > 1]
+    return recurring_partners, list(inperson_event_partners), len(recurring_partners)
+
+
 def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date: date, end_date: date, enrollment_count: int = 0, book_bank_children: int = 0, inperson_events: int = 0, activity_records: list = None, partners_data: list = None, low_income_pct: float = 0.0):
     """Render Goal 2: Inspire Engagement with Content Views."""
     fy_info = get_fiscal_year_info(date.today())
@@ -2921,140 +3004,12 @@ def render_goal2_inspire_engagement(views_data: list, time_unit: str, start_date
     </div>
     """, unsafe_allow_html=True)
 
-    # Calculate recurring partners from activity records (filtered by date range)
-    recurring_partners = []
-    recurring_count = 0
-    partner_names = {}
-    if activity_records and partners_data:
-        # Build partner ID to name mapping
-        for partner in partners_data:
-            pid = partner.get('id', '')
-            site_name = partner.get('site_name', '')
-            if isinstance(site_name, list):
-                site_name = site_name[0] if site_name else ''
-
-            # For "Various" partner, use main_organization_from_list instead
-            if site_name and site_name.lower() == 'various':
-                main_org = partner.get('main_organization_from_list', '')
-                if isinstance(main_org, list):
-                    main_org = main_org[0] if main_org else ''
-                if main_org:
-                    site_name = main_org
-
-            if pid and site_name:
-                partner_names[pid] = site_name
-
-        # Filter activity records by date range and count partner occurrences by NAME
-        partner_name_counts = Counter()
-        for record in activity_records:
-            # Check date range
-            record_date = record.get('date_of_activity') or record.get('date')
-            if record_date:
-                try:
-                    record_dt = pd.to_datetime(record_date)
-                    if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
-                        continue
-                except:
-                    continue
-            else:
-                continue
-
-            # Extract partner name based on record type
-            partner_name = None
-            if record.get('_is_legacy'):
-                # Legacy records: extract name from main_partner, site_name_new, or site_name
-                main_partner = record.get('main_partner', '')
-                if isinstance(main_partner, list):
-                    main_partner = main_partner[0] if main_partner else ''
-
-                if main_partner and '* Other - See Site Name' not in str(main_partner):
-                    partner_name = main_partner
-                else:
-                    # Check site_name_new
-                    site_name_new = record.get('site_name_new', '')
-                    if isinstance(site_name_new, list):
-                        site_name_new = site_name_new[0] if site_name_new else ''
-
-                    if site_name_new and '* See Additional Site Names' not in str(site_name_new):
-                        partner_name = site_name_new
-                    else:
-                        # Fall back to site_name (not array)
-                        site_name_val = record.get('site_name', '')
-                        if isinstance(site_name_val, list):
-                            site_name_val = site_name_val[0] if site_name_val else ''
-                        if site_name_val:
-                            partner_name = site_name_val
-            else:
-                # Current records: look up partner name from partners table using ID
-                partner_id = record.get('partners_testing', '')
-                if isinstance(partner_id, list):
-                    partner_id = partner_id[0] if partner_id else ''
-                if partner_id and partner_id in partner_names:
-                    partner_name = partner_names[partner_id]
-
-            if partner_name:
-                partner_name_counts[partner_name] += 1
-
-        # Get recurring partners (appeared more than once)
-        recurring_partners = [(name, count) for name, count in partner_name_counts.most_common() if count > 1]
-        recurring_count = len(recurring_partners)
-
-    # Calculate partners for in-person events (same date range filter)
-    inperson_event_partners = set()
-    if activity_records:
-        for record in activity_records:
-            # Check date range
-            record_date = record.get('date_of_activity') or record.get('date')
-            if record_date:
-                try:
-                    record_dt = pd.to_datetime(record_date)
-                    if not (pd.Timestamp(start_date) <= record_dt <= pd.Timestamp(end_date)):
-                        continue
-                except:
-                    continue
-            else:
-                continue
-
-            # Check if it's an in-person event
-            activity_type = record.get('activity_type', '')
-            if isinstance(activity_type, list):
-                activity_type = ', '.join(str(x) for x in activity_type)
-            if not ("Literacy Materials Distribution" in str(activity_type) or "Family Literacy Activity" in str(activity_type)):
-                continue
-
-            # Get partner name based on record type
-            partner_name = None
-            if record.get('_is_legacy'):
-                # Legacy records: extract name from main_partner, site_name_new, or site_name
-                main_partner = record.get('main_partner', '')
-                if isinstance(main_partner, list):
-                    main_partner = main_partner[0] if main_partner else ''
-
-                if main_partner and '* Other - See Site Name' not in str(main_partner):
-                    partner_name = main_partner
-                else:
-                    site_name_new = record.get('site_name_new', '')
-                    if isinstance(site_name_new, list):
-                        site_name_new = site_name_new[0] if site_name_new else ''
-
-                    if site_name_new and '* See Additional Site Names' not in str(site_name_new):
-                        partner_name = site_name_new
-                    else:
-                        site_name_val = record.get('site_name', '')
-                        if isinstance(site_name_val, list):
-                            site_name_val = site_name_val[0] if site_name_val else ''
-                        if site_name_val:
-                            partner_name = site_name_val
-            else:
-                # Current records: look up partner name from partners table
-                partner_id = record.get('partners_testing', '')
-                if isinstance(partner_id, list):
-                    partner_id = partner_id[0] if partner_id else ''
-                if partner_id and partner_id in partner_names:
-                    partner_name = partner_names[partner_id]
-
-            if partner_name:
-                inperson_event_partners.add(partner_name)
+    # Use cached computation for partner metrics
+    activity_json = json.dumps(activity_records) if activity_records else ""
+    partners_json = json.dumps(partners_data) if partners_data else ""
+    recurring_partners, inperson_event_partners, recurring_count = _compute_partner_metrics(
+        activity_json, partners_json, str(start_date), str(end_date)
+    )
 
     # Build in-person event partners HTML
     inperson_partners_html = ""
