@@ -1246,46 +1246,31 @@ def style_plotly_chart(fig, height=350):
     return fig
 
 
-def _get_ttl_until_3am_ct():
-    """Calculate seconds until next 3AM CT for cache refresh.
+def _get_ttl_until_sunday_3am_ct():
+    """Calculate seconds until next Sunday 3AM CT for weekly cache refresh.
 
-    Returns TTL in seconds that will cause cache to expire at 3AM CT daily,
-    minimizing impact on US business hours when recruiters might visit.
+    Returns TTL in seconds that will cause cache to expire on Sunday at 3AM CT,
+    allowing manual refresh trigger on Sundays when recruiters are unlikely to visit.
     3AM CT ≈ 9AM UTC (using CST; 8AM UTC during CDT).
     """
     now = datetime.now()
     # Use 9AM UTC as approximation for 3AM CT
     target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
 
-    # If it's already past 9AM UTC today, target tomorrow
-    if now >= target_time:
-        target_time += timedelta(days=1)
+    # Calculate days until next Sunday (weekday 6 = Sunday)
+    days_until_sunday = (6 - now.weekday()) % 7
+
+    # If it's Sunday but past 9AM UTC, target next Sunday
+    if days_until_sunday == 0 and now >= target_time:
+        days_until_sunday = 7
+
+    target_time += timedelta(days=days_until_sunday)
 
     ttl_seconds = (target_time - now).total_seconds()
     return int(ttl_seconds)
 
 
-def _get_ttl_until_3am_ct_72h():
-    """Calculate seconds until next 3AM CT, then add 72 hours for legacy data.
-
-    Legacy data changes infrequently, so refresh every 72 hours at 3AM CT.
-    """
-    now = datetime.now()
-    # Use 9AM UTC as approximation for 3AM CT
-    target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
-
-    # If it's already past 9AM UTC today, target tomorrow
-    if now >= target_time:
-        target_time += timedelta(days=1)
-
-    # Add 48 more hours (72 total from next 3AM)
-    target_time += timedelta(days=2)
-
-    ttl_seconds = (target_time - now).total_seconds()
-    return int(ttl_seconds)
-
-
-@st.cache_data(ttl=_get_ttl_until_3am_ct())  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_activity_data():
     """Load activity data from Fusioo API with caching."""
     try:
@@ -1297,7 +1282,7 @@ def load_activity_data():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct())  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_original_books():
     """Load Original Books data from Fusioo API."""
     try:
@@ -1309,7 +1294,7 @@ def load_original_books():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct())  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_content_views():
     """Load Content Views data from Fusioo API."""
     try:
@@ -1321,7 +1306,7 @@ def load_content_views():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct_72h())  # Cache until 3AM CT, every 72 hours
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_legacy_data():
     """Load legacy activity data from Fusioo API (pre-July 2025)."""
     try:
@@ -1333,7 +1318,7 @@ def load_legacy_data():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct())  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_active_enrollment_count():
     """Load count of active enrollments from B3 Child/Family table.
 
@@ -1348,7 +1333,7 @@ def load_active_enrollment_count():
         return 0
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct())  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_b3_low_income_stats():
     """Load B3 enrollment stats including % low income eligible.
 
@@ -1434,7 +1419,7 @@ def load_financial_data():
         return None
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct())  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_events_data():
     """Load events data from Fusioo."""
     try:
@@ -1446,7 +1431,7 @@ def load_events_data():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct())  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_partners_data():
     """Load partners data from Fusioo for partner name lookups and low income stats."""
     try:
@@ -1459,7 +1444,7 @@ def load_partners_data():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct())  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_donated_books_count(start_date: str, end_date: str):
     """Load donated books count from Fusioo Inventory Data for a date range.
 
@@ -1557,7 +1542,7 @@ def _execute_donorperfect_query(query: str) -> tuple:
         return [], debug_info
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct(), show_spinner=False)  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct(), show_spinner=False)  # Cache until Sunday 3AM CT
 def load_donorperfect_contact_metrics(start_date: str, end_date: str) -> dict:
     """Load aggregated contact metrics from DonorPerfect using GROUP BY queries.
 
@@ -1785,7 +1770,7 @@ ALL_DONOR_BASE_FILTER = f"""
 """
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct(), show_spinner=False)  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct(), show_spinner=False)  # Cache until Sunday 3AM CT
 def load_individual_donor_metrics(
     current_start: str,
     current_end: str,
@@ -2027,7 +2012,7 @@ def load_individual_donor_metrics(
     }
 
 
-@st.cache_data(ttl=_get_ttl_until_3am_ct(), show_spinner=False)  # Cache until 3AM CT
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct(), show_spinner=False)  # Cache until Sunday 3AM CT
 def load_donor_metrics_by_type(
     current_start: str,
     current_end: str,
