@@ -17,11 +17,10 @@ jobs:
       - name: Ping Streamlit App
         id: ping
         run: |
-          # Don't follow redirects (-L removed) - a 3xx response still means server is alive
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${{ secrets.STREAMLIT_APP_URL }}")
+          # Follow redirects with higher limit to fully load the app and trigger cache refresh
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --max-redirs 10 --max-time 120 "${{ secrets.STREAMLIT_APP_URL }}")
           echo "HTTP Status: $HTTP_CODE"
           echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
-          # Accept 2xx and 3xx as success (redirects mean server is responding)
           if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 400 ]]; then
             echo "✅ App is alive and responding"
           else
