@@ -14,6 +14,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Streamlit App
+        id: ping
         run: |
-          curl -s -o /dev/null -w "%{http_code}" ${{ secrets.STREAMLIT_APP_URL }} || true
-          echo "Pinged app to keep it alive"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L ${{ secrets.STREAMLIT_APP_URL }})
+          echo "HTTP Status: $HTTP_CODE"
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+          if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 400 ]]; then
+            echo "✅ App is alive and responding"
+          else
+            echo "❌ App returned unexpected status: $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Send failure email
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "⚠️ BookSpring Dashboard Keep-Alive Failed"
+          to: yash.pargaonkar@gmail.com
+          from: BookSpring Dashboard Monitor
+          body: |
+            The keep-alive ping for your Streamlit dashboard failed.
+
+            HTTP Status: ${{ steps.ping.outputs.http_code }}
+            Time: ${{ github.event.repository.updated_at }}
+
+            Your app may go to sleep if not addressed.
+
+            Check the workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
