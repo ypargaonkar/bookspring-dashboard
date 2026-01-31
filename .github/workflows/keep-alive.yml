@@ -17,15 +17,15 @@ jobs:
       - name: Ping Streamlit App
         id: ping
         run: |
-          # Follow redirects with higher limit to fully load the app and trigger cache refresh
-          # 5 min timeout allows for full data refresh when all caches expire (including legacy every 72h)
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --max-redirs 10 --max-time 300 "${{ secrets.STREAMLIT_APP_URL }}")
-          echo "HTTP Status: $HTTP_CODE"
-          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
-          if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 400 ]]; then
+          # Use wget to fully load the app and trigger cache refresh
+          # 5 min timeout allows for full data refresh when all caches expire
+          if wget -q -O /dev/null --timeout=300 "${{ secrets.STREAMLIT_APP_URL }}"; then
             echo "✅ App is alive and responding"
+            echo "http_code=200" >> $GITHUB_OUTPUT
           else
-            echo "❌ App returned unexpected status: $HTTP_CODE"
+            EXIT_CODE=$?
+            echo "❌ wget failed with exit code: $EXIT_CODE"
+            echo "http_code=$EXIT_CODE" >> $GITHUB_OUTPUT
             exit 1
           fi
 
