@@ -1246,6 +1246,45 @@ def style_plotly_chart(fig, height=350):
     return fig
 
 
+def _get_ttl_until_3am_ct():
+    """Calculate seconds until next 3AM CT for cache refresh.
+
+    Returns TTL in seconds that will cause cache to expire at 3AM CT daily,
+    minimizing impact on US business hours when recruiters might visit.
+    3AM CT ≈ 9AM UTC (using CST; 8AM UTC during CDT).
+    """
+    now = datetime.now()
+    # Use 9AM UTC as approximation for 3AM CT
+    target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
+
+    # If it's already past 9AM UTC today, target tomorrow
+    if now >= target_time:
+        target_time += timedelta(days=1)
+
+    ttl_seconds = (target_time - now).total_seconds()
+    return int(ttl_seconds)
+
+
+def _get_ttl_until_3am_ct_72h():
+    """Calculate seconds until next 3AM CT, then add 72 hours for legacy data.
+
+    Legacy data changes infrequently, so refresh every 72 hours at 3AM CT.
+    """
+    now = datetime.now()
+    # Use 9AM UTC as approximation for 3AM CT
+    target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
+
+    # If it's already past 9AM UTC today, target tomorrow
+    if now >= target_time:
+        target_time += timedelta(days=1)
+
+    # Add 48 more hours (72 total from next 3AM)
+    target_time += timedelta(days=2)
+
+    ttl_seconds = (target_time - now).total_seconds()
+    return int(ttl_seconds)
+
+
 @st.cache_data(ttl=_get_ttl_until_3am_ct())  # Cache until 3AM CT
 def load_activity_data():
     """Load activity data from Fusioo API with caching."""
@@ -1338,45 +1377,6 @@ def load_b3_low_income_stats():
     except Exception as e:
         st.error(f"Failed to load B3 low income stats: {e}")
         return 0, 0.0
-
-
-def _get_ttl_until_3am_ct():
-    """Calculate seconds until next 3AM CT for cache refresh.
-
-    Returns TTL in seconds that will cause cache to expire at 3AM CT daily,
-    minimizing impact on US business hours when recruiters might visit.
-    3AM CT ≈ 9AM UTC (using CST; 8AM UTC during CDT).
-    """
-    now = datetime.now()
-    # Use 9AM UTC as approximation for 3AM CT
-    target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
-
-    # If it's already past 9AM UTC today, target tomorrow
-    if now >= target_time:
-        target_time += timedelta(days=1)
-
-    ttl_seconds = (target_time - now).total_seconds()
-    return int(ttl_seconds)
-
-
-def _get_ttl_until_3am_ct_72h():
-    """Calculate seconds until next 3AM CT, then add 72 hours for legacy data.
-
-    Legacy data changes infrequently, so refresh every 72 hours at 3AM CT.
-    """
-    now = datetime.now()
-    # Use 9AM UTC as approximation for 3AM CT
-    target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
-
-    # If it's already past 9AM UTC today, target tomorrow
-    if now >= target_time:
-        target_time += timedelta(days=1)
-
-    # Add 48 more hours (72 total from next 3AM)
-    target_time += timedelta(days=2)
-
-    ttl_seconds = (target_time - now).total_seconds()
-    return int(ttl_seconds)
 
 
 def _get_ttl_until_noon_refresh():
