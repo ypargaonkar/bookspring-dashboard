@@ -1247,27 +1247,12 @@ def style_plotly_chart(fig, height=350):
 
 
 def _get_ttl_until_sunday_3am_ct():
-    """Calculate seconds until next Sunday 3AM CT for weekly cache refresh.
+    """Cache for 7 days (one week).
 
-    Returns TTL in seconds that will cause cache to expire on Sunday at 3AM CT,
-    allowing manual refresh trigger on Sundays when recruiters are unlikely to visit.
-    3AM CT ≈ 9AM UTC (using CST; 8AM UTC during CDT).
+    Simple fixed TTL to ensure cache works reliably.
+    Manual refresh available via sidebar button.
     """
-    now = datetime.now()
-    # Use 9AM UTC as approximation for 3AM CT
-    target_time = now.replace(hour=9, minute=0, second=0, microsecond=0)
-
-    # Calculate days until next Sunday (weekday 6 = Sunday)
-    days_until_sunday = (6 - now.weekday()) % 7
-
-    # If it's Sunday but past 9AM UTC, target next Sunday
-    if days_until_sunday == 0 and now >= target_time:
-        days_until_sunday = 7
-
-    target_time += timedelta(days=days_until_sunday)
-
-    ttl_seconds = (target_time - now).total_seconds()
-    return int(ttl_seconds)
+    return 604800  # 7 days in seconds
 
 
 @st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
