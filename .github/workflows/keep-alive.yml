@@ -2,10 +2,9 @@ name: Keep Streamlit App Alive
 
 on:
   schedule:
-    # Runs every 6 hours, with 3:10AM CT ping (9:10 UTC) to ensure cache has expired
-    # Cache expires at 3AM CT (9:00 UTC), ping at 3:10AM CT guarantees refresh
+    # Runs every 6 hours to stay within 12-hour sleep threshold
     - cron: '10 3 * * *'   # 9:10PM CT
-    - cron: '10 9 * * *'   # 3:10AM CT - triggers cache refresh
+    - cron: '10 9 * * *'   # 3:10AM CT
     - cron: '10 15 * * *'  # 9:10AM CT
     - cron: '10 21 * * *'  # 3:10PM CT
   workflow_dispatch: # Allow manual trigger
@@ -14,24 +13,59 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit App
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install chromium
+
+      - name: Load Streamlit App with Headless Browser
         id: ping
         run: |
-          # Use wget to fully load the app and trigger cache refresh
-          # 5 min timeout allows for full data refresh when all caches expire
-          # --server-response shows HTTP headers including status code
-          echo "Pinging Streamlit app..."
-          if wget --server-response -O /dev/null --timeout=300 "${{ secrets.STREAMLIT_APP_URL }}" 2>&1 | tee /tmp/wget_output.txt; then
-            HTTP_CODE=$(grep -o "HTTP/[0-9.]* [0-9]*" /tmp/wget_output.txt | tail -1 | awk '{print $2}')
-            echo "✅ App loaded successfully - HTTP $HTTP_CODE"
-            echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
-          else
-            EXIT_CODE=$?
-            HTTP_CODE=$(grep -o "HTTP/[0-9.]* [0-9]*" /tmp/wget_output.txt | tail -1 | awk '{print $2}')
-            echo "❌ wget failed with exit code: $EXIT_CODE, HTTP: $HTTP_CODE"
-            echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
-            exit 1
-          fi
+          python << 'EOF'
+          import asyncio
+          from playwright.async_api import async_playwright
+
+          async def load_app():
+              async with async_playwright() as p:
+                  browser = await p.chromium.launch()
+                  page = await browser.new_page()
+
+                  url = "${{ secrets.STREAMLIT_APP_URL }}"
+                  print(f"Loading {url}...")
+
+                  try:
+                      # Navigate and wait for network to be idle (app fully loaded)
+                      await page.goto(url, wait_until="networkidle", timeout=300000)
+
+                      # Wait additional time for Streamlit to render
+                      await page.wait_for_timeout(10000)
+
+                      # Check if page has content
+                      title = await page.title()
+                      print(f"✅ App loaded successfully - Title: {title}")
+
+                      # Take screenshot for debugging (optional)
+                      await page.screenshot(path="/tmp/screenshot.png")
+                      print("Screenshot saved to /tmp/screenshot.png")
+
+                  except Exception as e:
+                      print(f"❌ Failed to load app: {e}")
+                      await browser.close()
+                      exit(1)
+
+                  await browser.close()
+                  print("Browser closed successfully")
+
+          asyncio.run(load_app())
+          EOF
+
+      - name: Upload screenshot on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-screenshot
+          path: /tmp/screenshot.png
+          if-no-files-found: ignore
 
       - name: Send failure email
         if: failure()
@@ -47,9 +81,6 @@ jobs:
           body: |
             The keep-alive ping for your Streamlit dashboard failed.
 
-            HTTP Status: ${{ steps.ping.outputs.http_code }}
-            Time: ${{ github.event.repository.updated_at }}
-
-            Your app may go to sleep if not addressed.
+            The headless browser could not load the app.
 
             Check the workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
