@@ -59,13 +59,14 @@ jobs:
           asyncio.run(load_app())
           EOF
 
-      - name: Upload screenshot on failure
-        if: failure()
+      - name: Upload screenshot
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: failure-screenshot
+          name: dashboard-screenshot
           path: /tmp/screenshot.png
           if-no-files-found: ignore
+          retention-days: 1
 
       - name: Send failure email
         if: failure()
