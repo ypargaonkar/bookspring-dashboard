@@ -42,7 +42,7 @@ jobs:
                       await page.wait_for_timeout(10000)
 
                       # Scroll random amount to make screenshot unique each time
-                      scroll_amount = random.randint(100, 2000)
+                      scroll_amount = random.randint(500, 4000)
                       await page.evaluate(f"window.scrollTo(0, {scroll_amount})")
                       print(f"Scrolled to {scroll_amount}px")
                       await page.wait_for_timeout(2000)
