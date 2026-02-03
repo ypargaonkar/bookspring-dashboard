@@ -1246,16 +1246,16 @@ def style_plotly_chart(fig, height=350):
     return fig
 
 
-def _get_ttl_until_sunday_3am_ct():
-    """Cache for 7 days (one week).
+def _get_ttl_72_hours():
+    """Cache for 72 hours (3 days).
 
     Simple fixed TTL to ensure cache works reliably.
     Manual refresh available via sidebar button.
     """
-    return 604800  # 7 days in seconds
+    return 259200  # 72 hours in seconds
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())
+@st.cache_data(ttl=_get_ttl_72_hours())
 def get_fusioo_cache_timestamp():
     """Return timestamp when Fusioo data cache was last refreshed.
 
@@ -1264,7 +1264,7 @@ def get_fusioo_cache_timestamp():
     return datetime.now(ZoneInfo("America/Chicago"))
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours())  # Cache for 72 hours
 def load_activity_data():
     """Load activity data from Fusioo API with caching."""
     try:
@@ -1276,7 +1276,7 @@ def load_activity_data():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours())  # Cache for 72 hours
 def load_original_books():
     """Load Original Books data from Fusioo API."""
     try:
@@ -1288,7 +1288,7 @@ def load_original_books():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours())  # Cache for 72 hours
 def load_content_views():
     """Load Content Views data from Fusioo API."""
     try:
@@ -1300,7 +1300,7 @@ def load_content_views():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours())  # Cache for 72 hours
 def load_legacy_data():
     """Load legacy activity data from Fusioo API (pre-July 2025)."""
     try:
@@ -1312,7 +1312,7 @@ def load_legacy_data():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours())  # Cache for 72 hours
 def load_active_enrollment_count():
     """Load count of active enrollments from B3 Child/Family table.
 
@@ -1327,7 +1327,7 @@ def load_active_enrollment_count():
         return 0
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours())  # Cache for 72 hours
 def load_b3_low_income_stats():
     """Load B3 enrollment stats including % low income eligible.
 
@@ -1405,7 +1405,7 @@ def load_financial_data():
         return None
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours())  # Cache for 72 hours
 def load_events_data():
     """Load events data from Fusioo."""
     try:
@@ -1417,7 +1417,7 @@ def load_events_data():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours())  # Cache for 72 hours
 def load_partners_data():
     """Load partners data from Fusioo for partner name lookups and low income stats."""
     try:
@@ -1430,7 +1430,7 @@ def load_partners_data():
         return []
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours())  # Cache for 72 hours
 def load_donated_books_count(start_date: str, end_date: str):
     """Load donated books count from Fusioo Inventory Data for a date range.
 
@@ -1528,7 +1528,7 @@ def _execute_donorperfect_query(query: str) -> tuple:
         return [], debug_info
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct(), show_spinner=False)  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours(), show_spinner=False)  # Cache for 72 hours
 def load_donorperfect_contact_metrics(start_date: str, end_date: str) -> dict:
     """Load aggregated contact metrics from DonorPerfect using GROUP BY queries.
 
@@ -1756,7 +1756,7 @@ ALL_DONOR_BASE_FILTER = f"""
 """
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct(), show_spinner=False)  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours(), show_spinner=False)  # Cache for 72 hours
 def load_individual_donor_metrics(
     current_start: str,
     current_end: str,
@@ -1998,7 +1998,7 @@ def load_individual_donor_metrics(
     }
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct(), show_spinner=False)  # Cache until Sunday 3AM CT
+@st.cache_data(ttl=_get_ttl_72_hours(), show_spinner=False)  # Cache for 72 hours
 def load_donor_metrics_by_type(
     current_start: str,
     current_end: str,
@@ -2915,7 +2915,7 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
     st.markdown("<p style='font-size: 0.85rem; color: #718096; text-decoration: underline; text-align: center;'> Trends include all books and all children per period (including previously served).</p>", unsafe_allow_html=True)
 
 
-@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())
+@st.cache_data(ttl=_get_ttl_72_hours())
 def _compute_partner_metrics(activity_records_json: str, partners_data_json: str, start_date_str: str, end_date_str: str):
     """Cached computation of partner metrics to avoid recomputing on every render."""
     activity_records = json.loads(activity_records_json) if activity_records_json else []
