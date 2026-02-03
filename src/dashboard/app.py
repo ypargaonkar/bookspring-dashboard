@@ -4581,241 +4581,11 @@ def render_export_section(processor: DataProcessor):
                     st.error(f"Error generating report: {e}")
 
 
-def render_debug_avg_books_section(processor: DataProcessor):
-    """Render debug section showing detailed avg books/child calculation by month."""
-    with st.expander("Debug: Avg Books/Child Calculation", expanded=False):
-        st.markdown("<p style='color: #718096; font-size: 0.85rem;'>Monthly breakdown of books, children, and averages by age group</p>", unsafe_allow_html=True)
-
-        # Get the date column for grouping
-        date_col = processor.get_date_column()
-        if not date_col or date_col not in processor.df.columns:
-            st.warning("No date column found for monthly aggregation")
-            return
-
-        df = processor.df.copy()
-        df["_month"] = df[date_col].dt.to_period("M").dt.start_time
-
-        # Define age group mappings (same as processor)
-        age_groups = {
-            "0-2": ["children_035_months", "children_03_years"],
-            "3-5": ["children_35_years", "children_34_years"],
-            "6-8": ["children_68_years", "children_512_years"],
-            "9-12": ["children_912_years"],
-            "Teens": ["teens"],
-        }
-
-        # Build monthly debug data
-        monthly_data = []
-
-        for month, month_df in df.groupby("_month"):
-            row = {"Month": month.strftime("%Y-%m")}
-
-            # Total books (using _books_distributed_all for total, _of_books_distributed for excl prev served)
-            books_all = month_df["_books_distributed_all"].sum() if "_books_distributed_all" in month_df.columns else 0
-            books_excl = month_df["_of_books_distributed"].sum() if "_of_books_distributed" in month_df.columns else 0
-            row["Books (All)"] = int(books_all)
-            row["Books (Excl Prev)"] = int(books_excl)
-
-            # Total children - both excluding and including previously served
-            children_total = month_df["total_children"].sum() if "total_children" in month_df.columns else 0
-            children_all = month_df["total_children_all"].sum() if "total_children_all" in month_df.columns else 0
-            row["Children (Excl)"] = int(children_total)
-            row["Children (All)"] = int(children_all)
-
-            # Children by age group (sum of available columns)
-            total_from_age = 0
-            for age_name, cols in age_groups.items():
-                age_sum = 0
-                for col in cols:
-                    if col in month_df.columns:
-                        age_sum += month_df[col].sum()
-                row[f"Children {age_name}"] = int(age_sum)
-                total_from_age += age_sum
-
-            row["Children (Sum Age)"] = int(total_from_age)
-
-            # Calculate averages - show formula as "result = X/Y"
-            # Avg using all books / children excluding prev served (used in dashboard ring)
-            if children_total > 0:
-                avg_val = round(books_all / children_total, 2)
-                row["Avg (All/Excl)"] = f"{avg_val} = {int(books_all)}/{int(children_total)}"
-            else:
-                row["Avg (All/Excl)"] = "0"
-
-            # Avg if we didn't exclude children (all books / all children)
-            if children_all > 0:
-                avg_val = round(books_all / children_all, 2)
-                row["Avg (All/All)"] = f"{avg_val} = {int(books_all)}/{int(children_all)}"
-            else:
-                row["Avg (All/All)"] = "0"
-
-            if children_total > 0:
-                avg_val = round(books_excl / children_total, 2)
-                row["Avg (Excl/Excl)"] = f"{avg_val} = {int(books_excl)}/{int(children_total)}"
-            else:
-                row["Avg (Excl/Excl)"] = "0"
-
-            if total_from_age > 0:
-                avg_val = round(books_excl / total_from_age, 2)
-                row["Avg (Excl/SumAge)"] = f"{avg_val} = {int(books_excl)}/{int(total_from_age)}"
-            else:
-                row["Avg (Excl/SumAge)"] = "0"
-
-            # Per age group averages (books_excl / total_from_age where that age exists)
-            for age_name, cols in age_groups.items():
-                age_children = 0
-                for col in cols:
-                    if col in month_df.columns:
-                        age_children += month_df[col].sum()
-                # For age-specific avg, we use total children from all age cols (same as processor)
-                if total_from_age > 0 and age_children > 0:
-                    avg_val = round(books_excl / total_from_age, 2)
-                    row[f"Avg {age_name}"] = f"{avg_val} = {int(books_excl)}/{int(total_from_age)}"
-                else:
-                    row[f"Avg {age_name}"] = "0"
-
-            monthly_data.append(row)
-
-        # Create DataFrame and display
-        debug_df = pd.DataFrame(monthly_data)
-
-        if debug_df.empty:
-            st.info("No monthly data available")
-            return
-
-        # Add totals row
-        totals_row = {"Month": "TOTAL"}
-        total_books_all = debug_df["Books (All)"].sum()
-        total_books_excl = debug_df["Books (Excl Prev)"].sum()
-        total_children_excl = debug_df["Children (Excl)"].sum()
-        total_children_all = debug_df["Children (All)"].sum()
-        total_children_age = debug_df["Children (Sum Age)"].sum()
-
-        totals_row["Books (All)"] = int(total_books_all)
-        totals_row["Books (Excl Prev)"] = int(total_books_excl)
-        totals_row["Children (Excl)"] = int(total_children_excl)
-        totals_row["Children (All)"] = int(total_children_all)
-        totals_row["Children (Sum Age)"] = int(total_children_age)
-
-        # Sum children by age group
-        for age_name in ["0-2", "3-5", "6-8", "9-12", "Teens"]:
-            col_name = f"Children {age_name}"
-            if col_name in debug_df.columns:
-                totals_row[col_name] = int(debug_df[col_name].sum())
-
-        # Calculate overall averages for totals row - show formula
-        # Avg (All/Excl) - all books / children excluding prev served (used in dashboard)
-        if total_children_excl > 0:
-            avg_val = round(total_books_all / total_children_excl, 2)
-            totals_row["Avg (All/Excl)"] = f"{avg_val} = {int(total_books_all)}/{int(total_children_excl)}"
-        else:
-            totals_row["Avg (All/Excl)"] = "0"
-
-        # Avg (All/All) - what it would be without excluding children
-        if total_children_all > 0:
-            avg_val = round(total_books_all / total_children_all, 2)
-            totals_row["Avg (All/All)"] = f"{avg_val} = {int(total_books_all)}/{int(total_children_all)}"
-        else:
-            totals_row["Avg (All/All)"] = "0"
-
-        if total_children_excl > 0:
-            avg_val = round(total_books_excl / total_children_excl, 2)
-            totals_row["Avg (Excl/Excl)"] = f"{avg_val} = {int(total_books_excl)}/{int(total_children_excl)}"
-        else:
-            totals_row["Avg (Excl/Excl)"] = "0"
-
-        if total_children_age > 0:
-            avg_val = round(total_books_excl / total_children_age, 2)
-            totals_row["Avg (Excl/SumAge)"] = f"{avg_val} = {int(total_books_excl)}/{int(total_children_age)}"
-        else:
-            totals_row["Avg (Excl/SumAge)"] = "0"
-
-        # Age group averages for totals
-        for age_name in ["0-2", "3-5", "6-8", "9-12", "Teens"]:
-            col_name = f"Avg {age_name}"
-            age_children_col = f"Children {age_name}"
-            if age_children_col in debug_df.columns:
-                age_children_total = debug_df[age_children_col].sum()
-                if total_children_age > 0 and age_children_total > 0:
-                    avg_val = round(total_books_excl / total_children_age, 2)
-                    totals_row[col_name] = f"{avg_val} = {int(total_books_excl)}/{int(total_children_age)}"
-                else:
-                    totals_row[col_name] = "0"
-
-        debug_df = pd.concat([debug_df, pd.DataFrame([totals_row])], ignore_index=True)
-
-        # Summary stats at top (use pre-calculated totals, not from df which now includes totals row)
-        overall_avg = total_books_all / total_children_excl if total_children_excl > 0 else 0
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown(f"**Total Books (All)**<br><span style='font-size: 1.5rem; color: #1a365d;'>{int(total_books_all):,}</span>", unsafe_allow_html=True)
-        with col2:
-            st.markdown(f"**Children (Excl)**<br><span style='font-size: 1.5rem; color: #1a365d;'>{int(total_children_excl):,}</span>", unsafe_allow_html=True)
-        with col3:
-            st.markdown(f"**Avg (All/Excl)**<br><span style='font-size: 1.5rem; color: #1a365d;'>{overall_avg:.2f}</span>", unsafe_allow_html=True)
-        with col4:
-            st.markdown(f"**Months**<br><span style='font-size: 1.5rem; color: #1a365d;'>{len(debug_df) - 1}</span>", unsafe_allow_html=True)
-
-        st.markdown("##### Monthly Breakdown")
-
-        # Display the full table
-        st.dataframe(
-            debug_df,
-            use_container_width=True,
-            height=400,
-            column_config={
-                "Month": st.column_config.TextColumn("Month", width="small"),
-                "Books (All)": st.column_config.NumberColumn("Books (All)", format="%d"),
-                "Books (Excl Prev)": st.column_config.NumberColumn("Books (Excl)", format="%d"),
-                "Children (Excl)": st.column_config.NumberColumn("Children (Excl)", format="%d"),
-                "Children (All)": st.column_config.NumberColumn("Children (All)", format="%d"),
-                "Children (Sum Age)": st.column_config.NumberColumn("Children (Age Sum)", format="%d"),
-                "Avg (All/Excl)": st.column_config.TextColumn("Avg (All/Excl)"),
-                "Avg (All/All)": st.column_config.TextColumn("Avg (All/All)"),
-                "Avg (Excl/Excl)": st.column_config.TextColumn("Avg (Excl/Excl)"),
-                "Avg (Excl/SumAge)": st.column_config.TextColumn("Avg (Excl/Age)"),
-            }
-        )
-
-        # Explanation
-        st.markdown("""
-        <p style='font-size: 0.8rem; color: #718096;'>
-        <strong>Legend:</strong><br>
-        • <strong>Books (All)</strong>: All books distributed including previously served children<br>
-        • <strong>Books (Excl Prev)</strong>: Books excluding previously served children (zeroed out)<br>
-        • <strong>Children (Excl)</strong>: From total_children field (excl. previously served)<br>
-        • <strong>Children (All)</strong>: From total_children_all field (incl. previously served)<br>
-        • <strong>Children (Sum Age)</strong>: Sum of all age group columns<br>
-        • <strong>Avg (All/Excl)</strong>: Books(All) / Children(Excl) - <em>used in dashboard ring</em><br>
-        • <strong>Avg (All/All)</strong>: Books(All) / Children(All) - <em>what avg would be without excluding</em><br>
-        • <strong>Avg (Excl/Excl)</strong>: Books(Excl) / Children(Excl)<br>
-        • <strong>Avg (Excl/Age)</strong>: Books(Excl) / Children(SumAge) - <em>used in trendlines</em>
-        </p>
-        """, unsafe_allow_html=True)
-
-
 def main():
     """Main dashboard function."""
     # Sidebar
     with st.sidebar:
-        # Date Range
-        st.markdown("##### 📅 Date Range")
-        today = datetime.now(ZoneInfo("America/Chicago"))
-        # Fiscal year to date: July 1 of current fiscal year
-        fiscal_year = today.year if today.month >= 7 else today.year - 1
-        default_start = date(fiscal_year, 7, 1)
-        start_date = st.date_input("From", default_start)
-        end_date = st.date_input("To", today)
-
-        st.markdown("---")
-
-        # Display Settings
-        st.markdown("##### ⚙️ Display Settings")
-        time_unit = st.selectbox("Time Aggregation", ["day", "week", "month", "quarter", "year", "fiscal_year"], index=2)
-
-        st.markdown("---")
-
-        # Data Cache Info
+        # Data Cache Info (at top)
         st.markdown("##### 📊 Data Cache")
         fusioo_cache_time = get_fusioo_cache_timestamp()
         next_refresh_time = fusioo_cache_time + timedelta(hours=72)
@@ -4863,6 +4633,23 @@ def main():
             st.toast("Refreshing donor data from DonorPerfect...", icon="💝")
             st.rerun()
 
+        st.markdown("---")
+
+        # Date Range
+        st.markdown("##### 📅 Date Range")
+        today = datetime.now(ZoneInfo("America/Chicago"))
+        # Fiscal year to date: July 1 of current fiscal year
+        fiscal_year = today.year if today.month >= 7 else today.year - 1
+        default_start = date(fiscal_year, 7, 1)
+        start_date = st.date_input("From", default_start)
+        end_date = st.date_input("To", today)
+
+        st.markdown("---")
+
+        # Display Settings
+        st.markdown("##### ⚙️ Display Settings")
+        time_unit = st.selectbox("Time Aggregation", ["day", "week", "month", "quarter", "year", "fiscal_year"], index=2)
+
     # Load data
     with st.spinner("Loading data..."):
         activity_records = load_activity_data()
@@ -4890,73 +4677,6 @@ def main():
     if processor.df.empty:
         st.warning("No data found for the selected date range.")
         return
-
-    # DEBUG: Avg Books/Child metric and trends calculation
-    with st.sidebar:
-        with st.expander("Debug: Avg Books/Child", expanded=False):
-            st.markdown("**Raw Data Totals:**")
-            # Books distributed
-            books_col = "_of_books_distributed"
-            books_all_col = "_books_distributed_all"
-            books_dist = processor.df[books_col].sum() if books_col in processor.df.columns else 0
-            books_all = processor.df[books_all_col].sum() if books_all_col in processor.df.columns else 0
-            st.write(f"Books (excl. prev served): {books_dist:,.0f}")
-            st.write(f"Books (all distributed): {books_all:,.0f}")
-
-            # Children counts
-            children_col = "total_children"
-            children_all_col = "total_children_all"
-            children = processor.df[children_col].sum() if children_col in processor.df.columns else 0
-            children_all = processor.df[children_all_col].sum() if children_all_col in processor.df.columns else 0
-            st.write(f"Children (excl. prev served): {children:,.0f}")
-            st.write(f"Children (all): {children_all:,.0f}")
-
-            # Previously served breakdown
-            st.markdown("**Previously Served Analysis:**")
-            if "previously_served_this_fy" in processor.df.columns:
-                prev_served_mask = processor.df["previously_served_this_fy"].apply(
-                    lambda x: (x is True) or (pd.notna(x) and str(x).lower() in ("yes", "true", "1"))
-                )
-                prev_count = prev_served_mask.sum()
-                total_rows = len(processor.df)
-                st.write(f"Total rows: {total_rows:,}")
-                st.write(f"Previously served rows: {prev_count:,}")
-                st.write(f"New rows: {total_rows - prev_count:,}")
-            else:
-                st.write("previously_served_this_fy column not found")
-
-            # Calculate avg books/child
-            st.markdown("**Avg Books/Child Calculation:**")
-            avg_calc = books_all / children if children > 0 else 0
-            st.write(f"Formula: books_all / children")
-            st.write(f"= {books_all:,.0f} / {children:,.0f}")
-            st.write(f"= **{avg_calc:.2f}** books/child")
-
-            # Trend data preview
-            st.markdown("**Trend Aggregation Preview:**")
-            if "avg_books_per_child" in processor.df.columns:
-                # Use debug=True to print detailed calculation to console
-                trend_df = processor.aggregate_by_time("month", ["avg_books_per_child"], debug=True)
-                if not trend_df.empty:
-                    st.write(f"Periods: {len(trend_df)}")
-                    st.dataframe(trend_df, use_container_width=True, height=150)
-                else:
-                    st.write("No trend data available")
-            else:
-                st.write("avg_books_per_child column not found")
-
-            # Age breakdown debug
-            st.markdown("**Age Group Columns:**")
-            age_cols = ["children_035_months", "children_03_years", "children_35_years",
-                       "children_34_years", "children_68_years", "children_512_years",
-                       "children_912_years", "teens"]
-            for col in age_cols:
-                if col in processor.df.columns:
-                    total = processor.df[col].sum()
-                    st.write(f"{col}: {total:,.0f}")
-
-    # Note: Previously served children exclusion is handled by DataProcessor._exclude_previously_served_children()
-    # which zeros out both children counts AND books distributed for those rows
 
     # Calculate book bank children (Open Book Distribution program)
     # Handle both string and array values for legacy records
@@ -5011,9 +4731,6 @@ def main():
     st.markdown("---")
 
     render_export_section(processor)
-    st.markdown("---")
-
-    render_debug_avg_books_section(processor)
 
     # Footer
     st.markdown("---")
