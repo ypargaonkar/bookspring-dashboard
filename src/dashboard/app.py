@@ -4608,11 +4608,11 @@ def main():
         fusioo_cache_time = get_fusioo_cache_timestamp()
         next_refresh_time = fusioo_cache_time + timedelta(hours=72)
 
-        cache_time_str = fusioo_cache_time.strftime("%b %d, %Y at %I:%M %p CT")
-        next_refresh_str = next_refresh_time.strftime("%b %d, %Y at %I:%M %p CT")
+        cache_date_str = fusioo_cache_time.strftime("%b %d, %I:%M %p")
+        next_date_str = next_refresh_time.strftime("%b %d, %I:%M %p")
 
-        st.markdown(f"**Last refresh:** {cache_time_str}")
-        st.markdown(f"**Next auto-refresh:** {next_refresh_str}")
+        st.markdown(f"**Last:** {cache_date_str}")
+        st.markdown(f"**Next:** {next_date_str}")
         st.caption("Use buttons below to refresh manually")
 
         # Refresh buttons
