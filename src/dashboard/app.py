@@ -119,6 +119,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Force sidebar to always be expanded on load
+st.markdown("""
+<script>
+    // Clear any saved sidebar state so it always opens expanded
+    localStorage.removeItem('sidebar');
+    sessionStorage.removeItem('sidebar');
+</script>
+""", unsafe_allow_html=True)
+
 # Modern CSS with glassmorphism, animations, and beautiful styling
 st.markdown("""
 <style>
