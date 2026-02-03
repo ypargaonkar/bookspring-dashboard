@@ -119,6 +119,77 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Custom sidebar toggle button using components.html for JavaScript execution
+import streamlit.components.v1 as components
+
+components.html("""
+<style>
+    .sidebar-toggle {
+        position: fixed;
+        top: 14px;
+        left: 14px;
+        z-index: 999999;
+        background: #1a365d;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        transition: all 0.2s ease;
+    }
+    .sidebar-toggle:hover {
+        background: #2c5282;
+        transform: scale(1.05);
+    }
+    .hamburger {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .hamburger span {
+        display: block;
+        width: 20px;
+        height: 2.5px;
+        background: white;
+        border-radius: 2px;
+        transition: all 0.2s ease;
+    }
+</style>
+<button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+    <div class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+</button>
+<script>
+    function toggleSidebar() {
+        // Find and click Streamlit's native sidebar toggle button
+        const parent = window.parent.document;
+        const collapseBtn = parent.querySelector('[data-testid="collapsedControl"]');
+        const expandBtn = parent.querySelector('[data-testid="stSidebarCollapseButton"]');
+
+        if (collapseBtn) {
+            collapseBtn.click();
+        } else if (expandBtn) {
+            expandBtn.click();
+        } else {
+            // Try alternative selectors
+            const anyToggle = parent.querySelector('button[kind="header"]') ||
+                             parent.querySelector('[data-testid="stSidebar"] button');
+            if (anyToggle) anyToggle.click();
+        }
+    }
+
+    // Auto-expand sidebar on load
+    setTimeout(() => {
+        const parent = window.parent.document;
+        const collapseBtn = parent.querySelector('[data-testid="collapsedControl"]');
+        if (collapseBtn) collapseBtn.click();
+    }, 100);
+</script>
+""", height=0)
+
 # Modern CSS with glassmorphism, animations, and beautiful styling
 st.markdown("""
 <style>
