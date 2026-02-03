@@ -163,59 +163,9 @@ st.markdown("""
         background: transparent;
     }
 
-    /* Hide Streamlit branding - keep sidebar toggle visible */
+    /* Hide Streamlit branding */
     #MainMenu, footer {visibility: hidden;}
     .stDeployButton, [data-testid="manage-app-button"], [data-testid="stStatusWidget"] {display: none !important;}
-
-    /* Style sidebar toggle button - hide text, show icon */
-    [data-testid="collapsedControl"],
-    [data-testid="collapsedControl"] button,
-    button[kind="headerNoPadding"] {
-        font-size: 0 !important;
-        color: transparent !important;
-        background: #1a365d !important;
-        border-radius: 8px !important;
-        padding: 12px 14px !important;
-        margin: 10px !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-        overflow: hidden !important;
-        min-width: 44px !important;
-        min-height: 44px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    [data-testid="collapsedControl"]::after,
-    [data-testid="collapsedControl"] button::after,
-    button[kind="headerNoPadding"]::after {
-        content: "☰" !important;
-        font-size: 1.5rem !important;
-        color: white !important;
-        visibility: visible !important;
-    }
-    [data-testid="collapsedControl"] *,
-    button[kind="headerNoPadding"] * {
-        font-size: 0 !important;
-        color: transparent !important;
-        visibility: hidden !important;
-    }
-    /* Close button in sidebar header */
-    [data-testid="stSidebarCollapseButton"] button,
-    [data-testid="stSidebarCollapseButton"] {
-        font-size: 0 !important;
-        color: transparent !important;
-        overflow: hidden !important;
-    }
-    [data-testid="stSidebarCollapseButton"]::after {
-        content: "✕" !important;
-        font-size: 1.2rem !important;
-        color: #64748b !important;
-        visibility: visible !important;
-    }
-    [data-testid="stSidebarCollapseButton"] * {
-        font-size: 0 !important;
-        visibility: hidden !important;
-    }
 
     /* ========================================
        HERO HEADER
