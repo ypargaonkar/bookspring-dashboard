@@ -167,16 +167,33 @@ st.markdown("""
     #MainMenu, footer, [data-testid="stToolbar"], .stDeployButton, [data-testid="manage-app-button"] {visibility: hidden;}
     .stAppDeployButton, ._container_gzau3_1, [data-testid="stStatusWidget"] {display: none !important;}
 
-    /* Ensure sidebar toggle is always visible */
-    [data-testid="collapsedControl"] {
+    /* Ensure sidebar expand button is always visible when collapsed */
+    [data-testid="collapsedControl"],
+    [data-testid="stSidebarCollapsedControl"],
+    .stSidebarCollapsedControl,
+    button[kind="header"],
+    [data-testid="baseButton-header"] {
         display: flex !important;
         visibility: visible !important;
-        color: #1a365d;
-        background: white;
-        border-radius: 4px;
-        padding: 8px;
-        margin: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        opacity: 1 !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 10px !important;
+        z-index: 999999 !important;
+        background: #1a365d !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 10px 14px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        cursor: pointer !important;
+    }
+    [data-testid="collapsedControl"] svg,
+    [data-testid="stSidebarCollapsedControl"] svg,
+    button[kind="header"] svg {
+        width: 20px !important;
+        height: 20px !important;
+        fill: white !important;
+        stroke: white !important;
     }
 
     /* ========================================
