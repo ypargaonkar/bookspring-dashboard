@@ -181,12 +181,6 @@ components.html("""
         }
     }
 
-    // Auto-expand sidebar on load
-    setTimeout(() => {
-        const parent = window.parent.document;
-        const collapseBtn = parent.querySelector('[data-testid="collapsedControl"]');
-        if (collapseBtn) collapseBtn.click();
-    }, 100);
 </script>
 """, height=0)
 
