@@ -119,6 +119,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Force sidebar to always be expanded
+import streamlit.components.v1 as components
+components.html("""
+<script>
+    function forceExpandSidebar() {
+        const parent = window.parent.document;
+        // Click the expand button if sidebar is collapsed
+        const expandBtn = parent.querySelector('[data-testid="collapsedControl"]');
+        if (expandBtn) {
+            expandBtn.click();
+        }
+    }
+    // Run on load and keep checking
+    forceExpandSidebar();
+    setTimeout(forceExpandSidebar, 500);
+    setTimeout(forceExpandSidebar, 1000);
+    setTimeout(forceExpandSidebar, 2000);
+</script>
+""", height=0)
+
 # Modern CSS with glassmorphism, animations, and beautiful styling
 st.markdown("""
 <style>
