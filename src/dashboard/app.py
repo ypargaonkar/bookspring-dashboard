@@ -1255,6 +1255,15 @@ def _get_ttl_until_sunday_3am_ct():
     return 604800  # 7 days in seconds
 
 
+@st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())
+def get_fusioo_cache_timestamp():
+    """Return timestamp when Fusioo data cache was last refreshed.
+
+    Uses the same TTL as data functions so it refreshes at the same time.
+    """
+    return datetime.now(ZoneInfo("America/Chicago"))
+
+
 @st.cache_data(ttl=_get_ttl_until_sunday_3am_ct())  # Cache until Sunday 3AM CT
 def load_activity_data():
     """Load activity data from Fusioo API with caching."""
@@ -4864,12 +4873,11 @@ def main():
         enrollment_count, b3_low_income_pct = load_b3_low_income_stats()
         events_data = load_events_data()
         partners_data = load_partners_data()
+        fusioo_cache_time = get_fusioo_cache_timestamp()
 
     # Combine current and legacy activity data
-    legacy_count = 0
     if legacy_records:
         combined_records = combine_activity_data(activity_records, legacy_records)
-        legacy_count = len(combined_records) - len(activity_records)
     else:
         combined_records = activity_records
 
@@ -4877,10 +4885,10 @@ def main():
         st.error("Could not load activity data. Please check API credentials.")
         return
 
-    # Show data source info in sidebar
+    # Show cache refresh time in sidebar
     with st.sidebar:
-        if legacy_count > 0:
-            st.info(f"📊 Includes {legacy_count:,} legacy records (pre-July 2025)")
+        cache_time_str = fusioo_cache_time.strftime("%b %d, %Y at %I:%M %p CT")
+        st.info(f"📊 Data cached: {cache_time_str}")
 
     processor = DataProcessor(combined_records)
     processor = processor.filter_by_date_range(start_date, end_date)
