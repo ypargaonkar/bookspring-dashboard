@@ -4798,20 +4798,6 @@ def main():
     """Main dashboard function."""
     # Sidebar
     with st.sidebar:
-        # 2030 Targets at the top
-        st.markdown("##### 🎯 2030 Targets")
-        st.markdown("""
-        <div class="sidebar-targets">
-            <div class="sidebar-target-item">📚 <strong>600K</strong> books/year</div>
-            <div class="sidebar-target-item">👶 <strong>150K</strong> children/year</div>
-            <div class="sidebar-target-item">📖 <strong>4</strong> books/child</div>
-            <div class="sidebar-target-item">💰 <strong>$3M</strong> budget</div>
-            <div class="sidebar-target-item">📱 <strong>1.5M</strong> digital views</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("---")
-
         # Date Range
         st.markdown("##### 📅 Date Range")
         today = datetime.now(ZoneInfo("America/Chicago"))
@@ -4829,6 +4815,18 @@ def main():
 
         st.markdown("---")
 
+        # Data Cache Info
+        st.markdown("##### 📊 Data Cache")
+        fusioo_cache_time = get_fusioo_cache_timestamp()
+        next_refresh_time = fusioo_cache_time + timedelta(hours=72)
+
+        cache_time_str = fusioo_cache_time.strftime("%b %d, %Y at %I:%M %p CT")
+        next_refresh_str = next_refresh_time.strftime("%b %d, %Y at %I:%M %p CT")
+
+        st.markdown(f"**Last refresh:** {cache_time_str}")
+        st.markdown(f"**Next auto-refresh:** {next_refresh_str}")
+        st.caption("Use buttons below to refresh manually")
+
         # Refresh buttons
         # Check if running on localhost for financial refresh button
         is_localhost = os.getenv("HOSTNAME", "localhost") == "localhost" or "localhost" in os.getenv("STREAMLIT_SERVER_ADDRESS", "localhost")
@@ -4839,15 +4837,17 @@ def main():
                 st.toast("Refreshing financial metrics...", icon="💰")
                 st.rerun()
 
-        if st.button("🔄 Refresh Data from Fusioo", use_container_width=True, help="Click to pull latest data from Fusioo (excludes legacy data)"):
+        if st.button("🔄 Refresh Fusioo Data", use_container_width=True, help="Click to pull latest data from Fusioo (excludes legacy data)"):
             load_activity_data.clear()
             load_original_books.clear()
             load_content_views.clear()
+            get_fusioo_cache_timestamp.clear()
             st.toast("Fetching fresh data from Fusioo...", icon="🔄")
             st.rerun()
 
-        if st.button("📜 Refresh Legacy Data from Fusioo", use_container_width=True, help="Refresh only legacy data (pre-July 2025)"):
+        if st.button("📜 Refresh Legacy Data", use_container_width=True, help="Refresh only legacy data (pre-July 2025)"):
             load_legacy_data.clear()
+            get_fusioo_cache_timestamp.clear()
             st.toast("Fetching fresh legacy data from Fusioo...", icon="📜")
             st.rerun()
 
@@ -4856,7 +4856,7 @@ def main():
             st.toast("Refreshing events data...", icon="📅")
             st.rerun()
 
-        if st.button("🔄 Refresh Data from DonorPerfect", use_container_width=True, help="Re-run SQL queries and refresh donor metrics"):
+        if st.button("💝 Refresh DonorPerfect", use_container_width=True, help="Re-run SQL queries and refresh donor metrics"):
             load_donorperfect_contact_metrics.clear()
             load_individual_donor_metrics.clear()
             load_donor_metrics_by_type.clear()
@@ -4873,7 +4873,6 @@ def main():
         enrollment_count, b3_low_income_pct = load_b3_low_income_stats()
         events_data = load_events_data()
         partners_data = load_partners_data()
-        fusioo_cache_time = get_fusioo_cache_timestamp()
 
     # Combine current and legacy activity data
     if legacy_records:
@@ -4884,11 +4883,6 @@ def main():
     if not combined_records:
         st.error("Could not load activity data. Please check API credentials.")
         return
-
-    # Show cache refresh time in sidebar
-    with st.sidebar:
-        cache_time_str = fusioo_cache_time.strftime("%b %d, %Y at %I:%M %p CT")
-        st.info(f"📊 Data cached: {cache_time_str}")
 
     processor = DataProcessor(combined_records)
     processor = processor.filter_by_date_range(start_date, end_date)
