@@ -163,9 +163,29 @@ st.markdown("""
         background: transparent;
     }
 
-    /* Hide Streamlit branding */
-    #MainMenu, footer {visibility: hidden;}
-    .stDeployButton, [data-testid="manage-app-button"], [data-testid="stStatusWidget"] {display: none !important;}
+    /* Hide Streamlit branding, toolbar, and manage app button */
+    #MainMenu, footer, [data-testid="stToolbar"], .stDeployButton, [data-testid="manage-app-button"] {visibility: hidden;}
+    .stAppDeployButton, ._container_gzau3_1, [data-testid="stStatusWidget"] {display: none !important;}
+
+    /* Fix sidebar toggle button icon */
+    button[kind="headerNoPadding"] span {
+        font-size: 0 !important;
+    }
+    button[kind="headerNoPadding"] span::before {
+        content: "☰";
+        font-size: 1.5rem;
+        color: #1a365d;
+    }
+    [data-testid="collapsedControl"] {
+        color: #1a365d;
+    }
+    [data-testid="collapsedControl"] svg {
+        display: none;
+    }
+    [data-testid="collapsedControl"]::before {
+        content: "☰";
+        font-size: 1.5rem;
+    }
 
     /* ========================================
        HERO HEADER
