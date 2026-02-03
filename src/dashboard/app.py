@@ -167,6 +167,39 @@ st.markdown("""
     #MainMenu, footer {visibility: hidden;}
     .stDeployButton, [data-testid="manage-app-button"], [data-testid="stStatusWidget"] {display: none !important;}
 
+    /* Style sidebar toggle button with hamburger icon */
+    [data-testid="collapsedControl"] {
+        background: #1a365d !important;
+        border-radius: 8px !important;
+        padding: 8px 12px !important;
+        margin: 10px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+    }
+    [data-testid="collapsedControl"] span {
+        font-size: 0 !important;
+        visibility: hidden !important;
+    }
+    [data-testid="collapsedControl"]::before {
+        content: "☰";
+        font-size: 1.4rem;
+        color: white;
+        visibility: visible;
+    }
+    /* Close button in sidebar header */
+    [data-testid="stSidebarCollapseButton"] {
+        background: transparent !important;
+    }
+    [data-testid="stSidebarCollapseButton"] span {
+        font-size: 0 !important;
+        visibility: hidden !important;
+    }
+    [data-testid="stSidebarCollapseButton"]::before {
+        content: "✕";
+        font-size: 1.2rem;
+        color: #64748b;
+        visibility: visible;
+    }
+
     /* ========================================
        HERO HEADER
        ======================================== */
