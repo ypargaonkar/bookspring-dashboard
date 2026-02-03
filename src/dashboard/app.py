@@ -197,8 +197,8 @@ st.markdown("""
         display: block !important;
         visibility: visible !important;
         transform: none !important;
-        width: 300px !important;
-        min-width: 300px !important;
+        width: 225px !important;
+        min-width: 225px !important;
     }
     [data-testid="stSidebarContent"] {
         display: block !important;
