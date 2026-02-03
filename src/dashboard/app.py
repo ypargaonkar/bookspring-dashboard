@@ -167,24 +167,16 @@ st.markdown("""
     #MainMenu, footer, [data-testid="stToolbar"], .stDeployButton, [data-testid="manage-app-button"] {visibility: hidden;}
     .stAppDeployButton, ._container_gzau3_1, [data-testid="stStatusWidget"] {display: none !important;}
 
-    /* Fix sidebar toggle button icon */
-    button[kind="headerNoPadding"] span {
-        font-size: 0 !important;
-    }
-    button[kind="headerNoPadding"] span::before {
-        content: "☰";
-        font-size: 1.5rem;
-        color: #1a365d;
-    }
+    /* Ensure sidebar toggle is always visible */
     [data-testid="collapsedControl"] {
+        display: flex !important;
+        visibility: visible !important;
         color: #1a365d;
-    }
-    [data-testid="collapsedControl"] svg {
-        display: none;
-    }
-    [data-testid="collapsedControl"]::before {
-        content: "☰";
-        font-size: 1.5rem;
+        background: white;
+        border-radius: 4px;
+        padding: 8px;
+        margin: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     /* ========================================
