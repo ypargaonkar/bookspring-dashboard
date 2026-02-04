@@ -4607,7 +4607,7 @@ def main():
         st.markdown("##### 📊 Data Cache")
         fusioo_cache_time = get_fusioo_cache_timestamp()
         cache_date_str = fusioo_cache_time.strftime("%b %d, %I:%M %p")
-        st.markdown(f"**Last Auto Refresh:** {cache_date_str}")
+        st.markdown(f"**Last Auto Refresh:**<br>{cache_date_str}", unsafe_allow_html=True)
         st.caption("Use buttons below to refresh manually")
 
         # Refresh buttons
