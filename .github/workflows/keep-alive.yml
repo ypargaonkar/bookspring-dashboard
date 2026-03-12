@@ -6,6 +6,7 @@ on:
     - cron: '10 3 * * *'   # 9:10PM CT
     - cron: '10 9 * * *'   # 3:10AM CT
     - cron: '10 15 * * *'  # 9:10AM CT
+    - cron: '15 17 * * *'  # 12:15PM CT — triggers financial data refresh after noon cache expiry
     - cron: '10 21 * * *'  # 3:10PM CT
   workflow_dispatch: # Allow manual trigger
 

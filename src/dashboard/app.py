@@ -1377,12 +1377,14 @@ def load_b3_low_income_stats():
 
 
 def _get_ttl_until_noon_refresh():
-    """Cache financial data for 24 hours.
-
-    Simple fixed TTL to ensure cache works reliably.
-    Manual refresh available via sidebar button.
-    """
-    return 86400  # 24 hours in seconds
+    """Return seconds until next 12:05pm CT, so the cache expires right after
+    the Google Sheet finishes its daily update (11am-12pm CT window)."""
+    ct = ZoneInfo("America/Chicago")
+    now = datetime.now(ct)
+    next_refresh = now.replace(hour=12, minute=5, second=0, microsecond=0)
+    if now >= next_refresh:
+        next_refresh += timedelta(days=1)
+    return int((next_refresh - now).total_seconds())
 
 
 @st.cache_data(ttl=_get_ttl_until_noon_refresh())  # Cache until 12:05pm daily
@@ -4100,7 +4102,7 @@ def render_financial_metrics(financial_df: pd.DataFrame = None):
         <div class="section-icon financial">💰</div>
         <div class="section-title-group">
             <h2 class="section-title">Financial Metrics</h2>
-            <p class="section-note">🔒 Tracks current fiscal year {current_fy} · Updates daily at noon · Adjusting date range in sidebar will not affect these metrics</p>
+            <p class="section-note">🔒 Tracks current fiscal year {current_fy} · Updates daily at ~12:15pm CT · Adjusting date range in sidebar will not affect these metrics</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -4607,7 +4609,7 @@ def main():
         st.markdown("##### 📊 Data Cache")
         fusioo_cache_time = get_fusioo_cache_timestamp()
         cache_date_str = fusioo_cache_time.strftime("%b %d, %I:%M %p")
-        st.markdown(f"**Last Auto Refresh:**<br>{cache_date_str}", unsafe_allow_html=True)
+        st.markdown(f"**Last Refresh:**<br>{cache_date_str}", unsafe_allow_html=True)
         st.caption("Use buttons below to refresh manually")
 
         # Refresh buttons
@@ -4630,7 +4632,6 @@ def main():
 
         if st.button("📜 Refresh Legacy Data", use_container_width=True, help="Refresh only legacy data (pre-July 2025)"):
             load_legacy_data.clear()
-            get_fusioo_cache_timestamp.clear()
             st.toast("Fetching fresh legacy data from Fusioo...", icon="📜")
             st.rerun()
 
