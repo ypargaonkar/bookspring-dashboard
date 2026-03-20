@@ -2806,8 +2806,13 @@ def render_goal1_strengthen_impact(processor: DataProcessor, time_unit: str):
         total_books = processor.df["_books_distributed_all"].sum()
     else:
         total_books = processor.df["_of_books_distributed"].sum() if "_of_books_distributed" in processor.df.columns else 0
-    # Use total_children field directly (excludes previously served)
-    total_children = processor.df["total_children"].sum() if "total_children" in processor.df.columns else 0
+    # Use sum of age-group columns for children count (consistent with trend charts).
+    # This avoids divergence when total_children differs from the sum of age breakdowns.
+    age_cols_for_total = ["children_035_months", "children_03_years", "children_35_years",
+                          "children_34_years", "children_68_years", "children_512_years",
+                          "children_912_years", "teens"]
+    existing_age_cols = [c for c in age_cols_for_total if c in processor.df.columns]
+    total_children = processor.df[existing_age_cols].fillna(0).sum().sum() if existing_age_cols else 0
     avg_overall = total_books / total_children if total_children > 0 else 0
     target = 4.0
     pct = (avg_overall / target * 100) if target > 0 else 0

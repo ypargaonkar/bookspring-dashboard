@@ -314,9 +314,13 @@ class DataProcessor:
                 all_age_cols.extend(sources)
             all_age_cols = list(set(all_age_cols))  # Remove duplicates
 
-            if books_col in df.columns and children_col in df.columns:
-                # Use total_children_all directly for children count
-                df["_total_children_for_agg"] = df[children_col].fillna(0)
+            if books_col in df.columns and all_age_cols:
+                # Use sum of age-group columns as denominator for BOTH the overall
+                # trend and per-age-group charts.  This ensures consistency: the
+                # age-group lines will always weight-average back to the overall,
+                # avoiding Simpson's Paradox caused by total_children being larger
+                # than the sum of age breakdowns (unclassified children).
+                df["_total_children_for_agg"] = df[all_age_cols].fillna(0).sum(axis=1)
 
                 if debug:
                     print(f"Age columns used: {all_age_cols}")
