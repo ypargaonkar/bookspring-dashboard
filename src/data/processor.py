@@ -348,33 +348,44 @@ class DataProcessor:
                         how="left"
                     )
 
-                # For age group metrics, calculate average only for activities
-                # where that age group was present
+                # For age group metrics, prorate books proportionally to each
+                # age group's share of children.  This avoids Simpson's Paradox
+                # where every age group can trend up while the overall trends down
+                # (caused by the old approach of filtering activities per age group).
                 for metric_col, source_cols in age_group_sources.items():
                     if metric_col in ratio_metrics_requested:
-                        # Filter to rows where this age group has children
                         age_children = df[source_cols].fillna(0).sum(axis=1)
-                        df_with_age = df[age_children > 0]
+                        total_children = df["_total_children_for_agg"]
 
-                        if not df_with_age.empty:
-                            # Calculate average for this age group's activities
-                            age_period_sums = df_with_age.groupby("period", dropna=True).agg({
-                                books_col: "sum",
-                                "_total_children_for_agg": "sum"
-                            }).reset_index()
+                        # Prorate: estimated books for this age group =
+                        #   total_books × (age_group_children / total_children)
+                        prorated_books = (
+                            df[books_col].fillna(0) * age_children
+                            / total_children.replace(0, float('nan'))
+                        ).fillna(0)
 
-                            age_period_sums[metric_col] = age_period_sums.apply(
-                                lambda row: row[books_col] / row["_total_children_for_agg"]
-                                if row["_total_children_for_agg"] > 0 else 0,
-                                axis=1
-                            )
+                        df["_prorated_books"] = prorated_books
+                        df["_age_children"] = age_children
 
-                            result = result.merge(
-                                age_period_sums[["period", metric_col]],
-                                on="period",
-                                how="left"
-                            )
-                            result[metric_col] = result[metric_col].fillna(0)
+                        age_period_sums = df.groupby("period", dropna=True).agg({
+                            "_prorated_books": "sum",
+                            "_age_children": "sum"
+                        }).reset_index()
+
+                        age_period_sums[metric_col] = age_period_sums.apply(
+                            lambda row: row["_prorated_books"] / row["_age_children"]
+                            if row["_age_children"] > 0 else 0,
+                            axis=1
+                        )
+
+                        result = result.merge(
+                            age_period_sums[["period", metric_col]],
+                            on="period",
+                            how="left"
+                        )
+                        result[metric_col] = result[metric_col].fillna(0)
+
+                        df.drop(["_prorated_books", "_age_children"], axis=1, inplace=True)
 
                 # Clean up temp column
                 df.drop("_total_children_for_agg", axis=1, inplace=True)
